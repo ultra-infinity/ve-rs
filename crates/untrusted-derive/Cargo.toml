@@ -2,6 +2,7 @@
 name = "untrusted-derive"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "`#[derive(Decode)]` for the `untrusted` crate"
 

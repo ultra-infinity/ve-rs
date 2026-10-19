@@ -2,6 +2,7 @@
 name = "cargo-untrusted"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish = false
 description = "`cargo untrusted verify`: formally verify a crate's `Decode` impls"
 
