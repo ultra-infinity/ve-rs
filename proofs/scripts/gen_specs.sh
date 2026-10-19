@@ -281,4 +281,50 @@ import Untrusted.Proofs.Bytes" untrusted.reader
   printf '\nend untrusted.reader\n'
 } > "$out_dir/ReadTyped.lean"
 
-echo "Wrote Int.lean, Bytes.lean and ReadTyped.lean in $out_dir"
+# --- `DecodesAs` instances for the integer `Decode` impls ------------------------
+
+parses_as_instance() {
+  local order=$1 t=$2 n=$3 num value eq
+  if [[ $order == BigEndian ]]; then num=beNat; else num=leNat; fi
+  if is_signed "$t"; then
+    value="(x : $t).bv = BitVec.ofNat $((8 * n)) ($num (l.take $n))"
+    eq="(IScalar.eq_equiv_bv_eq (v : $t) v').mpr (hD.2.2.trans hD'.2.2.symm)"
+  else
+    value="(x : $t).val = $num (l.take $n)"
+    eq="(UScalar.eq_equiv (v : $t) v').mpr (hD.2.2.trans hD'.2.2.symm)"
+  fi
+  local inst="$order$t.Insts.UntrustedReaderDecode"
+  cat <<EOF
+
+/-- **Spec theorem for \`<$order<${t,,}> as Decode>::decode\`**: a $n-byte field. -/
+instance _root_.untrusted.bytes.$inst.decode.spec :
+    DecodesAs $inst
+      (fun l x k => k = $n ∧ $n ≤ l.length ∧ $value)
+      (fun l => l.length < $n) where
+  spec r h := by
+    simp only [$inst.decode]
+    apply WP.spec_mono (Reader.read.$order${t}_spec r h)
+    rintro ⟨_ | _, r'⟩ hpost
+    · obtain ⟨hle, hv, hin, hpos, hinv⟩ := hpost
+      exact ⟨hin, hinv, $n, ⟨rfl, hle, hv⟩, hpos⟩
+    · obtain ⟨hlt, -, rfl⟩ := hpost
+      exact ⟨rfl, h, hlt⟩
+  disjoint _ _ _ hD hF := Nat.lt_irrefl _ (Nat.lt_of_lt_of_le hF hD.2.1)
+  functional _ v _ v' _ hD hD' := ⟨$eq, hD.1.trans hD'.1.symm⟩
+EOF
+}
+
+{
+  header "import Untrusted.Proofs.DecodesAs
+import Untrusted.Proofs.ReadTyped" untrusted.reader
+  printf '\nopen bytes\n'
+  for order in BigEndian LittleEndian; do
+    for spec in U8:1 I8:1 U16:2 U32:4 U64:8 U128:16 I16:2 I32:4 I64:8 I128:16; do
+      IFS=: read -r t n <<< "$spec"
+      parses_as_instance "$order" "$t" "$n"
+    done
+  done
+  printf '\nend untrusted.reader\n'
+} > "$out_dir/DecodesInt.lean"
+
+echo "Wrote Int.lean, Bytes.lean, ReadTyped.lean and DecodesInt.lean in $out_dir"

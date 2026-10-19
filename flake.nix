@@ -56,7 +56,10 @@
                 ./Cargo.lock
                 ./Makefile
                 ./crates
+                ./examples
                 ./proofs/Untrusted
+                ./proofs/DeriveDemo
+                ./proofs/lakefile.toml
               ];
             };
             # The sandbox has no network access: vendor the crates.io deps.
@@ -73,6 +76,13 @@
               make extract
               diff -ru proofs-committed/Untrusted proofs/Untrusted || {
                 echo 'ERROR: generated Lean files are stale. Run `make extract`.'
+                exit 1
+              }
+              # The example user crate's model, linked against `Untrusted`.
+              cargo run -q -p cargo-untrusted -- untrusted verify -p derive-demo \
+                --lean-dir proofs --extract-only
+              diff -ru proofs-committed/DeriveDemo proofs/DeriveDemo || {
+                echo 'ERROR: the derive-demo model is stale. Run `make verify-demo`.'
                 exit 1
               }
             '';

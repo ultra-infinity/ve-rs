@@ -4,3 +4,5 @@ import Untrusted.Proofs.Int
 import Untrusted.Proofs.Bytes
 import Untrusted.Proofs.Reader
 import Untrusted.Proofs.ReadTyped
+import Untrusted.Proofs.DecodesAs
+import Untrusted.Proofs.DecodesInt

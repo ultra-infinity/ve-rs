@@ -4,7 +4,7 @@
 //! implicit truncation or padding. `usize`/`isize` are deliberately not
 //! supported since their width is platform dependent.
 
-use crate::{Validate, ValidationError};
+use crate::{Decode, Reader, Validate, ValidationError};
 
 /// An integer decoded from big-endian (network order) bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,6 +129,28 @@ impl_multi_byte! {
     i64, u64, 8;
     i128, u128, 16;
 }
+
+/// Every fixed-width integer is also a [`Decode`] field, read with
+/// [`Reader::read`], so derived decoders handle all fields uniformly.
+/// (The parameter is not named `reader`: that would shadow the `reader`
+/// namespace in the generated Lean.)
+macro_rules! impl_decode {
+    ($($t:ty),+) => {$(
+        impl Decode for BigEndian<$t> {
+            fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+                r.read::<Self>()
+            }
+        }
+
+        impl Decode for LittleEndian<$t> {
+            fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+                r.read::<Self>()
+            }
+        }
+    )+};
+}
+
+impl_decode!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
 
 #[cfg(test)]
 mod tests {

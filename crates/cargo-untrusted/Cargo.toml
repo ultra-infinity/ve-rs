@@ -1,0 +1,8 @@
+[package]
+name = "cargo-untrusted"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "`cargo untrusted verify`: formally verify a crate's `Decode` impls"
+
+[dependencies]

@@ -5,9 +5,9 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo aeneas-pin clean
 
-all: extract verify
+all: extract verify verify-demo
 
 build:
 	cargo build --workspace
@@ -37,6 +37,10 @@ specs:
 # Download prebuilt Mathlib oleans (Aeneas depends on Mathlib).
 lean-deps:
 	cd $(PROOFS) && lake exe cache get
+
+# Formally verify the `Decode` impls of the example user crate.
+verify-demo:
+	cargo run -q -p cargo-untrusted -- untrusted verify -p derive-demo --lean-dir $(PROOFS)
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

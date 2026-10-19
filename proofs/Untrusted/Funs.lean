@@ -1441,6 +1441,430 @@ def bytes.LittleEndianI128.Insts.UntrustedValidateSharedASliceU8ValidationError
     bytes.LittleEndianI128.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
+/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::remaining]:
+    Source: 'crates/untrusted/src/reader.rs', lines 89:4-91:5
+    Visibility: public -/
+def reader.Reader.remaining (self : reader.Reader) : Result Std.Usize := do
+  let i := Slice.len self.input
+  i - self.pos
+
+/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::read]:
+    Source: 'crates/untrusted/src/reader.rs', lines 155:4-167:5
+    Visibility: public -/
+def reader.Reader.read
+  {T : Type _} (bytesFixedLenInst : bytes.FixedLen T)
+  (ValidateTSharedASliceU8ValidationErrorInst : Validate T (Slice Std.U8)
+  ValidationError) (self : reader.Reader) :
+  Result ((core.result.Result T ValidationError) × reader.Reader)
+  := do
+  let i ← reader.Reader.remaining self
+  let i1 ← bytesFixedLenInst.LEN
+  if i1 > i
+  then ok (core.result.Result.Err ValidationError.EndOfInput, self)
+  else
+    let «end» ← self.pos + i1
+    let s ←
+      core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
+        Std.U8) self.input { start := self.pos, «end» }
+    let r ← ValidateTSharedASliceU8ValidationErrorInst.validate s
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      ok (core.result.Result.Ok val, { self with pos := «end» })
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r1 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          T (core.convert.FromSame ValidationError) residual
+      ok (r1, self)
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u8>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianU8.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.U8) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianU8.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianU8.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u8>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianU8.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.U8) := {
+  decode := bytes.BigEndianU8.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u8>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianU8.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.U8) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianU8.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianU8.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u8>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianU8.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.U8) := {
+  decode := bytes.LittleEndianU8.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u16>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianU16.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.U16) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u16>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianU16.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.U16) := {
+  decode := bytes.BigEndianU16.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u16>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianU16.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.U16) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianU16.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u16>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianU16.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.U16) := {
+  decode := bytes.LittleEndianU16.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u32>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianU32.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.U32) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianU32.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u32>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianU32.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.U32) := {
+  decode := bytes.BigEndianU32.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u32>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianU32.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.U32) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianU32.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u32>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianU32.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.U32) := {
+  decode := bytes.LittleEndianU32.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u64>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianU64.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.U64) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianU64.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianU64.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u64>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianU64.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.U64) := {
+  decode := bytes.BigEndianU64.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u64>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianU64.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.U64) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianU64.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianU64.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u64>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianU64.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.U64) := {
+  decode := bytes.LittleEndianU64.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u128>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianU128.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.U128) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianU128.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianU128.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<u128>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianU128.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.U128) := {
+  decode := bytes.BigEndianU128.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u128>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianU128.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.U128) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianU128.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianU128.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<u128>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianU128.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.U128) := {
+  decode := bytes.LittleEndianU128.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i8>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianI8.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.I8) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianI8.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianI8.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i8>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianI8.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.I8) := {
+  decode := bytes.BigEndianI8.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i8>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianI8.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.I8) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianI8.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianI8.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i8>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianI8.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.I8) := {
+  decode := bytes.LittleEndianI8.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i16>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianI16.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.I16) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianI16.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianI16.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i16>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianI16.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.I16) := {
+  decode := bytes.BigEndianI16.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i16>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianI16.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.I16) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianI16.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianI16.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i16>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianI16.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.I16) := {
+  decode := bytes.LittleEndianI16.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i32>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianI32.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.I32) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianI32.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianI32.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i32>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianI32.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.I32) := {
+  decode := bytes.BigEndianI32.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i32>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianI32.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.I32) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianI32.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianI32.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i32>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianI32.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.I32) := {
+  decode := bytes.LittleEndianI32.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i64>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianI64.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.I64) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianI64.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianI64.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i64>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianI64.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.I64) := {
+  decode := bytes.BigEndianI64.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i64>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianI64.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.I64) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianI64.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianI64.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i64>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianI64.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.I64) := {
+  decode := bytes.LittleEndianI64.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i128>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 140:12-142:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.BigEndianI128.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.BigEndian Std.I128) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.BigEndianI128.Insts.UntrustedBytesFixedLen
+    bytes.BigEndianI128.Insts.UntrustedValidateSharedASliceU8ValidationError r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::BigEndian<i128>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 139:8-143:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.BigEndianI128.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.BigEndian Std.I128) := {
+  decode := bytes.BigEndianI128.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i128>}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 146:12-148:13; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62
+    Visibility: public -/
+def bytes.LittleEndianI128.Insts.UntrustedReaderDecode.decode
+  (r : reader.Reader) :
+  Result ((core.result.Result (bytes.LittleEndian Std.I128) ValidationError) ×
+    reader.Reader)
+  := do
+  reader.Reader.read bytes.LittleEndianI128.Insts.UntrustedBytesFixedLen
+    bytes.LittleEndianI128.Insts.UntrustedValidateSharedASliceU8ValidationError
+    r
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for untrusted::bytes::LittleEndian<i128>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 145:8-149:9; this code is generated from a macro invocation at: 'crates/untrusted/src/bytes.rs', lines 153:0-153:62 -/
+@[reducible]
+def bytes.LittleEndianI128.Insts.UntrustedReaderDecode : reader.Decode
+  (bytes.LittleEndian Std.I128) := {
+  decode := bytes.LittleEndianI128.Insts.UntrustedReaderDecode.decode
+}
+
 /-- [untrusted::int::{impl untrusted::Validate<u8, untrusted::ValidationError> for u16}::validate]:
     Source: 'crates/untrusted/src/int.rs', lines 16:12-23:13; this code is generated from a macro invocation at: 'crates/untrusted/src/int.rs', lines 76:0-83:1
     Visibility: public -/
@@ -4302,13 +4726,13 @@ def I128.Insts.UntrustedValidateIsizeValidationError : Validate Std.I128
 }
 
 /-- [untrusted::{untrusted::Untrusted<T>}::new]:
-    Source: 'crates/untrusted/src/lib.rs', lines 34:4-36:5
+    Source: 'crates/untrusted/src/lib.rs', lines 75:4-77:5
     Visibility: public -/
 def Untrusted.new {T : Type _} (inner : T) : Result (Untrusted T) := do
   ok inner
 
 /-- [untrusted::{untrusted::Untrusted<T>}::validate]:
-    Source: 'crates/untrusted/src/lib.rs', lines 39:4-41:5
+    Source: 'crates/untrusted/src/lib.rs', lines 80:4-82:5
     Visibility: public -/
 def Untrusted.validate
   {T : Type _} {U : Type _} {Clause0_Err : Type _} (ValidateInst : Validate U T
@@ -4318,7 +4742,7 @@ def Untrusted.validate
   ValidateInst.validate self
 
 /-- [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}::fmt]:
-    Source: 'crates/untrusted/src/lib.rs', lines 50:9-50:14
+    Source: 'crates/untrusted/src/lib.rs', lines 91:9-91:14
     Visibility: public -/
 def ValidationError.Insts.CoreFmtDebug.fmt
   (self : ValidationError) (f : core.fmt.Formatter) :
@@ -4339,21 +4763,21 @@ def ValidationError.Insts.CoreFmtDebug.fmt
     core.fmt.Formatter.write_str f (toStr "TrailingData")
 
 /-- Trait implementation: [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:9-50:14 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:9-91:14 -/
 @[reducible]
 def ValidationError.Insts.CoreFmtDebug : core.fmt.Debug ValidationError := {
   fmt := ValidationError.Insts.CoreFmtDebug.fmt
 }
 
 /-- [untrusted::{impl core::clone::Clone for untrusted::ValidationError}::clone]:
-    Source: 'crates/untrusted/src/lib.rs', lines 50:16-50:21
+    Source: 'crates/untrusted/src/lib.rs', lines 91:16-91:21
     Visibility: public -/
 def ValidationError.Insts.CoreCloneClone.clone
   (self : ValidationError) : Result ValidationError := do
   ok self
 
 /-- Trait implementation: [untrusted::{impl core::clone::Clone for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:16-50:21 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:16-91:21 -/
 @[reducible]
 def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
   := {
@@ -4361,7 +4785,7 @@ def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::Copy for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:23-50:27 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:23-91:27 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
   := {
@@ -4369,14 +4793,14 @@ def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::StructuralPartialEq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:29-50:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerStructuralPartialEq :
   core.marker.StructuralPartialEq ValidationError := {
 }
 
 /-- [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}::eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 50:29-50:38
+    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38
     Visibility: public -/
 def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   (self : ValidationError) (other : ValidationError) : Result Bool := do
@@ -4401,7 +4825,7 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   else ok false
 
 /-- Trait implementation: [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:29-50:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
   ValidationError ValidationError := {
@@ -4409,14 +4833,14 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
 }
 
 /-- [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}::assert_fields_are_eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 50:40-50:42
+    Source: 'crates/untrusted/src/lib.rs', lines 91:40-91:42
     Visibility: public -/
 def ValidationError.Insts.CoreCmpEq.assert_fields_are_eq
   (self : ValidationError) : Result Unit := do
   ok ()
 
 /-- Trait implementation: [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 50:40-50:42 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 91:40-91:42 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpEq : core.cmp.Eq ValidationError := {
   partialEqInst := ValidationError.Insts.CoreCmpPartialEqValidationError
@@ -4431,7 +4855,7 @@ def reader.Reader.at_end (self : reader.Reader) : Result Bool := do
   ok (self.pos = i)
 
 /-- [untrusted::reader::{untrusted::reader::Reader<'a>}::finish]:
-    Source: 'crates/untrusted/src/reader.rs', lines 158:4-164:5 -/
+    Source: 'crates/untrusted/src/reader.rs', lines 171:4-177:5 -/
 def reader.Reader.finish
   (self : reader.Reader) :
   Result (core.result.Result Unit ValidationError)
@@ -4445,10 +4869,11 @@ def reader.Reader.finish
     Source: 'crates/untrusted/src/reader.rs', lines 74:4-84:5
     Visibility: public -/
 def reader.UntrustedShared0SliceU8.read_all
-  {P : Type _} (ParseInst : reader.Parse P) (self : Untrusted (Slice Std.U8)) :
+  {P : Type _} (DecodeInst : reader.Decode P) (self : Untrusted (Slice Std.U8))
+  :
   Result (core.result.Result P ValidationError)
   := do
-  let (r, cursor) ← ParseInst.parse { input := self, pos := 0#usize }
+  let (r, cursor) ← DecodeInst.decode { input := self, pos := 0#usize }
   let cf ← core.result.Result.Insts.CoreOpsTry.branch r
   match cf with
   | core.ops.control_flow.ControlFlow.Continue val =>
@@ -4463,13 +4888,6 @@ def reader.UntrustedShared0SliceU8.read_all
   | core.ops.control_flow.ControlFlow.Break residual =>
     core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual P
       (core.convert.FromSame ValidationError) residual
-
-/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::remaining]:
-    Source: 'crates/untrusted/src/reader.rs', lines 89:4-91:5
-    Visibility: public -/
-def reader.Reader.remaining (self : reader.Reader) : Result Std.Usize := do
-  let i := Slice.len self.input
-  i - self.pos
 
 /-- [untrusted::reader::{untrusted::reader::Reader<'a>}::peek]:
     Source: 'crates/untrusted/src/reader.rs', lines 99:4-101:5
@@ -4546,33 +4964,16 @@ def reader.Reader.read_bytes_to_end
   let i := Slice.len self.input
   ok (rest, { self with pos := i })
 
-/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::read]:
-    Source: 'crates/untrusted/src/reader.rs', lines 142:4-154:5
+/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::decode]:
+    Source: 'crates/untrusted/src/reader.rs', lines 142:4-151:5
     Visibility: public -/
-def reader.Reader.read
-  {T : Type _} (bytesFixedLenInst : bytes.FixedLen T)
-  (ValidateTSharedASliceU8ValidationErrorInst : Validate T (Slice Std.U8)
-  ValidationError) (self : reader.Reader) :
-  Result ((core.result.Result T ValidationError) × reader.Reader)
+def reader.Reader.decode
+  {P : Type _} (DecodeInst : reader.Decode P) (self : reader.Reader) :
+  Result ((core.result.Result P ValidationError) × reader.Reader)
   := do
-  let i ← reader.Reader.remaining self
-  let i1 ← bytesFixedLenInst.LEN
-  if i1 > i
-  then ok (core.result.Result.Err ValidationError.EndOfInput, self)
-  else
-    let «end» ← self.pos + i1
-    let s ←
-      core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
-        Std.U8) self.input { start := self.pos, «end» }
-    let r ← ValidateTSharedASliceU8ValidationErrorInst.validate s
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue val =>
-      ok (core.result.Result.Ok val, { self with pos := «end» })
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          T (core.convert.FromSame ValidationError) residual
-      ok (r1, self)
+  let (r, self1) ← DecodeInst.decode self
+  match r with
+  | core.result.Result.Ok _ => ok (r, self1)
+  | core.result.Result.Err _ => ok (r, { self with input := self1.input })
 
 end untrusted

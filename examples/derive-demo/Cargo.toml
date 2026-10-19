@@ -1,0 +1,8 @@
+[package]
+name = "derive-demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+untrusted = { path = "../../crates/untrusted" }

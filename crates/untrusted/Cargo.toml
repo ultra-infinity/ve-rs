@@ -8,3 +8,4 @@ publish = false
 path = "src/lib.rs"
 
 [dependencies]
+untrusted-derive = { path = "../untrusted-derive" }

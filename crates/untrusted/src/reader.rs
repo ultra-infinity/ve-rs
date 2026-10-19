@@ -1,11 +1,11 @@
 //! Sequential reading of untrusted byte strings.
 //!
-//! A [`Reader`] is only available inside [`Parse::parse`], called by
-//! [`Untrusted::read_all`], which fails unless the parse consumes every byte:
+//! A [`Reader`] is only available inside [`Decode::decode`], called by
+//! [`Untrusted::read_all`], which fails unless decoding consumes every byte:
 //! trailing data can never be ignored by accident. Every reader method either
 //! succeeds and advances, or fails and leaves the reader unchanged. Sub-slices
 //! are handed out as [`Untrusted`] again, so they too must be validated (exact
-//! length) or parsed with `read_all` (must finish) before use.
+//! length) or decoded with `read_all` (must finish) before use.
 
 use crate::{FixedLen, Untrusted, Validate, ValidationError};
 
@@ -17,32 +17,32 @@ pub struct Reader<'a> {
     pos: usize,
 }
 
-/// A type parsed from a sequence of bytes with a [`Reader`].
+/// A type decoded from a sequence of bytes with a [`Reader`].
 ///
-/// `parse` only ever borrows the reader, so it cannot skip the trailing-data
+/// `decode` only ever borrows the reader, so it cannot skip the trailing-data
 /// check that [`Untrusted::read_all`] performs once it returns.
 ///
-/// Parsed values own their data: they cannot borrow from the input. (A
+/// Decoded values own their data: they cannot borrow from the input. (A
 /// lifetime linking the two is beyond what Aeneas can currently translate.)
-pub trait Parse: Sized {
-    fn parse(reader: &mut Reader<'_>) -> Result<Self, ValidationError>;
+pub trait Decode: Sized {
+    fn decode(reader: &mut Reader<'_>) -> Result<Self, ValidationError>;
 }
 
 impl Untrusted<&[u8]> {
-    /// Parses the whole input as a `P`.
+    /// Decodes the whole input as a `P`.
     ///
-    /// Fails with [`ValidationError::TrailingData`] if `P::parse` succeeds
-    /// without consuming every byte, so a parse can never silently ignore
+    /// Fails with [`ValidationError::TrailingData`] if `P::decode` succeeds
+    /// without consuming every byte, so decoding can never silently ignore
     /// extra input.
     ///
     /// ```
-    /// use untrusted::{BigEndian, Parse, Reader, Untrusted, ValidationError};
+    /// use untrusted::{BigEndian, Decode, Reader, Untrusted, ValidationError};
     ///
     /// #[derive(Debug, PartialEq)]
     /// struct Port(u16);
     ///
-    /// impl Parse for Port {
-    ///     fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    /// impl Decode for Port {
+    ///     fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
     ///         Ok(Port(r.read::<BigEndian<u16>>()?.0))
     ///     }
     /// }
@@ -62,23 +62,23 @@ impl Untrusted<&[u8]> {
     /// ```
     ///
     /// ```compile_fail,E0624
-    /// # use untrusted::{Parse, Reader, ValidationError};
+    /// # use untrusted::{Decode, Reader, ValidationError};
     /// struct Skip;
-    /// impl Parse for Skip {
-    ///     fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    /// impl Decode for Skip {
+    ///     fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
     ///         r.finish()?;
     ///         Ok(Skip)
     ///     }
     /// }
     /// ```
-    pub fn read_all<P: Parse>(self) -> Result<P, ValidationError> {
+    pub fn read_all<P: Decode>(self) -> Result<P, ValidationError> {
         // Not named `reader`: that would shadow the `reader` namespace in the
         // generated Lean.
         let mut cursor = Reader {
             input: self.0,
             pos: 0,
         };
-        let value = P::parse(&mut cursor)?;
+        let value = P::decode(&mut cursor)?;
         cursor.finish()?;
         Ok(value)
     }
@@ -137,6 +137,19 @@ impl<'a> Reader<'a> {
         Untrusted(rest)
     }
 
+    /// Decodes a `P` from the next bytes, e.g. a nested struct or field. On
+    /// failure nothing is consumed.
+    pub fn decode<P: Decode>(&mut self) -> Result<P, ValidationError> {
+        let start = self.pos;
+        match P::decode(self) {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                self.pos = start;
+                Err(e)
+            }
+        }
+    }
+
     /// Reads exactly `T::LEN` bytes and validates them as a `T`, e.g.
     /// `reader.read::<BigEndian<u32>>()`. On failure nothing is consumed.
     pub fn read<T>(&mut self) -> Result<T, ValidationError>
@@ -178,7 +191,7 @@ mod tests {
         }
     }
 
-    fn all<P: Parse>(bytes: &[u8]) -> Result<P, ValidationError> {
+    fn all<P: Decode>(bytes: &[u8]) -> Result<P, ValidationError> {
         Untrusted::new(bytes).read_all::<P>()
     }
 
@@ -189,8 +202,8 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct Pair(u8, u8);
 
-    impl Parse for Pair {
-        fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    impl Decode for Pair {
+        fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
             Ok(Pair(r.read_byte()?, r.read_byte()?))
         }
     }
@@ -198,8 +211,8 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct Nothing;
 
-    impl Parse for Nothing {
-        fn parse(_: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    impl Decode for Nothing {
+        fn decode(_: &mut Reader<'_>) -> Result<Self, ValidationError> {
             Ok(Nothing)
         }
     }
@@ -208,8 +221,8 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct FirstOfRest(Option<u8>);
 
-    impl Parse for FirstOfRest {
-        fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    impl Decode for FirstOfRest {
+        fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
             Ok(FirstOfRest(bytes(r.read_bytes_to_end()).first().copied()))
         }
     }
@@ -218,8 +231,8 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct Prefixed(u16);
 
-    impl Parse for Prefixed {
-        fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    impl Decode for Prefixed {
+        fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
             let len = r.read_byte()?;
             let body = r.read_bytes(len as usize)?;
             Ok(Prefixed(body.read_all::<Be16>()?.0))
@@ -228,8 +241,8 @@ mod tests {
 
     struct Be16(u16);
 
-    impl Parse for Be16 {
-        fn parse(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+    impl Decode for Be16 {
+        fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
             Ok(Be16(r.read::<BigEndian<u16>>()?.0))
         }
     }
@@ -304,6 +317,32 @@ mod tests {
         assert_eq!(all::<Nothing>(&[0]), Err(ValidationError::TrailingData));
         assert_eq!(all::<FirstOfRest>(&[1, 2, 3]), Ok(FirstOfRest(Some(1))));
         assert_eq!(all::<FirstOfRest>(&[]), Ok(FirstOfRest(None)));
+    }
+
+    /// Two fields, the second of which must not be consumed on failure.
+    #[derive(Debug, PartialEq)]
+    struct Header(BigEndian<u8>, BigEndian<u16>);
+
+    impl Decode for Header {
+        fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+            Ok(Header(r.decode()?, r.decode()?))
+        }
+    }
+
+    #[test]
+    fn parse_is_transactional() {
+        let mut r = reader(&[1, 2]);
+        assert_eq!(r.decode::<Header>(), Err(ValidationError::EndOfInput));
+        assert_eq!(r.remaining(), 2);
+        assert_eq!(r.decode::<BigEndian<u16>>(), Ok(BigEndian(0x0102)));
+        assert_eq!(
+            all::<Header>(&[1, 0, 2]),
+            Ok(Header(BigEndian(1), BigEndian(2)))
+        );
+        assert_eq!(
+            all::<Header>(&[1, 0, 2, 3]),
+            Err(ValidationError::TrailingData)
+        );
     }
 
     #[test]

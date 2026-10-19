@@ -10,3 +10,6 @@ rev = "e62dd83d133d9043e7d3628096838b7430f36565"
 
 [[lean_lib]]
 name = "Untrusted"
+
+[[lean_lib]]
+name = "DeriveDemo"

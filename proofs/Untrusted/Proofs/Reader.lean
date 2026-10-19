@@ -160,15 +160,15 @@ theorem Reader.read.spec {T : Type} (lenInst : bytes.FixedLen T)
 
 /-- **Spec theorem for `untrusted::Untrusted::read_all`**, for any `P`.
 
-If `P::parse`, run on a fresh reader over `self`, satisfies `Q` (and, like
-every parse built from the reader's methods, keeps the reader valid and on the
-same input), then `read_all` succeeds exactly when the parse succeeded *and*
-left no byte unread. A successful parse that leaves bytes over is turned into
+If `P::decode`, run on a fresh reader over `self`, satisfies `Q` (and, like
+every decoder built from the reader's methods, keeps the reader valid and on the
+same input), then `read_all` succeeds exactly when decoding succeeded *and*
+left no byte unread. A successful decode that leaves bytes over is turned into
 `TrailingData`. -/
-theorem UntrustedShared0SliceU8.read_all.spec {P : Type} (inst : Parse P)
+theorem UntrustedShared0SliceU8.read_all.spec {P : Type} (inst : Decode P)
     (self : Untrusted (Slice U8))
     (Q : core.result.Result P ValidationError → Reader → Prop)
-    (hparse : inst.parse { input := self, pos := 0#usize }
+    (hparse : inst.decode { input := self, pos := 0#usize }
       ⦃ (res : core.result.Result P ValidationError) (r' : Reader) =>
         Q res r' ∧ r'.input = self ∧ Reader.Inv r' ⦄) :
     UntrustedShared0SliceU8.read_all inst self

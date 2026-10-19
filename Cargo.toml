@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/untrusted"]
+members = [
+  "crates/untrusted",
+  "crates/untrusted-derive",
+  "crates/cargo-untrusted",
+  "examples/derive-demo",
+]
 
 [workspace.package]
 version = "0.1.0"
