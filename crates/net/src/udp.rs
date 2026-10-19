@@ -149,7 +149,7 @@ impl<'a> Validate<&'a [u8]> for Ipv6Udp<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::ipv4::tests::{packet, Count};
     use crate::ipv4::PROTO_ICMP;

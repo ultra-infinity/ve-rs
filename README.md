@@ -60,43 +60,98 @@ assert_eq!(
 - **`#[derive(Decode)]`:** decodes a struct's fields one after another, in
   declaration order. Works for named, tuple and unit structs.
 
-## Example: Ethernet II frames (`crates/net`)
+## Example: a network stack up to UDP (`crates/net`)
 
-The `net` crate is a verified decoder for Ethernet II frames, built on
-`untrusted`:
+The `net` crate is a verified decoder for network packets, from Ethernet II
+frames up to UDP, built on `untrusted`. Each layer hands its payload back
+still `Untrusted`, and the next layer validates it:
 
 ```rust
-let frame = Untrusted::new(bytes).validate::<net::ethernet::Frame>()?;
+let frame = Untrusted::new(bytes_with_fcs).validate::<net::ethernet::FrameWithFcs>()?.frame;
 // frame.header.dst, frame.header.src,
 // frame.header.tagging.vlan (an optional 802.1Q tag), frame.header.tagging.ether_type
-// frame.payload is still `Untrusted`: the next layer (e.g. IPv4) validates it.
 
-// With the trailing frame check sequence:
-let checked = Untrusted::new(bytes_with_fcs).validate::<net::ethernet::FrameWithFcs>()?;
+match frame.header.tagging.ether_type.0 {
+    net::ipv4::ETHER_TYPE_IPV4 => {
+        let udp = frame.payload.validate::<net::udp::Ipv4Udp>()?;
+        // udp.ip.header (addresses, TTL, …), udp.header (ports, …), udp.payload
+    }
+    net::ipv6::ETHER_TYPE_IPV6 => {
+        let udp = frame.payload.validate::<net::udp::Ipv6Udp>()?;
+    }
+    net::arp::ETHER_TYPE_ARP => {
+        let arp = frame.payload.validate::<net::arp::Arp>()?;
+    }
+    _ => {}
+}
 ```
 
-`Frame::validate` is proved to accept **exactly** the well-formed frames:
-- untagged: a 14-byte header and 46 to 1500 bytes of payload;
-- 802.1Q-tagged (bytes 12–13 are `0x8100`): an 18-byte header and 42 to 1500
-  bytes of payload. The tag's VLAN ID is never the reserved `0xFFF`, and
-  stacked tags (QinQ) are rejected;
-- an EtherType of at least `0x0600` (smaller values are 802.3 lengths);
-- the header fields decoded in order;
-- the payload exactly the remaining bytes, borrowed from the input without
-  copying.
+Every `validate` is proved to accept **exactly** the well-formed inputs
+described below, and to return their decoding. Variable-length parts
+(payloads, IPv4 options, link-layer padding) are borrowed from the input
+without copying. Padding is handed back explicitly rather than dropped.
 
-`FrameWithFcs::validate` additionally accepts exactly the frames whose last 4
-bytes (least significant first) are the CRC-32 of the rest. The Rust CRC is
-proved equal to a Lean definition of the IEEE 802.3 CRC-32, and that
-definition is checked in Lean's kernel against the standard check value
-(`"123456789"` gives `0xCBF43926`).
+- **`ethernet::Frame`:**
+  - untagged: a 14-byte header and 46 to 1500 bytes of payload;
+  - 802.1Q-tagged (bytes 12–13 are `0x8100`): an 18-byte header and 42 to
+    1500 bytes of payload. The tag's VLAN ID is never the reserved `0xFFF`,
+    and stacked tags (QinQ) are rejected;
+  - an EtherType of at least `0x0600` (smaller values are 802.3 lengths).
+- **`ethernet::FrameWithFcs`:** additionally, the last 4 bytes (least
+  significant first) are the CRC-32 of the rest.
+- **`arp::Arp`:** a 28-byte ARP packet for IPv4 over Ethernet (hardware type
+  1, protocol type `0x0800`, address lengths 6 and 4), whose operation is a
+  request (1) or a reply (2), followed by any padding.
+- **`ipv4::Ipv4Packet`:**
+  - version 4;
+  - a header length `hl = 4 × IHL` and a total length `tl` with
+    `20 ≤ hl ≤ tl ≤` the input length;
+  - a valid header checksum;
+  - the reserved flag bit clear.
+
+  Options (`[20, hl)`) are not interpreted, and bytes after `tl` are padding.
+  Fragments are accepted at this layer.
+- **`ipv6::Ipv6Packet`:** version 6 and at least `40 +` payload length bytes.
+  The next header is handed back as is, and bytes after the payload are
+  padding.
+- **`udp::Ipv4Udp`:**
+  - an IPv4 packet with protocol 17 that is not a fragment;
+  - a payload of at least 8 bytes whose UDP length equals the payload length;
+  - a checksum that is either 0 (none) or valid over the RFC 768
+    pseudo-header and the datagram.
+- **`udp::Ipv6Udp`:**
+  - an IPv6 packet with next header 17 (so no extension headers);
+  - the same length condition as over IPv4;
+  - a checksum that is non-zero (IPv6 makes it mandatory) and valid over the
+    RFC 8200 pseudo-header and the datagram.
+- **`icmp::Icmpv4`:** an IPv4 packet with protocol 1 that is not a fragment,
+  whose payload is at least 8 bytes long with a valid checksum.
+- **`icmp::Icmpv6`:** an IPv6 packet with next header 58, whose payload is at
+  least 8 bytes long with a valid checksum over the pseudo-header and the
+  payload.
+
+Two checksums are proved equal to their textbook definitions, and each
+definition is checked in Lean's kernel against a known value:
+- CRC-32: the IEEE 802.3 CRC-32, checked against `"123456789"`, which gives
+  `0xCBF43926`;
+- the Internet checksum (RFC 1071): the one's-complement sum, checked against a
+  worked IPv4 header that sums to `0xFFFF`.
+
+Not covered: reassembling fragments, IPv6 extension headers, interpreting IPv4
+options, ICMP message types or NDP, and encoding.
 
 It also shows how hand-written and derived proofs combine:
-- `MacAddr`, `EtherType`, `VlanTag` and `Tagging` have hand-written specs
-  (`proofs/Net/Fields.lean`), as does CRC-32 (`proofs/Net/Crc.lean`);
-- `EthernetHeader` is derived and proved automatically on top of them;
-- `Frame::validate` and `FrameWithFcs::validate` have hand-written specs
-  (`proofs/Net/ManualTop.lean`) that use the derived one.
+- field decoders that check values have hand-written specs:
+  - `proofs/Net/Fields.lean`: `MacAddr`, `EtherType`, `VlanTag`, `Tagging`;
+  - `proofs/Net/Ipv4Fields.lean`: `VersionIhl`, `Fragment`, `Ipv4Addr`;
+  - `proofs/Net/Ipv6Fields.lean`: `VersionClassFlow`, `Ipv6Addr`;
+  - `proofs/Net/ArpFields.lean`: `Operation`;
+- the checksums have hand-written specs too: `proofs/Net/Crc.lean` and
+  `proofs/Net/Checksum.lean`;
+- `EthernetHeader`, `Ipv4Header`, `Ipv6Header`, `UdpHeader`, `IcmpHeader` and
+  `ArpPacket` are derived and proved automatically on top of them;
+- each `validate` has a hand-written spec in `proofs/Net/*Top.lean` that uses
+  the derived ones and the spec of the layer below.
 
 ## Pros
 
@@ -204,7 +259,7 @@ make lean-deps            # one-time: download Mathlib's prebuilt cache (large)
 make test                 # Rust tests
 make extract verify       # translate the crate to Lean, check proofs, audit
 make verify-demo          # verify the example user crate
-make verify-net           # verify the `net` crate
+make verify-net           # verify the `net` crate (Ethernet up to UDP)
 nix flake check           # extraction up to date, Aeneas pin consistent
 ```
 
@@ -226,7 +281,7 @@ exits with an error if anything is unproved.
 | `crates/untrusted` | The library. |
 | `crates/untrusted-derive` | `#[derive(Decode)]` (untrusted generator). |
 | `crates/cargo-untrusted` | `cargo untrusted verify` (untrusted orchestrator). |
-| `crates/net` | Verified Ethernet II decoding (802.1Q tags, CRC-32 FCS), built on `untrusted`. |
+| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP, built on `untrusted`. |
 | `examples/derive-demo` | An example user crate, verified by `make verify-demo`. |
 | `proofs/Untrusted/{Types,Funs}.lean` | The Lean model, generated by `make extract`. |
 | `proofs/Untrusted/Spec.lean` | Specification vocabulary (`beNat`, ranges, …). |
