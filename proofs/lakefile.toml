@@ -1,0 +1,12 @@
+name = "untrusted"
+defaultTargets = ["Untrusted"]
+
+# Must match the `aeneas` revision locked in `../flake.lock`
+# (checked by `nix flake check`; update with `make aeneas-pin`).
+[[require]]
+name = "aeneas"
+git = { url = "https://github.com/AeneasVerif/aeneas", subDir = "backends/lean" }
+rev = "e62dd83d133d9043e7d3628096838b7430f36565"
+
+[[lean_lib]]
+name = "Untrusted"
