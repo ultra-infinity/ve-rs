@@ -19,11 +19,46 @@ set_option maxRecDepth 2048
 
 namespace net
 
+/-- [net::arp::EthernetIpv4]
+    Source: 'crates/net/src/arp.rs', lines 28:0-28:24
+    Visibility: public -/
+@[reducible]
+def arp.EthernetIpv4 := Unit
+
+/-- [net::arp::Operation]
+    Source: 'crates/net/src/arp.rs', lines 45:0-45:30
+    Visibility: public -/
+@[reducible]
+def arp.Operation := Std.U16
+
+/-- [net::ipv4::Ipv4Addr]
+    Source: 'crates/net/src/ipv4.rs', lines 30:0-30:29
+    Visibility: public -/
+@[reducible]
+def ipv4.Ipv4Addr := Std.U32
+
 /-- [net::ethernet::MacAddr]
     Source: 'crates/net/src/ethernet.rs', lines 44:0-44:32
     Visibility: public -/
 @[reducible]
 def ethernet.MacAddr := Array Std.U8 6#usize
+
+/-- [net::arp::ArpPacket]
+    Source: 'crates/net/src/arp.rs', lines 60:0-66:1
+    Visibility: public -/
+structure arp.ArpPacket where
+  op : arp.Operation
+  sender_mac : ethernet.MacAddr
+  sender_ip : ipv4.Ipv4Addr
+  target_mac : ethernet.MacAddr
+  target_ip : ipv4.Ipv4Addr
+
+/-- [net::arp::Arp]
+    Source: 'crates/net/src/arp.rs', lines 69:0-73:1
+    Visibility: public -/
+structure arp.Arp where
+  packet : arp.ArpPacket
+  padding : untrusted.Untrusted (Slice Std.U8)
 
 /-- [net::ethernet::EtherType]
     Source: 'crates/net/src/ethernet.rs', lines 60:0-60:30
@@ -89,12 +124,6 @@ structure ipv4.Fragment where
     Visibility: public -/
 structure ipv4.VersionIhl where
   ihl : Std.U8
-
-/-- [net::ipv4::Ipv4Addr]
-    Source: 'crates/net/src/ipv4.rs', lines 30:0-30:29
-    Visibility: public -/
-@[reducible]
-def ipv4.Ipv4Addr := Std.U32
 
 /-- [net::ipv4::Ipv4Header]
     Source: 'crates/net/src/ipv4.rs', lines 94:0-105:1

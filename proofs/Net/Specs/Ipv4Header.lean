@@ -1,6 +1,7 @@
 import Net.Funs
 import Untrusted
 import Net.Manual
+import Net.Specs.ArpPacket
 import Net.Specs.EthernetHeader
 import Net.Specs.IcmpHeader
 

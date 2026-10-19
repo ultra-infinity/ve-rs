@@ -23,6 +23,360 @@ noncomputable section
 
 namespace net
 
+/-- [net::arp::PACKET_LEN]
+    Source: 'crates/net/src/arp.rs', lines 19:0-19:33
+    Visibility: public -/
+@[global_simps, irreducible] def arp.PACKET_LEN : Std.Usize := 28#usize
+
+/-- [net::arp::OP_REQUEST]
+    Source: 'crates/net/src/arp.rs', lines 21:0-21:30
+    Visibility: public -/
+@[global_simps, irreducible] def arp.OP_REQUEST : Std.U16 := 1#u16
+
+/-- [net::arp::OP_REPLY]
+    Source: 'crates/net/src/arp.rs', lines 23:0-23:28
+    Visibility: public -/
+@[global_simps, irreducible] def arp.OP_REPLY : Std.U16 := 2#u16
+
+/-- [net::arp::{impl untrusted::reader::Decode for net::arp::EthernetIpv4}::decode]:
+    Source: 'crates/net/src/arp.rs', lines 31:4-39:5
+    Visibility: public -/
+def arp.EthernetIpv4.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result arp.EthernetIpv4 untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU32.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    if val != 67584#u32
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+    else
+      let (r3, r4) ←
+        untrusted.reader.Reader.read
+          untrusted.bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+          untrusted.bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+          r2
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        if val1 != 1540#u16
+        then
+          ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r4)
+        else ok (core.result.Result.Ok (), r4)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r5 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            arp.EthernetIpv4 (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        arp.EthernetIpv4 (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::arp::{impl untrusted::reader::Decode for net::arp::EthernetIpv4}]
+    Source: 'crates/net/src/arp.rs', lines 30:0-40:1 -/
+@[reducible]
+def arp.EthernetIpv4.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  arp.EthernetIpv4 := {
+  decode := arp.EthernetIpv4.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::arp::{impl untrusted::reader::Decode for net::arp::Operation}::decode]:
+    Source: 'crates/net/src/arp.rs', lines 48:4-55:5
+    Visibility: public -/
+def arp.Operation.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result arp.Operation untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode arp.EthernetIpv4.Insts.UntrustedReaderDecode
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.read
+        untrusted.bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+        untrusted.bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+        r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      if val != arp.OP_REQUEST
+      then
+        if val != arp.OP_REPLY
+        then
+          ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r4)
+        else ok (core.result.Result.Ok val, r4)
+      else ok (core.result.Result.Ok val, r4)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          arp.Operation (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        arp.Operation (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::arp::{impl untrusted::reader::Decode for net::arp::Operation}]
+    Source: 'crates/net/src/arp.rs', lines 47:0-56:1 -/
+@[reducible]
+def arp.Operation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  arp.Operation := {
+  decode := arp.Operation.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}::decode]:
+    Source: 'crates/net/src/ipv4.rs', lines 33:4-35:5
+    Visibility: public -/
+def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ipv4.Ipv4Addr untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU32.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ok (core.result.Result.Ok val, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ipv4.Ipv4Addr (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}]
+    Source: 'crates/net/src/ipv4.rs', lines 32:0-36:1 -/
+@[reducible]
+def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ipv4.Ipv4Addr := {
+  decode := ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}::decode]:
+    Source: 'crates/net/src/ethernet.rs', lines 47:4-55:5
+    Visibility: public -/
+def ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ethernet.MacAddr untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ← untrusted.reader.Reader.read_byte r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ← untrusted.reader.Reader.read_byte r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ← untrusted.reader.Reader.read_byte r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ← untrusted.reader.Reader.read_byte r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ← untrusted.reader.Reader.read_byte r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ← untrusted.reader.Reader.read_byte r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok
+                (Array.make 6#usize [ val, val1, val2, val3, val4, val5 ]),
+                r12)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  ethernet.MacAddr (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                ethernet.MacAddr (core.convert.FromSame
+                untrusted.ValidationError) residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ethernet.MacAddr (core.convert.FromSame
+              untrusted.ValidationError) residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}]
+    Source: 'crates/net/src/ethernet.rs', lines 46:0-56:1 -/
+@[reducible]
+def ethernet.MacAddr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ethernet.MacAddr := {
+  decode := ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::arp::{impl untrusted::reader::Decode for net::arp::ArpPacket}::decode]:
+    Source: 'crates/net/src/arp.rs', lines 59:9-59:15
+    Visibility: public -/
+def arp.ArpPacket.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result arp.ArpPacket untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode arp.Operation.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        ethernet.MacAddr.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode
+          ipv4.Ipv4Addr.Insts.UntrustedReaderDecode r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode
+            ethernet.MacAddr.Insts.UntrustedReaderDecode r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              ipv4.Ipv4Addr.Insts.UntrustedReaderDecode r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            ok (core.result.Result.Ok
+              {
+                op := val,
+                sender_mac := val1,
+                sender_ip := val2,
+                target_mac := val3,
+                target_ip := val4
+              }, r10)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                arp.ArpPacket (core.convert.FromSame untrusted.ValidationError)
+                residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              arp.ArpPacket (core.convert.FromSame untrusted.ValidationError)
+              residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            arp.ArpPacket (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          arp.ArpPacket (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        arp.ArpPacket (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::arp::{impl untrusted::reader::Decode for net::arp::ArpPacket}]
+    Source: 'crates/net/src/arp.rs', lines 59:9-59:15 -/
+@[reducible]
+def arp.ArpPacket.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  arp.ArpPacket := {
+  decode := arp.ArpPacket.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::arp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::arp::Arp<'a>}::validate]:
+    Source: 'crates/net/src/arp.rs', lines 78:4-87:5
+    Visibility: public -/
+def arp.Arp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result arp.Arp untrusted.ValidationError)
+  := do
+  let i := Slice.len input
+  if i < arp.PACKET_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let s ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+        { «end» := arp.PACKET_LEN }
+    let u ← untrusted.Untrusted.new s
+    let r ←
+      untrusted.reader.UntrustedShared0SliceU8.read_all
+        arp.ArpPacket.Insts.UntrustedReaderDecode u
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let s1 ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
+          { start := arp.PACKET_LEN }
+      let u1 ← untrusted.Untrusted.new s1
+      ok (core.result.Result.Ok { packet := val, padding := u1 })
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        arp.Arp (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [net::arp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::arp::Arp<'a>}]
+    Source: 'crates/net/src/arp.rs', lines 75:0-88:1 -/
+@[reducible]
+def arp.Arp.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate arp.Arp (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    arp.Arp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
 /-- [net::crc32::POLY]
     Source: 'crates/net/src/crc32.rs', lines 10:0-10:34
     Visibility: public -/
@@ -121,86 +475,6 @@ def ethernet.MIN_PAYLOAD_TAGGED : Std.Usize := 42#usize
     Source: 'crates/net/src/ethernet.rs', lines 40:0-40:29
     Visibility: public -/
 @[global_simps, irreducible] def ethernet.FCS_LEN : Std.Usize := 4#usize
-
-/-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}::decode]:
-    Source: 'crates/net/src/ethernet.rs', lines 47:4-55:5
-    Visibility: public -/
-def ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
-  (r : untrusted.reader.Reader) :
-  Result ((core.result.Result ethernet.MacAddr untrusted.ValidationError) ×
-    untrusted.reader.Reader)
-  := do
-  let (r1, r2) ← untrusted.reader.Reader.read_byte r
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (r3, r4) ← untrusted.reader.Reader.read_byte r2
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      let (r5, r6) ← untrusted.reader.Reader.read_byte r4
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let (r7, r8) ← untrusted.reader.Reader.read_byte r6
-        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
-        match cf3 with
-        | core.ops.control_flow.ControlFlow.Continue val3 =>
-          let (r9, r10) ← untrusted.reader.Reader.read_byte r8
-          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
-          match cf4 with
-          | core.ops.control_flow.ControlFlow.Continue val4 =>
-            let (r11, r12) ← untrusted.reader.Reader.read_byte r10
-            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
-            match cf5 with
-            | core.ops.control_flow.ControlFlow.Continue val5 =>
-              ok (core.result.Result.Ok
-                (Array.make 6#usize [ val, val1, val2, val3, val4, val5 ]),
-                r12)
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              let r13 ←
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  ethernet.MacAddr (core.convert.FromSame
-                  untrusted.ValidationError) residual
-              ok (r13, r12)
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            let r11 ←
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                ethernet.MacAddr (core.convert.FromSame
-                untrusted.ValidationError) residual
-            ok (r11, r10)
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          let r9 ←
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              ethernet.MacAddr (core.convert.FromSame
-              untrusted.ValidationError) residual
-          ok (r9, r8)
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r7 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
-            residual
-        ok (r7, r6)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r5 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
-          residual
-      ok (r5, r4)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let r3 ←
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ethernet.MacAddr (core.convert.FromSame untrusted.ValidationError)
-        residual
-    ok (r3, r2)
-
-/-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}]
-    Source: 'crates/net/src/ethernet.rs', lines 46:0-56:1 -/
-@[reducible]
-def ethernet.MacAddr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
-  ethernet.MacAddr := {
-  decode := ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
-}
 
 /-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::EtherType}::decode]:
     Source: 'crates/net/src/ethernet.rs', lines 63:4-70:5
@@ -700,38 +974,6 @@ def ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
 def ipv4.VersionIhl.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv4.VersionIhl := {
   decode := ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
-}
-
-/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}::decode]:
-    Source: 'crates/net/src/ipv4.rs', lines 33:4-35:5
-    Visibility: public -/
-def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
-  (r : untrusted.reader.Reader) :
-  Result ((core.result.Result ipv4.Ipv4Addr untrusted.ValidationError) ×
-    untrusted.reader.Reader)
-  := do
-  let (r1, r2) ←
-    untrusted.reader.Reader.read
-      untrusted.bytes.BigEndianU32.Insts.UntrustedBytesFixedLen
-      untrusted.bytes.BigEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
-      r
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    ok (core.result.Result.Ok val, r2)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let r3 ←
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        ipv4.Ipv4Addr (core.convert.FromSame untrusted.ValidationError)
-        residual
-    ok (r3, r2)
-
-/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}]
-    Source: 'crates/net/src/ipv4.rs', lines 32:0-36:1 -/
-@[reducible]
-def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
-  ipv4.Ipv4Addr := {
-  decode := ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
 }
 
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Header}::decode]:

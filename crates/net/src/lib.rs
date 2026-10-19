@@ -5,6 +5,7 @@
 
 #![no_std]
 
+pub mod arp;
 pub mod crc32;
 pub mod ethernet;
 pub mod icmp;
