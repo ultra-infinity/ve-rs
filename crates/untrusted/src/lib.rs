@@ -98,4 +98,6 @@ pub enum ValidationError {
     EndOfInput,
     /// A [`Reader`] was finished with bytes left unread.
     TrailingData,
+    /// A checksum in the input did not match the data it covers.
+    ChecksumMismatch,
 }

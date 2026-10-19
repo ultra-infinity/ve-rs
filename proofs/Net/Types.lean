@@ -20,30 +20,51 @@ set_option maxRecDepth 2048
 namespace net
 
 /-- [net::ethernet::MacAddr]
-    Source: 'crates/net/src/ethernet.rs', lines 25:0-25:32
+    Source: 'crates/net/src/ethernet.rs', lines 44:0-44:32
     Visibility: public -/
 @[reducible]
 def ethernet.MacAddr := Array Std.U8 6#usize
 
 /-- [net::ethernet::EtherType]
-    Source: 'crates/net/src/ethernet.rs', lines 41:0-41:30
+    Source: 'crates/net/src/ethernet.rs', lines 60:0-60:30
     Visibility: public -/
 @[reducible]
 def ethernet.EtherType := Std.U16
 
+/-- [net::ethernet::VlanTag]
+    Source: 'crates/net/src/ethernet.rs', lines 75:0-82:1
+    Visibility: public -/
+structure ethernet.VlanTag where
+  pcp : Std.U8
+  dei : Bool
+  vid : Std.U16
+
+/-- [net::ethernet::Tagging]
+    Source: 'crates/net/src/ethernet.rs', lines 101:0-104:1
+    Visibility: public -/
+structure ethernet.Tagging where
+  vlan : Option ethernet.VlanTag
+  ether_type : ethernet.EtherType
+
 /-- [net::ethernet::EthernetHeader]
-    Source: 'crates/net/src/ethernet.rs', lines 56:0-60:1
+    Source: 'crates/net/src/ethernet.rs', lines 133:0-137:1
     Visibility: public -/
 structure ethernet.EthernetHeader where
   dst : ethernet.MacAddr
   src : ethernet.MacAddr
-  ether_type : ethernet.EtherType
+  tagging : ethernet.Tagging
 
 /-- [net::ethernet::Frame]
-    Source: 'crates/net/src/ethernet.rs', lines 64:0-67:1
+    Source: 'crates/net/src/ethernet.rs', lines 142:0-145:1
     Visibility: public -/
 structure ethernet.Frame where
   header : ethernet.EthernetHeader
   payload : untrusted.Untrusted (Slice Std.U8)
+
+/-- [net::ethernet::FrameWithFcs]
+    Source: 'crates/net/src/ethernet.rs', lines 181:0-183:1
+    Visibility: public -/
+structure ethernet.FrameWithFcs where
+  frame : ethernet.Frame
 
 end net

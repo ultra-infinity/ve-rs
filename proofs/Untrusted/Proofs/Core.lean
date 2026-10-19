@@ -19,7 +19,8 @@ theorem Untrusted.validate_eq {T U E : Type} (inst : Validate U T E) (self : Unt
 
 /-- **Spec theorem for `untrusted::Untrusted::validate`**: whatever holds of the
     target's `Validate::validate` holds of `Untrusted::validate`. -/
-@[step]
+-- Not `@[step]`: its postcondition is a free function, which `step` cannot
+-- choose. Rewrite with `Untrusted.validate_eq` and step through the target instead.
 theorem Untrusted.validate.spec {T U E : Type} (inst : Validate U T E) (self : Untrusted T)
     (post : core.result.Result U E → Prop) (h : inst.validate self ⦃ r => post r ⦄) :
     Untrusted.validate inst self ⦃ r => post r ⦄ := h

@@ -23,28 +23,107 @@ noncomputable section
 
 namespace net
 
+/-- [net::crc32::POLY]
+    Source: 'crates/net/src/crc32.rs', lines 10:0-10:34
+    Visibility: public -/
+@[global_simps, irreducible] def crc32.POLY : Std.U32 := 3988292384#u32
+
+/-- [net::crc32::update]: loop 0:
+    Source: 'crates/net/src/crc32.rs', lines 27:4-30:5 -/
+@[rust_loop]
+def crc32.update_loop (c : Std.U32) (k : Std.I32) : Result Std.U32 := do
+  if k < 8#i32
+  then
+    let i ← lift (c &&& 1#u32)
+    let c1 ←
+      if i = 1#u32
+      then do
+           let i1 ← c >>> 1#i32
+           ok (i1 ^^^ crc32.POLY)
+      else c >>> 1#i32
+    let k1 ← k + 1#i32
+    crc32.update_loop c1 k1
+  else ok c
+partial_fixpoint
+
+/-- [net::crc32::update]:
+    Source: 'crates/net/src/crc32.rs', lines 24:0-32:1 -/
+def crc32.update (crc : Std.U32) (byte : Std.U8) : Result Std.U32 := do
+  let i ← lift (UScalar.cast .U32 byte)
+  let c ← lift (crc ^^^ i)
+  crc32.update_loop c 0#i32
+
+/-- [net::crc32::crc32]: loop 0:
+    Source: 'crates/net/src/crc32.rs', lines 16:4-19:5
+    Visibility: public -/
+@[rust_loop]
+def crc32.crc32_loop
+  (data : Slice Std.U8) (crc : Std.U32) (i : Std.Usize) : Result Std.U32 := do
+  let i1 := Slice.len data
+  if i < i1
+  then
+    let i2 ← Slice.index_usize data i
+    let crc1 ← crc32.update crc i2
+    let i3 ← i + 1#usize
+    crc32.crc32_loop data crc1 i3
+  else ok crc
+partial_fixpoint
+
+/-- [net::crc32::crc32]:
+    Source: 'crates/net/src/crc32.rs', lines 13:0-21:1
+    Visibility: public -/
+def crc32.crc32 (data : Slice Std.U8) : Result Std.U32 := do
+  let crc ← crc32.crc32_loop data 4294967295#u32 0#usize
+  ok (~~~ crc)
+
 /-- [net::ethernet::HEADER_LEN]
-    Source: 'crates/net/src/ethernet.rs', lines 15:0-15:33
+    Source: 'crates/net/src/ethernet.rs', lines 23:0-23:33
     Visibility: public -/
 @[global_simps, irreducible] def ethernet.HEADER_LEN : Std.Usize := 14#usize
 
+/-- [net::ethernet::VLAN_TAG_LEN]
+    Source: 'crates/net/src/ethernet.rs', lines 25:0-25:34
+    Visibility: public -/
+@[global_simps, irreducible] def ethernet.VLAN_TAG_LEN : Std.Usize := 4#usize
+
 /-- [net::ethernet::MIN_PAYLOAD]
-    Source: 'crates/net/src/ethernet.rs', lines 17:0-17:34
+    Source: 'crates/net/src/ethernet.rs', lines 28:0-28:34
     Visibility: public -/
 @[global_simps, irreducible] def ethernet.MIN_PAYLOAD : Std.Usize := 46#usize
 
+/-- [net::ethernet::MIN_PAYLOAD_TAGGED]
+    Source: 'crates/net/src/ethernet.rs', lines 30:0-30:41
+    Visibility: public -/
+@[global_simps, irreducible]
+def ethernet.MIN_PAYLOAD_TAGGED : Std.Usize := 42#usize
+
 /-- [net::ethernet::MAX_PAYLOAD]
-    Source: 'crates/net/src/ethernet.rs', lines 19:0-19:36
+    Source: 'crates/net/src/ethernet.rs', lines 32:0-32:36
     Visibility: public -/
 @[global_simps, irreducible] def ethernet.MAX_PAYLOAD : Std.Usize := 1500#usize
 
 /-- [net::ethernet::MIN_ETHER_TYPE]
-    Source: 'crates/net/src/ethernet.rs', lines 21:0-21:39
+    Source: 'crates/net/src/ethernet.rs', lines 34:0-34:39
     Visibility: public -/
 @[global_simps, irreducible] def ethernet.MIN_ETHER_TYPE : Std.U16 := 1536#u16
 
+/-- [net::ethernet::TPID_8021Q]
+    Source: 'crates/net/src/ethernet.rs', lines 36:0-36:35
+    Visibility: public -/
+@[global_simps, irreducible] def ethernet.TPID_8021Q : Std.U16 := 33024#u16
+
+/-- [net::ethernet::VID_RESERVED]
+    Source: 'crates/net/src/ethernet.rs', lines 38:0-38:37
+    Visibility: public -/
+@[global_simps, irreducible] def ethernet.VID_RESERVED : Std.U16 := 4095#u16
+
+/-- [net::ethernet::FCS_LEN]
+    Source: 'crates/net/src/ethernet.rs', lines 40:0-40:29
+    Visibility: public -/
+@[global_simps, irreducible] def ethernet.FCS_LEN : Std.Usize := 4#usize
+
 /-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}::decode]:
-    Source: 'crates/net/src/ethernet.rs', lines 28:4-36:5
+    Source: 'crates/net/src/ethernet.rs', lines 47:4-55:5
     Visibility: public -/
 def ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -116,7 +195,7 @@ def ethernet.MacAddr.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::MacAddr}]
-    Source: 'crates/net/src/ethernet.rs', lines 27:0-37:1 -/
+    Source: 'crates/net/src/ethernet.rs', lines 46:0-56:1 -/
 @[reducible]
 def ethernet.MacAddr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ethernet.MacAddr := {
@@ -124,7 +203,7 @@ def ethernet.MacAddr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::EtherType}::decode]:
-    Source: 'crates/net/src/ethernet.rs', lines 44:4-51:5
+    Source: 'crates/net/src/ethernet.rs', lines 63:4-70:5
     Visibility: public -/
 def ethernet.EtherType.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -150,15 +229,123 @@ def ethernet.EtherType.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::EtherType}]
-    Source: 'crates/net/src/ethernet.rs', lines 43:0-52:1 -/
+    Source: 'crates/net/src/ethernet.rs', lines 62:0-71:1 -/
 @[reducible]
 def ethernet.EtherType.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ethernet.EtherType := {
   decode := ethernet.EtherType.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::VlanTag}::decode]:
+    Source: 'crates/net/src/ethernet.rs', lines 85:4-96:5
+    Visibility: public -/
+def ethernet.VlanTag.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ethernet.VlanTag untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let vid ← lift (val &&& 4095#u16)
+    if vid = ethernet.VID_RESERVED
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+    else
+      let i ← val >>> 13#i32
+      let i1 ← lift (UScalar.cast .U8 i)
+      let i2 ← val >>> 12#i32
+      let i3 ← lift (i2 &&& 1#u16)
+      ok (core.result.Result.Ok { pcp := i1, dei := (i3 = 1#u16), vid }, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ethernet.VlanTag (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::VlanTag}]
+    Source: 'crates/net/src/ethernet.rs', lines 84:0-97:1 -/
+@[reducible]
+def ethernet.VlanTag.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ethernet.VlanTag := {
+  decode := ethernet.VlanTag.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::Tagging}::decode]:
+    Source: 'crates/net/src/ethernet.rs', lines 107:4-128:5
+    Visibility: public -/
+def ethernet.Tagging.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ethernet.Tagging untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    if val = ethernet.TPID_8021Q
+    then
+      let (r3, r4) ←
+        untrusted.reader.Reader.decode
+          ethernet.VlanTag.Insts.UntrustedReaderDecode r2
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (r5, r6) ←
+          untrusted.reader.Reader.decode
+            ethernet.EtherType.Insts.UntrustedReaderDecode r4
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          if val2 = ethernet.TPID_8021Q
+          then
+            ok (core.result.Result.Err untrusted.ValidationError.OutOfRange,
+              r6)
+          else
+            ok (core.result.Result.Ok
+              { vlan := (some val1), ether_type := val2 }, r6)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r7 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ethernet.Tagging (core.convert.FromSame
+              untrusted.ValidationError) residual
+          ok (r7, r6)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r5 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ethernet.Tagging (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r5, r4)
+    else
+      if val >= ethernet.MIN_ETHER_TYPE
+      then ok (core.result.Result.Ok { vlan := none, ether_type := val }, r2)
+      else ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ethernet.Tagging (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::Tagging}]
+    Source: 'crates/net/src/ethernet.rs', lines 106:0-129:1 -/
+@[reducible]
+def ethernet.Tagging.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ethernet.Tagging := {
+  decode := ethernet.Tagging.Insts.UntrustedReaderDecode.decode
+}
+
 /-- [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::EthernetHeader}::decode]:
-    Source: 'crates/net/src/ethernet.rs', lines 55:9-55:15
+    Source: 'crates/net/src/ethernet.rs', lines 132:9-132:15
     Visibility: public -/
 def ethernet.EthernetHeader.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -179,12 +366,12 @@ def ethernet.EthernetHeader.Insts.UntrustedReaderDecode.decode
     | core.ops.control_flow.ControlFlow.Continue val1 =>
       let (r5, r6) ←
         untrusted.reader.Reader.decode
-          ethernet.EtherType.Insts.UntrustedReaderDecode r4
+          ethernet.Tagging.Insts.UntrustedReaderDecode r4
       let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
       match cf2 with
       | core.ops.control_flow.ControlFlow.Continue val2 =>
-        ok (core.result.Result.Ok
-          { dst := val, src := val1, ether_type := val2 }, r6)
+        ok (core.result.Result.Ok { dst := val, src := val1, tagging := val2 },
+          r6)
       | core.ops.control_flow.ControlFlow.Break residual =>
         let r7 ←
           core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
@@ -205,7 +392,7 @@ def ethernet.EthernetHeader.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ethernet::{impl untrusted::reader::Decode for net::ethernet::EthernetHeader}]
-    Source: 'crates/net/src/ethernet.rs', lines 55:9-55:15 -/
+    Source: 'crates/net/src/ethernet.rs', lines 132:9-132:15 -/
 @[reducible]
 def ethernet.EthernetHeader.Insts.UntrustedReaderDecode :
   untrusted.reader.Decode ethernet.EthernetHeader := {
@@ -213,7 +400,7 @@ def ethernet.EthernetHeader.Insts.UntrustedReaderDecode :
 }
 
 /-- [net::ethernet::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ethernet::Frame<'a>}::validate]:
-    Source: 'crates/net/src/ethernet.rs', lines 72:4-88:5
+    Source: 'crates/net/src/ethernet.rs', lines 150:4-177:5
     Visibility: public -/
 def
   ethernet.Frame.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
@@ -224,44 +411,125 @@ def
   if i < ethernet.HEADER_LEN
   then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
   else
-    let i1 := Slice.len input
-    let payload_len ← i1 - ethernet.HEADER_LEN
-    if payload_len < ethernet.MIN_PAYLOAD
-    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    let i1 ← Slice.index_usize input 12#usize
+    let tagged ←
+      if i1 = 129#u8
+      then do
+           let i2 ← Slice.index_usize input 13#usize
+           ok (i2 = 0#u8)
+      else ok false
+    let (header_len, min_payload) ←
+      if tagged
+      then
+        do
+        let i2 ← ethernet.HEADER_LEN + ethernet.VLAN_TAG_LEN
+        ok (i2, ethernet.MIN_PAYLOAD_TAGGED)
+      else ok (ethernet.HEADER_LEN, ethernet.MIN_PAYLOAD)
+    let i2 := Slice.len input
+    if i2 < header_len
+    then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
     else
-      if payload_len > ethernet.MAX_PAYLOAD
+      let i3 := Slice.len input
+      let payload_len ← i3 - header_len
+      if payload_len < min_payload
       then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
       else
-        let s ←
-          core.slice.index.Slice.index
-            (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
-            { «end» := ethernet.HEADER_LEN }
-        let u ← untrusted.Untrusted.new s
-        let r ←
-          untrusted.reader.UntrustedShared0SliceU8.read_all
-            ethernet.EthernetHeader.Insts.UntrustedReaderDecode u
-        let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-        match cf with
-        | core.ops.control_flow.ControlFlow.Continue val =>
-          let s1 ←
+        if payload_len > ethernet.MAX_PAYLOAD
+        then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+        else
+          let s ←
             core.slice.index.Slice.index
-              (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
-              { start := ethernet.HEADER_LEN }
-          let u1 ← untrusted.Untrusted.new s1
-          ok (core.result.Result.Ok { header := val, payload := u1 })
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            ethernet.Frame (core.convert.FromSame untrusted.ValidationError)
-            residual
+              (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+              { «end» := header_len }
+          let u ← untrusted.Untrusted.new s
+          let r ←
+            untrusted.reader.UntrustedShared0SliceU8.read_all
+              ethernet.EthernetHeader.Insts.UntrustedReaderDecode u
+          let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+          match cf with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let s1 ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
+                { start := header_len }
+            let u1 ← untrusted.Untrusted.new s1
+            ok (core.result.Result.Ok { header := val, payload := u1 })
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ethernet.Frame (core.convert.FromSame untrusted.ValidationError)
+              residual
 
 /-- Trait implementation: [net::ethernet::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ethernet::Frame<'a>}]
-    Source: 'crates/net/src/ethernet.rs', lines 69:0-89:1 -/
+    Source: 'crates/net/src/ethernet.rs', lines 147:0-178:1 -/
 @[reducible]
 def ethernet.Frame.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate ethernet.Frame (Slice Std.U8) untrusted.ValidationError
   := {
   validate :=
     ethernet.Frame.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
+/-- [net::ethernet::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ethernet::FrameWithFcs<'a>}::validate]:
+    Source: 'crates/net/src/ethernet.rs', lines 188:4-202:5
+    Visibility: public -/
+def
+  ethernet.FrameWithFcs.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result ethernet.FrameWithFcs untrusted.ValidationError)
+  := do
+  let i := Slice.len input
+  if i < ethernet.FCS_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let i1 := Slice.len input
+    let body_len ← i1 - ethernet.FCS_LEN
+    let body ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+        { «end» := body_len }
+    let s ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
+        { start := body_len }
+    let u ← untrusted.Untrusted.new s
+    let r ←
+      untrusted.Untrusted.validate
+        untrusted.bytes.LittleEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+        u
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i2 ← crc32.crc32 body
+      if i2 != val
+      then
+        ok (core.result.Result.Err untrusted.ValidationError.ChecksumMismatch)
+      else
+        let u1 ← untrusted.Untrusted.new body
+        let r1 ←
+          untrusted.Untrusted.validate
+            ethernet.Frame.Insts.UntrustedValidateSharedASliceU8ValidationError
+            u1
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue f =>
+          ok (core.result.Result.Ok { frame := f })
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ethernet.FrameWithFcs (core.convert.FromSame
+            untrusted.ValidationError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ethernet.FrameWithFcs (core.convert.FromSame untrusted.ValidationError)
+        residual
+
+/-- Trait implementation: [net::ethernet::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ethernet::FrameWithFcs<'a>}]
+    Source: 'crates/net/src/ethernet.rs', lines 185:0-203:1 -/
+@[reducible]
+def ethernet.FrameWithFcs.Insts.UntrustedValidateSharedASliceU8ValidationError
+  : untrusted.Validate ethernet.FrameWithFcs (Slice Std.U8)
+  untrusted.ValidationError := {
+  validate :=
+    ethernet.FrameWithFcs.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
 end net

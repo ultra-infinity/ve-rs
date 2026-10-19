@@ -4761,6 +4761,8 @@ def ValidationError.Insts.CoreFmtDebug.fmt
     core.fmt.Formatter.write_str f (toStr "EndOfInput")
   | ValidationError.TrailingData =>
     core.fmt.Formatter.write_str f (toStr "TrailingData")
+  | ValidationError.ChecksumMismatch =>
+    core.fmt.Formatter.write_str f (toStr "ChecksumMismatch")
 
 /-- Trait implementation: [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}]
     Source: 'crates/untrusted/src/lib.rs', lines 91:9-91:14 -/
@@ -4819,9 +4821,11 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
       | ValidationError.OutOfRange => ok true
       | ValidationError.EndOfInput => ok true
       | ValidationError.TrailingData => ok true
+      | ValidationError.ChecksumMismatch => ok true
     | ValidationError.OutOfRange => ok true
     | ValidationError.EndOfInput => ok true
     | ValidationError.TrailingData => ok true
+    | ValidationError.ChecksumMismatch => ok true
   else ok false
 
 /-- Trait implementation: [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}]

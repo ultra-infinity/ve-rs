@@ -233,13 +233,30 @@ fn main() {
     //    build on; imported by every attempt) and `ManualTop.lean` (specs that
     //    build on derived types, e.g. a `Validate` impl; imported by the audit).
     let funs = fs::read_to_string(out.join("Funs.lean")).unwrap();
-    let manual_src = fs::read_to_string(out.join("Manual.lean")).unwrap_or_default();
+    // All hand-written Lean files of the module (they may import each other).
+    let generated = [
+        "Types.lean",
+        "Funs.lean",
+        "TypesExternal.lean",
+        "FunsExternal.lean",
+        "Audit.lean",
+    ];
+    let manual_src: String = fs::read_dir(&out)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            name.ends_with(".lean") && !generated.contains(&name.as_str())
+        })
+        .filter_map(|e| fs::read_to_string(e.path()).ok())
+        .collect();
     let has_manual = out.join("Manual.lean").exists();
     let all_types = decode_impl_types(&funs, &namespace);
     let types: Vec<String> = all_types
         .iter()
-        .cloned()
         .filter(|ty| !manual_src.contains(&format!("{ty}.Insts.UntrustedReaderDecode.decode.spec")))
+        .cloned()
         .collect();
     let specs = out.join("Specs");
     let _ = fs::remove_dir_all(&specs);

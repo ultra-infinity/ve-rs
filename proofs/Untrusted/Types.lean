@@ -39,7 +39,7 @@ structure bytes.FixedLen (Self : Type _) where
   LEN : Result Std.Usize
 
 /-- [untrusted::ValidationError]
-    Source: 'crates/untrusted/src/lib.rs', lines 92:0-101:1
+    Source: 'crates/untrusted/src/lib.rs', lines 92:0-103:1
     Visibility: public -/
 @[discriminant isize]
 inductive ValidationError where
@@ -47,6 +47,7 @@ inductive ValidationError where
 | OutOfRange : ValidationError
 | EndOfInput : ValidationError
 | TrailingData : ValidationError
+| ChecksumMismatch : ValidationError
 
 /-- Trait declaration: [untrusted::Validate]
     Source: 'crates/untrusted/src/lib.rs', lines 86:0-89:1
