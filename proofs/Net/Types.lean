@@ -103,7 +103,7 @@ structure ethernet.FrameWithFcs where
   frame : ethernet.Frame
 
 /-- [net::icmp::IcmpHeader]
-    Source: 'crates/net/src/icmp.rs', lines 20:0-27:1
+    Source: 'crates/net/src/icmp.rs', lines 21:0-28:1
     Visibility: public -/
 structure icmp.IcmpHeader where
   kind : untrusted.bytes.BigEndian Std.U8
@@ -150,18 +150,12 @@ structure ipv4.Ipv4Packet where
   padding : untrusted.Untrusted (Slice Std.U8)
 
 /-- [net::icmp::Icmpv4]
-    Source: 'crates/net/src/icmp.rs', lines 34:0-38:1
+    Source: 'crates/net/src/icmp.rs', lines 35:0-39:1
     Visibility: public -/
 structure icmp.Icmpv4 where
   ip : ipv4.Ipv4Packet
   header : icmp.IcmpHeader
   body : untrusted.Untrusted (Slice Std.U8)
-
-/-- [net::ipv6::Ipv6Addr]
-    Source: 'crates/net/src/ipv6.rs', lines 27:0-27:30
-    Visibility: public -/
-@[reducible]
-def ipv6.Ipv6Addr := Std.U128
 
 /-- [net::ipv6::VersionClassFlow]
     Source: 'crates/net/src/ipv6.rs', lines 37:0-41:1
@@ -169,6 +163,12 @@ def ipv6.Ipv6Addr := Std.U128
 structure ipv6.VersionClassFlow where
   traffic_class : Std.U8
   flow_label : Std.U32
+
+/-- [net::ipv6::Ipv6Addr]
+    Source: 'crates/net/src/ipv6.rs', lines 27:0-27:30
+    Visibility: public -/
+@[reducible]
+def ipv6.Ipv6Addr := Std.U128
 
 /-- [net::ipv6::Ipv6Header]
     Source: 'crates/net/src/ipv6.rs', lines 58:0-65:1
@@ -189,8 +189,16 @@ structure ipv6.Ipv6Packet where
   payload : untrusted.Untrusted (Slice Std.U8)
   padding : untrusted.Untrusted (Slice Std.U8)
 
+/-- [net::icmp::Icmpv6]
+    Source: 'crates/net/src/icmp.rs', lines 81:0-85:1
+    Visibility: public -/
+structure icmp.Icmpv6 where
+  ip : ipv6.Ipv6Packet
+  header : icmp.IcmpHeader
+  body : untrusted.Untrusted (Slice Std.U8)
+
 /-- [net::udp::UdpHeader]
-    Source: 'crates/net/src/udp.rs', lines 20:0-27:1
+    Source: 'crates/net/src/udp.rs', lines 21:0-28:1
     Visibility: public -/
 structure udp.UdpHeader where
   src_port : untrusted.bytes.BigEndian Std.U16
@@ -199,10 +207,18 @@ structure udp.UdpHeader where
   checksum : untrusted.bytes.BigEndian Std.U16
 
 /-- [net::udp::Ipv4Udp]
-    Source: 'crates/net/src/udp.rs', lines 37:0-41:1
+    Source: 'crates/net/src/udp.rs', lines 38:0-42:1
     Visibility: public -/
 structure udp.Ipv4Udp where
   ip : ipv4.Ipv4Packet
+  header : udp.UdpHeader
+  payload : untrusted.Untrusted (Slice Std.U8)
+
+/-- [net::udp::Ipv6Udp]
+    Source: 'crates/net/src/udp.rs', lines 102:0-106:1
+    Visibility: public -/
+structure udp.Ipv6Udp where
+  ip : ipv6.Ipv6Packet
   header : udp.UdpHeader
   payload : untrusted.Untrusted (Slice Std.U8)
 

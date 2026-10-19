@@ -1,5 +1,6 @@
 /- Hand-written spec of `<Ipv4Udp as Validate<&[u8]>>::validate`. -/
 import Net.Ipv4Top
+import Net.Ipv6Top
 import Net.Specs.UdpHeader
 
 open Aeneas Aeneas.Std Result untrusted untrusted.reader net.ipv4
@@ -155,6 +156,129 @@ theorem _root_.net.udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationEr
           core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
           core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
         rintro u ⟨-, -, -, -, -, hD, -⟩
+        exact hres u.header hD
+  · simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
+      core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
+    rintro u ⟨hip, -⟩
+    exact hres u.ip hip
+
+/-! ## UDP over IPv6 -/
+
+/-- `l` is a well-formed IPv6 packet carrying a whole UDP datagram, which
+    decodes to `u`: `l` is an IPv6 packet with next header 17, its payload `d`
+    is at least 8 bytes, the first 8 decode as `u.header`, whose length is
+    that of `d`, the checksum is not 0 and is valid over the pseudo-header and
+    `d`, and `u.payload` is the rest. -/
+def Ipv6Udp.Spec (l : List U8) (u : Ipv6Udp) : Prop :=
+  ipv6.Ipv6Packet.Spec l u.ip ∧ (u.ip.header.next_header : U8).val = 17 ∧
+    8 ≤ (ipv6.payloadOf l).length ∧
+    FmtD UdpHeader.Insts.UntrustedReaderDecode ((ipv6.payloadOf l).take 8) u.header 8 ∧
+    (u.header.length : U16).val = (ipv6.payloadOf l).length ∧
+    (u.header.checksum : U16).val ≠ 0 ∧
+    inet.spec 0 (ipv6.pseudo l (((ipv6.payloadOf l).drop 4).take 2) 17#u8 ++
+      ipv6.payloadOf l) = 0xFFFF ∧
+    (u.payload : Slice U8).val = (ipv6.payloadOf l).drop 8
+
+/-- **Spec theorem for `<Ipv6Udp as Validate<&[u8]>>::validate`**: accepts
+    exactly the IPv6 packets carrying a well-formed UDP datagram. -/
+@[step]
+theorem _root_.net.udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate.spec
+    (input : Slice U8) :
+    Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate input
+      ⦃ (r : core.result.Result Ipv6Udp ValidationError) =>
+        match r with
+        | .Ok u => Ipv6Udp.Spec input.val u
+        | .Err _ => ∀ u, ¬ Ipv6Udp.Spec input.val u ⦄ := by
+  unfold Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  simp only [Untrusted.validate_eq]
+  step as ⟨ u0, hu0 ⟩
+  step as ⟨ res, hres ⟩
+  rw [hu0] at hres
+  cases res
+  · rename_i ip
+    have hip : ipv6.Ipv6Packet.Spec input.val ip := hres
+    obtain ⟨h40, hend, -⟩ := hres
+    simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok]
+    step*
+    · rintro u ⟨hip', hn, -⟩
+      rw [hip'.header_eq hip] at hn
+      have := ‹(ip.header.next_header != ipv6.NEXT_UDP) = true›
+      simp_all [ipv6.NEXT_UDP]
+    · have : 40 ≤ «end».val := by rw [end_post, ipv6.payloadEnd]; omega
+      simp only [UScalar.le_equiv, ipv6.HEADER_LEN_val]; exact this
+    · have hd : datagram.val = ipv6.payloadOf input.val := by
+        rw [datagram_post, end_post, ipv6.HEADER_LEN_val, ipv6.slice_eq_payloadOf]
+      rintro u ⟨-, -, h8, -⟩
+      rw [← hd] at h8
+      have := ‹datagram.len < HEADER_LEN›
+      scalar_tac
+    · have hd : datagram.val = ipv6.payloadOf input.val := by
+        rw [datagram_post, end_post, ipv6.HEADER_LEN_val, ipv6.slice_eq_payloadOf]
+      have h8 : 8 ≤ (ipv6.payloadOf input.val).length := by
+        have := ‹¬datagram.len < HEADER_LEN›
+        rw [← hd]; scalar_tac
+      have hu : (u1 : Slice U8).val = (ipv6.payloadOf input.val).take 8 := by
+        rw [u1_post, s_post, hd]; simp [List.slice]
+      have hlen : ((ipv6.payloadOf input.val).take 8).length = 8 := by
+        simp only [List.length_take]; omega
+      apply WP.spec_bind
+        (UntrustedShared0SliceU8.read_all.spec_of UdpHeader.Insts.UntrustedReaderDecode u1)
+      rintro (h | e) hres
+      · simp only [hu, hlen] at hres
+        simp only [bind_ok]
+        step*
+        · rintro u ⟨-, -, -, hD, hl, -⟩
+          obtain ⟨rfl, -⟩ := (FmtLaws UdpHeader.Insts.UntrustedReaderDecode).functional _ _ _ _ _ hD hres
+          have := ‹(i3 != datagram.len) = true›
+          simp only [bne_iff_ne, ne_eq, UScalar.neq_to_neq_val, i3_post, U16.cast_Usize_val_eq,
+            Slice.len_val, hl, ← hd] at this
+          exact this trivial
+        · rintro u ⟨-, -, -, hD, -, hc0, -⟩
+          obtain ⟨rfl, -⟩ := (FmtLaws UdpHeader.Insts.UntrustedReaderDecode).functional _ _ _ _ _ hD hres
+          apply hc0
+          simp [‹u.header.checksum = 0#u16›]
+        · rintro u ⟨-, -, -, hD, -, -, hc, -⟩
+          have := ‹(i6 != inet.VALID) = true›
+          apply (bne_iff_ne.mp this)
+          apply (UScalar.eq_equiv _ _).mpr
+          have hs1 : s1.val = (input.val.drop 8).take 32 := by rw [s1_post]; rfl
+          have hs2 : s2.val = [0#u8, 0#u8] := by simp [s2_post, Array.make]
+          have hs3 : s3.val = ((ipv6.payloadOf input.val).drop 4).take 2 := by
+            rw [s3_post, hd]; rfl
+          have hs4 : s4.val = [0#u8, 0#u8, 0#u8, 17#u8] := by
+            simp [s4_post, Array.make, ipv6.NEXT_UDP]
+          rw [i6_post, acc3_post, acc2_post, acc1_post, acc_post, hs1, hs2, hs3, hs4, hd,
+            ← ipv6.sum_pseudo _ _ _ _ h40 (by simp; omega), hc]
+          simp
+        · refine ⟨hip, ?_, h8, hres, ?_, ?_, ?_, ?_⟩
+          · have := ‹¬(ip.header.next_header != ipv6.NEXT_UDP) = true›
+            simp_all [ipv6.NEXT_UDP]
+          · have := ‹¬(i3 != datagram.len) = true›
+            simp only [bne_iff_ne, ne_eq, not_not, i3_post] at this
+            have := congrArg UScalar.val this
+            simp only [U16.cast_Usize_val_eq, Slice.len_val] at this
+            simpa [← hd] using this
+          · intro h0
+            apply ‹¬h.checksum = 0#u16›
+            exact (UScalar.eq_equiv _ _).mpr (by simp [h0])
+          · have := ‹¬(i6 != inet.VALID) = true›
+            simp only [bne_iff_ne, ne_eq, not_not] at this
+            have hs1 : s1.val = (input.val.drop 8).take 32 := by rw [s1_post]; rfl
+            have hs2 : s2.val = [0#u8, 0#u8] := by simp [s2_post, Array.make]
+            have hs3 : s3.val = ((ipv6.payloadOf input.val).drop 4).take 2 := by
+              rw [s3_post, hd]; rfl
+            have hs4 : s4.val = [0#u8, 0#u8, 0#u8, 17#u8] := by
+              simp [s4_post, Array.make, ipv6.NEXT_UDP]
+            rw [ipv6.sum_pseudo _ _ _ _ h40 (by simp; omega), ← hs1, ← hs2, ← hs3, ← hs4, ← hd,
+              ← acc_post, ← acc1_post, ← acc2_post, ← acc3_post, ← i6_post, this]
+            simp
+          · simp [u2_post, s5_post, hd]
+      · simp only [hu, hlen] at hres
+        simp only [bind_ok,
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
+          core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
+        rintro u ⟨-, -, -, hD, -⟩
         exact hres u.header hD
   · simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,

@@ -72,4 +72,22 @@ theorem Ipv6Packet.Spec.header_eq {l : List U8} {p p' : Ipv6Packet} (h : Ipv6Pac
 theorem slice_eq_payloadOf (l : List U8) : l.slice 40 (payloadEnd l) = payloadOf l := by
   simp [payloadOf, List.slice, List.drop_take]
 
+/-- The IPv6 pseudo-header of an upper-layer message carried by the packet
+    `l` (RFC 8200, section 8.1): the source and destination addresses, the
+    message length as 32 bits (`len` holds its low 16), three zero bytes, and
+    the next header `next`. -/
+def pseudo (l len : List U8) (next : U8) : List U8 :=
+  (l.drop 8).take 32 ++ [0#u8, 0#u8] ++ len ++ [0#u8, 0#u8, 0#u8, next]
+
+/-- The checksum over the pseudo-header and a message `d`, as the validators
+    compute it: piece by piece. -/
+theorem sum_pseudo (l len d : List U8) (next : U8) (hl : 40 ≤ l.length) (hlen : len.length = 2) :
+    inet.spec 0 (pseudo l len next ++ d) =
+      inet.spec (inet.spec (inet.spec (inet.spec (inet.spec 0 ((l.drop 8).take 32)) [0#u8, 0#u8])
+        len) [0#u8, 0#u8, 0#u8, next]) d := by
+  have h1 : ((l.drop 8).take 32).length = 32 := by simp; omega
+  simp only [pseudo]
+  rw [inet.spec_append _ _ _ (by simp [h1, hlen]), inet.spec_append _ _ _ (by simp [h1, hlen]),
+    inet.spec_append _ _ _ (by simp [h1]), inet.spec_append _ _ _ (by simp [h1])]
+
 end net.ipv6

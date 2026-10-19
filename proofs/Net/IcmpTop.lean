@@ -1,5 +1,6 @@
 /- Hand-written spec of `<Icmpv4 as Validate<&[u8]>>::validate`. -/
 import Net.Ipv4Top
+import Net.Ipv6Top
 import Net.Specs.IcmpHeader
 
 open Aeneas Aeneas.Std Result untrusted untrusted.reader net.ipv4
@@ -95,6 +96,109 @@ theorem _root_.net.icmp.Icmpv4.Insts.UntrustedValidateSharedASliceU8ValidationEr
           core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
           core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
         rintro m ⟨-, -, -, -, -, -, hD, -⟩
+        exact hres m.header hD
+  · simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
+      core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
+    rintro m ⟨hip, -⟩
+    exact hres m.ip hip
+
+/-! ## ICMPv6 -/
+
+/-- `l` is a well-formed IPv6 packet carrying a whole ICMPv6 message, which
+    decodes to `m`: `l` is an IPv6 packet with next header 58, its payload is
+    at least 8 bytes long with a valid checksum over the pseudo-header and the
+    payload, the first 8 bytes decode as `m.header`, and `m.body` is the rest. -/
+def Icmpv6.Spec (l : List U8) (m : Icmpv6) : Prop :=
+  ipv6.Ipv6Packet.Spec l m.ip ∧ (m.ip.header.next_header : U8).val = 58 ∧
+    8 ≤ (ipv6.payloadOf l).length ∧
+    inet.spec 0 (ipv6.pseudo l ((l.drop 4).take 2) 58#u8 ++ ipv6.payloadOf l) = 0xFFFF ∧
+    FmtD IcmpHeader.Insts.UntrustedReaderDecode ((ipv6.payloadOf l).take 8) m.header 8 ∧
+    (m.body : Slice U8).val = (ipv6.payloadOf l).drop 8
+
+/-- **Spec theorem for `<Icmpv6 as Validate<&[u8]>>::validate`**: accepts
+    exactly the IPv6 packets carrying a well-formed ICMPv6 message. -/
+@[step]
+theorem _root_.net.icmp.Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError.validate.spec
+    (input : Slice U8) :
+    Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError.validate input
+      ⦃ (r : core.result.Result Icmpv6 ValidationError) =>
+        match r with
+        | .Ok m => Icmpv6.Spec input.val m
+        | .Err _ => ∀ m, ¬ Icmpv6.Spec input.val m ⦄ := by
+  unfold Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  simp only [Untrusted.validate_eq]
+  step as ⟨ u0, hu0 ⟩
+  step as ⟨ res, hres ⟩
+  rw [hu0] at hres
+  cases res
+  · rename_i ip
+    have hip : ipv6.Ipv6Packet.Spec input.val ip := hres
+    obtain ⟨h40, hend, -⟩ := hres
+    simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok]
+    step*
+    · rintro m ⟨hip', hn, -⟩
+      rw [hip'.header_eq hip] at hn
+      have := ‹(ip.header.next_header != ipv6.NEXT_ICMPV6) = true›
+      simp_all [ipv6.NEXT_ICMPV6]
+    · have : 40 ≤ «end».val := by rw [end_post, ipv6.payloadEnd]; omega
+      simp only [UScalar.le_equiv, ipv6.HEADER_LEN_val]; exact this
+    · have hd : message.val = ipv6.payloadOf input.val := by
+        rw [message_post, end_post, ipv6.HEADER_LEN_val, ipv6.slice_eq_payloadOf]
+      rintro m ⟨-, -, h8, -⟩
+      rw [← hd] at h8
+      have := ‹message.len < HEADER_LEN›
+      scalar_tac
+    · have hd : message.val = ipv6.payloadOf input.val := by
+        rw [message_post, end_post, ipv6.HEADER_LEN_val, ipv6.slice_eq_payloadOf]
+      rintro m ⟨-, -, -, hc, -⟩
+      have := ‹(i2 != inet.VALID) = true›
+      apply (bne_iff_ne.mp this)
+      apply (UScalar.eq_equiv _ _).mpr
+      have hs : s.val = (input.val.drop 8).take 32 := by rw [s_post]; rfl
+      have hs1 : s1.val = [0#u8, 0#u8] := by simp [s1_post, Array.make]
+      have hs2 : s2.val = (input.val.drop 4).take 2 := by rw [s2_post]; rfl
+      have hs3 : s3.val = [0#u8, 0#u8, 0#u8, 58#u8] := by
+        simp [s3_post, Array.make, ipv6.NEXT_ICMPV6]
+      rw [i2_post, acc3_post, acc2_post, acc1_post, acc_post, hs, hs1, hs2, hs3, hd,
+        ← ipv6.sum_pseudo _ _ _ _ h40 (by simp; omega), hc]
+      simp
+    · have hd : message.val = ipv6.payloadOf input.val := by
+        rw [message_post, end_post, ipv6.HEADER_LEN_val, ipv6.slice_eq_payloadOf]
+      have h8 : 8 ≤ (ipv6.payloadOf input.val).length := by
+        have := ‹¬message.len < HEADER_LEN›
+        rw [← hd]; scalar_tac
+      have hc : inet.spec 0 (ipv6.pseudo input.val ((input.val.drop 4).take 2) 58#u8 ++
+          ipv6.payloadOf input.val) = 0xFFFF := by
+        have := ‹¬(i2 != inet.VALID) = true›
+        simp only [bne_iff_ne, ne_eq, not_not] at this
+        have hs : s.val = (input.val.drop 8).take 32 := by rw [s_post]; rfl
+        have hs1 : s1.val = [0#u8, 0#u8] := by simp [s1_post, Array.make]
+        have hs2 : s2.val = (input.val.drop 4).take 2 := by rw [s2_post]; rfl
+        have hs3 : s3.val = [0#u8, 0#u8, 0#u8, 58#u8] := by
+          simp [s3_post, Array.make, ipv6.NEXT_ICMPV6]
+        rw [ipv6.sum_pseudo _ _ _ _ h40 (by simp; omega), ← hs, ← hs1, ← hs2, ← hs3, ← hd,
+          ← acc_post, ← acc1_post, ← acc2_post, ← acc3_post, ← i2_post, this]
+        simp
+      have hu : (u1 : Slice U8).val = (ipv6.payloadOf input.val).take 8 := by
+        rw [u1_post, s4_post, hd]; simp [List.slice]
+      have hlen : ((ipv6.payloadOf input.val).take 8).length = 8 := by
+        simp only [List.length_take]; omega
+      apply WP.spec_bind
+        (UntrustedShared0SliceU8.read_all.spec_of IcmpHeader.Insts.UntrustedReaderDecode u1)
+      rintro (h | e) hres
+      · simp only [hu, hlen] at hres
+        simp only [bind_ok]
+        step*
+        refine ⟨hip, ?_, h8, hc, hres, ?_⟩
+        · have := ‹¬(ip.header.next_header != ipv6.NEXT_ICMPV6) = true›
+          simp_all [ipv6.NEXT_ICMPV6]
+        · simp [u2_post, s5_post, hd]
+      · simp only [hu, hlen] at hres
+        simp only [bind_ok,
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
+          core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
+        rintro m ⟨-, -, -, -, hD, -⟩
         exact hres m.header hD
   · simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,
