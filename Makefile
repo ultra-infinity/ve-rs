@@ -15,9 +15,8 @@ build:
 test:
 	cargo test --workspace
 
-# Derived `Debug` impls are not part of the verified behaviour; leaving them
-# out keeps `fmt` axioms out of the model.
-CHARON_FLAGS := --preset=aeneas --exclude '{impl core::fmt::Debug for _}'
+# Everything in the crate is translated, including derived impls.
+CHARON_FLAGS := --preset=aeneas
 
 # Loops become structurally recursive functions, which the Aeneas proof
 # tooling handles best.
@@ -39,9 +38,10 @@ specs:
 lean-deps:
 	cd $(PROOFS) && lake exe cache get
 
-# Check the generated model and the proofs.
+# Check the generated model and the proofs, then audit that every model
+# function has a spec and nothing relies on `sorry` or unexpected axioms.
 verify:
-	cd $(PROOFS) && lake build
+	cd $(PROOFS) && lake build && lake env lean Audit.lean
 
 # Point the Lean `aeneas` dependency and toolchain at the revision locked in
 # flake.lock. Run after `nix flake update aeneas`.

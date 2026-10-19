@@ -17,6 +17,13 @@ theorem Untrusted.new.spec {T : Type} (inner : T) :
 theorem Untrusted.validate_eq {T U E : Type} (inst : Validate U T E) (self : Untrusted T) :
     Untrusted.validate inst self = inst.validate self := rfl
 
+/-- **Spec theorem for `untrusted::Untrusted::validate`**: whatever holds of the
+    target's `Validate::validate` holds of `Untrusted::validate`. -/
+@[step]
+theorem Untrusted.validate.spec {T U E : Type} (inst : Validate U T E) (self : Untrusted T)
+    (post : core.result.Result U E → Prop) (h : inst.validate self ⦃ r => post r ⦄) :
+    Untrusted.validate inst self ⦃ r => post r ⦄ := h
+
 /-- **Spec theorem for `untrusted::bytes::check_len`** -/
 @[step]
 theorem bytes.check_len.spec (input : Slice U8) (expected : Usize) :

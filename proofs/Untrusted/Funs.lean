@@ -21,6 +21,25 @@ set_option maxRecDepth 2048
 
 namespace untrusted
 
+/-- [untrusted::bytes::{impl core::fmt::Debug for untrusted::bytes::BigEndian<T>}::fmt]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 10:9-10:14
+    Visibility: public -/
+def bytes.BigEndian.Insts.CoreFmtDebug.fmt
+  {T : Type _} (corefmtDebugInst : core.fmt.Debug T) (self : bytes.BigEndian T)
+  (f : core.fmt.Formatter) :
+  Result ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter)
+  := do
+  let dyn := Dyn.mk _ (core.fmt.DebugShared corefmtDebugInst) self
+  core.fmt.Formatter.debug_tuple_field1_finish f (toStr "BigEndian") dyn
+
+/-- Trait implementation: [untrusted::bytes::{impl core::fmt::Debug for untrusted::bytes::BigEndian<T>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 10:9-10:14 -/
+@[reducible]
+def bytes.BigEndian.Insts.CoreFmtDebug {T : Type _} (corefmtDebugInst :
+  core.fmt.Debug T) : core.fmt.Debug (bytes.BigEndian T) := {
+  fmt := bytes.BigEndian.Insts.CoreFmtDebug.fmt corefmtDebugInst
+}
+
 /-- [untrusted::bytes::{impl core::clone::Clone for untrusted::bytes::BigEndian<T>}::clone]:
     Source: 'crates/untrusted/src/bytes.rs', lines 10:16-10:21
     Visibility: public -/
@@ -94,6 +113,25 @@ def bytes.BigEndian.Insts.CoreCmpEq {T : Type _} (corecmpEqInst : core.cmp.Eq
     corecmpEqInst.partialEqInst
   assert_fields_are_eq := bytes.BigEndian.Insts.CoreCmpEq.assert_fields_are_eq
     corecmpEqInst
+}
+
+/-- [untrusted::bytes::{impl core::fmt::Debug for untrusted::bytes::LittleEndian<T>}::fmt]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 14:9-14:14
+    Visibility: public -/
+def bytes.LittleEndian.Insts.CoreFmtDebug.fmt
+  {T : Type _} (corefmtDebugInst : core.fmt.Debug T)
+  (self : bytes.LittleEndian T) (f : core.fmt.Formatter) :
+  Result ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter)
+  := do
+  let dyn := Dyn.mk _ (core.fmt.DebugShared corefmtDebugInst) self
+  core.fmt.Formatter.debug_tuple_field1_finish f (toStr "LittleEndian") dyn
+
+/-- Trait implementation: [untrusted::bytes::{impl core::fmt::Debug for untrusted::bytes::LittleEndian<T>}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 14:9-14:14 -/
+@[reducible]
+def bytes.LittleEndian.Insts.CoreFmtDebug {T : Type _} (corefmtDebugInst :
+  core.fmt.Debug T) : core.fmt.Debug (bytes.LittleEndian T) := {
+  fmt := bytes.LittleEndian.Insts.CoreFmtDebug.fmt corefmtDebugInst
 }
 
 /-- [untrusted::bytes::{impl core::clone::Clone for untrusted::bytes::LittleEndian<T>}::clone]:
@@ -3986,6 +4024,30 @@ def Untrusted.validate
   Result (core.result.Result U Clause0_Err)
   := do
   ValidateInst.validate self
+
+/-- [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}::fmt]:
+    Source: 'crates/untrusted/src/lib.rs', lines 38:9-38:14
+    Visibility: public -/
+def ValidationError.Insts.CoreFmtDebug.fmt
+  (self : ValidationError) (f : core.fmt.Formatter) :
+  Result ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter)
+  := do
+  match self with
+  | ValidationError.LengthMismatch __self_0 __self_1 =>
+    let __self_01 := Dyn.mk _ core.fmt.DebugUsize __self_0
+    let __self_11 :=
+      Dyn.mk _ (core.fmt.DebugShared core.fmt.DebugUsize) __self_1
+    core.fmt.Formatter.debug_struct_field2_finish f (toStr "LengthMismatch")
+      (toStr "expected") __self_01 (toStr "actual") __self_11
+  | ValidationError.OutOfRange =>
+    core.fmt.Formatter.write_str f (toStr "OutOfRange")
+
+/-- Trait implementation: [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}]
+    Source: 'crates/untrusted/src/lib.rs', lines 38:9-38:14 -/
+@[reducible]
+def ValidationError.Insts.CoreFmtDebug : core.fmt.Debug ValidationError := {
+  fmt := ValidationError.Insts.CoreFmtDebug.fmt
+}
 
 /-- [untrusted::{impl core::clone::Clone for untrusted::ValidationError}::clone]:
     Source: 'crates/untrusted/src/lib.rs', lines 38:16-38:21
