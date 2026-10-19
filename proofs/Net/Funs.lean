@@ -532,4 +532,422 @@ def ethernet.FrameWithFcs.Insts.UntrustedValidateSharedASliceU8ValidationError
     ethernet.FrameWithFcs.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
+/-- [net::inet::VALID]
+    Source: 'crates/net/src/inet.rs', lines 13:0-13:30
+    Visibility: public -/
+@[global_simps, irreducible] def inet.VALID : Std.U16 := 65535#u16
+
+/-- [net::inet::add]:
+    Source: 'crates/net/src/inet.rs', lines 36:0-43:1 -/
+def inet.add (a : Std.U16) (b : Std.U16) : Result Std.U16 := do
+  let i ← 65535#u16 - b
+  if a > i
+  then a - i
+  else a + b
+
+/-- [net::inet::sum]: loop 0:
+    Source: 'crates/net/src/inet.rs', lines 19:4-31:5
+    Visibility: public -/
+@[rust_loop]
+def inet.sum_loop
+  (data : Slice Std.U8) (acc : Std.U16) (i : Std.Usize) : Result Std.U16 := do
+  let i1 := Slice.len data
+  if i < i1
+  then
+    let i2 := Slice.len data
+    let i3 ← i2 - i
+    let (i4, word) ←
+      if i3 >= 2#usize
+      then
+        do
+        let i5 ← Slice.index_usize data i
+        let i6 ← lift (UScalar.cast .U16 i5)
+        let i7 ← i6 * 256#u16
+        let i8 ← i + 1#usize
+        let i9 ← Slice.index_usize data i8
+        let i10 ← lift (UScalar.cast .U16 i9)
+        let w ← i7 + i10
+        let i11 ← i + 2#usize
+        ok (i11, w)
+      else
+        do
+        let i5 ← Slice.index_usize data i
+        let i6 ← lift (UScalar.cast .U16 i5)
+        let w ← i6 * 256#u16
+        let i7 ← i + 1#usize
+        ok (i7, w)
+    let acc1 ← inet.add acc word
+    inet.sum_loop data acc1 i4
+  else ok acc
+partial_fixpoint
+
+/-- [net::inet::sum]:
+    Source: 'crates/net/src/inet.rs', lines 16:0-33:1
+    Visibility: public -/
+@[reducible]
+def inet.sum (acc : Std.U16) (data : Slice Std.U8) : Result Std.U16 := do
+  inet.sum_loop data acc 0#usize
+
+/-- [net::ipv4::MIN_HEADER_LEN]
+    Source: 'crates/net/src/ipv4.rs', lines 22:0-22:37
+    Visibility: public -/
+@[global_simps, irreducible] def ipv4.MIN_HEADER_LEN : Std.Usize := 20#usize
+
+/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}::decode]:
+    Source: 'crates/net/src/ipv4.rs', lines 33:4-35:5
+    Visibility: public -/
+def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ipv4.Ipv4Addr untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU32.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ok (core.result.Result.Ok val, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ipv4.Ipv4Addr (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}]
+    Source: 'crates/net/src/ipv4.rs', lines 32:0-36:1 -/
+@[reducible]
+def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ipv4.Ipv4Addr := {
+  decode := ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::VersionIhl}::decode]:
+    Source: 'crates/net/src/ipv4.rs', lines 46:4-56:5
+    Visibility: public -/
+def ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ipv4.VersionIhl untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU8.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU8.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i ← val / 16#u8
+    if i != 4#u8
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+    else
+      let ihl ← val % 16#u8
+      if ihl < 5#u8
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+      else ok (core.result.Result.Ok { ihl }, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ipv4.VersionIhl (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::VersionIhl}]
+    Source: 'crates/net/src/ipv4.rs', lines 45:0-57:1 -/
+@[reducible]
+def ipv4.VersionIhl.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ipv4.VersionIhl := {
+  decode := ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Fragment}::decode]:
+    Source: 'crates/net/src/ipv4.rs', lines 79:4-89:5
+    Visibility: public -/
+def ipv4.Fragment.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ipv4.Fragment untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.read
+      untrusted.bytes.BigEndianU16.Insts.UntrustedBytesFixedLen
+      untrusted.bytes.BigEndianU16.Insts.UntrustedValidateSharedASliceU8ValidationError
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    if val >= 32768#u16
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange, r2)
+    else
+      let i ← val / 16384#u16
+      let i1 ← val / 8192#u16
+      let i2 ← i1 % 2#u16
+      let i3 ← val % 8192#u16
+      ok (core.result.Result.Ok
+        {
+          dont_fragment := (i = 1#u16),
+          more_fragments := (i2 = 1#u16),
+          offset := i3
+        }, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ipv4.Fragment (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Fragment}]
+    Source: 'crates/net/src/ipv4.rs', lines 78:0-90:1 -/
+@[reducible]
+def ipv4.Fragment.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ipv4.Fragment := {
+  decode := ipv4.Fragment.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Header}::decode]:
+    Source: 'crates/net/src/ipv4.rs', lines 93:9-93:15
+    Visibility: public -/
+def ipv4.Ipv4Header.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result ipv4.Ipv4Header untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode ipv4.VersionIhl.Insts.UntrustedReaderDecode
+      r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode
+          untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode
+            untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              ipv4.Fragment.Insts.UntrustedReaderDecode r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              let (r13, r14) ←
+                untrusted.reader.Reader.decode
+                  untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r12
+              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r13
+              match cf6 with
+              | core.ops.control_flow.ControlFlow.Continue val6 =>
+                let (r15, r16) ←
+                  untrusted.reader.Reader.decode
+                    untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode
+                    r14
+                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r15
+                match cf7 with
+                | core.ops.control_flow.ControlFlow.Continue val7 =>
+                  let (r17, r18) ←
+                    untrusted.reader.Reader.decode
+                      ipv4.Ipv4Addr.Insts.UntrustedReaderDecode r16
+                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r17
+                  match cf8 with
+                  | core.ops.control_flow.ControlFlow.Continue val8 =>
+                    let (r19, r20) ←
+                      untrusted.reader.Reader.decode
+                        ipv4.Ipv4Addr.Insts.UntrustedReaderDecode r18
+                    let cf9 ← core.result.Result.Insts.CoreOpsTry.branch r19
+                    match cf9 with
+                    | core.ops.control_flow.ControlFlow.Continue val9 =>
+                      ok (core.result.Result.Ok
+                        {
+                          version_ihl := val,
+                          tos := val1,
+                          total_len := val2,
+                          ident := val3,
+                          fragment := val4,
+                          ttl := val5,
+                          protocol := val6,
+                          checksum := val7,
+                          src := val8,
+                          dst := val9
+                        }, r20)
+                    | core.ops.control_flow.ControlFlow.Break residual =>
+                      let r21 ←
+                        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                          ipv4.Ipv4Header (core.convert.FromSame
+                          untrusted.ValidationError) residual
+                      ok (r21, r20)
+                  | core.ops.control_flow.ControlFlow.Break residual =>
+                    let r19 ←
+                      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                        ipv4.Ipv4Header (core.convert.FromSame
+                        untrusted.ValidationError) residual
+                    ok (r19, r18)
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  let r17 ←
+                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                      ipv4.Ipv4Header (core.convert.FromSame
+                      untrusted.ValidationError) residual
+                  ok (r17, r16)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                let r15 ←
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    ipv4.Ipv4Header (core.convert.FromSame
+                    untrusted.ValidationError) residual
+                ok (r15, r14)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  ipv4.Ipv4Header (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                ipv4.Ipv4Header (core.convert.FromSame
+                untrusted.ValidationError) residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ipv4.Ipv4Header (core.convert.FromSame untrusted.ValidationError)
+              residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ipv4.Ipv4Header (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ipv4.Ipv4Header (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ipv4.Ipv4Header (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Header}]
+    Source: 'crates/net/src/ipv4.rs', lines 93:9-93:15 -/
+@[reducible]
+def ipv4.Ipv4Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  ipv4.Ipv4Header := {
+  decode := ipv4.Ipv4Header.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::ipv4::lengths]:
+    Source: 'crates/net/src/ipv4.rs', lines 121:0-125:1 -/
+def ipv4.lengths (input : Slice Std.U8) : Result (Std.Usize × Std.Usize) := do
+  let i ← Slice.index_usize input 0#usize
+  let i1 ← lift (UScalar.cast .Usize i)
+  let i2 ← i1 % 16#usize
+  let header_len ← i2 * 4#usize
+  let i3 ← Slice.index_usize input 2#usize
+  let i4 ← lift (UScalar.cast .Usize i3)
+  let i5 ← i4 * 256#usize
+  let i6 ← Slice.index_usize input 3#usize
+  let i7 ← lift (UScalar.cast .Usize i6)
+  let total_len ← i5 + i7
+  ok (header_len, total_len)
+
+/-- [net::ipv4::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv4::Ipv4Packet<'a>}::validate]:
+    Source: 'crates/net/src/ipv4.rs', lines 130:4-154:5
+    Visibility: public -/
+def
+  ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result ipv4.Ipv4Packet untrusted.ValidationError)
+  := do
+  let i := Slice.len input
+  if i < ipv4.MIN_HEADER_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let (header_len, total_len) ← ipv4.lengths input
+    if header_len < ipv4.MIN_HEADER_LEN
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    else
+      if total_len < header_len
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        let i1 := Slice.len input
+        if total_len > i1
+        then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+        else
+          let s ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+              { «end» := header_len }
+          let i2 ← inet.sum 0#u16 s
+          if i2 != inet.VALID
+          then
+            ok (core.result.Result.Err
+              untrusted.ValidationError.ChecksumMismatch)
+          else
+            let s1 ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+                { «end» := ipv4.MIN_HEADER_LEN }
+            let u ← untrusted.Untrusted.new s1
+            let r ←
+              untrusted.reader.UntrustedShared0SliceU8.read_all
+                ipv4.Ipv4Header.Insts.UntrustedReaderDecode u
+            let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+            match cf with
+            | core.ops.control_flow.ControlFlow.Continue val =>
+              let s2 ←
+                core.slice.index.Slice.index
+                  (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+                  { start := ipv4.MIN_HEADER_LEN, «end» := header_len }
+              let u1 ← untrusted.Untrusted.new s2
+              let s3 ←
+                core.slice.index.Slice.index
+                  (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+                  { start := header_len, «end» := total_len }
+              let u2 ← untrusted.Untrusted.new s3
+              let s4 ←
+                core.slice.index.Slice.index
+                  (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
+                  { start := total_len }
+              let u3 ← untrusted.Untrusted.new s4
+              ok (core.result.Result.Ok
+                { header := val, options := u1, payload := u2, padding := u3 })
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                ipv4.Ipv4Packet (core.convert.FromSame
+                untrusted.ValidationError) residual
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv4::Ipv4Packet<'a>}]
+    Source: 'crates/net/src/ipv4.rs', lines 127:0-155:1 -/
+@[reducible]
+def ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate ipv4.Ipv4Packet (Slice Std.U8) untrusted.ValidationError
+  := {
+  validate :=
+    ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
 end net

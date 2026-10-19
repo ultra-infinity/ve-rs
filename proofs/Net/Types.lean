@@ -67,4 +67,48 @@ structure ethernet.Frame where
 structure ethernet.FrameWithFcs where
   frame : ethernet.Frame
 
+/-- [net::ipv4::Ipv4Addr]
+    Source: 'crates/net/src/ipv4.rs', lines 30:0-30:29
+    Visibility: public -/
+@[reducible]
+def ipv4.Ipv4Addr := Std.U32
+
+/-- [net::ipv4::VersionIhl]
+    Source: 'crates/net/src/ipv4.rs', lines 40:0-43:1
+    Visibility: public -/
+structure ipv4.VersionIhl where
+  ihl : Std.U8
+
+/-- [net::ipv4::Fragment]
+    Source: 'crates/net/src/ipv4.rs', lines 64:0-69:1
+    Visibility: public -/
+structure ipv4.Fragment where
+  dont_fragment : Bool
+  more_fragments : Bool
+  offset : Std.U16
+
+/-- [net::ipv4::Ipv4Header]
+    Source: 'crates/net/src/ipv4.rs', lines 94:0-105:1
+    Visibility: public -/
+structure ipv4.Ipv4Header where
+  version_ihl : ipv4.VersionIhl
+  tos : untrusted.bytes.BigEndian Std.U8
+  total_len : untrusted.bytes.BigEndian Std.U16
+  ident : untrusted.bytes.BigEndian Std.U16
+  fragment : ipv4.Fragment
+  ttl : untrusted.bytes.BigEndian Std.U8
+  protocol : untrusted.bytes.BigEndian Std.U8
+  checksum : untrusted.bytes.BigEndian Std.U16
+  src : ipv4.Ipv4Addr
+  dst : ipv4.Ipv4Addr
+
+/-- [net::ipv4::Ipv4Packet]
+    Source: 'crates/net/src/ipv4.rs', lines 108:0-116:1
+    Visibility: public -/
+structure ipv4.Ipv4Packet where
+  header : ipv4.Ipv4Header
+  options : untrusted.Untrusted (Slice Std.U8)
+  payload : untrusted.Untrusted (Slice Std.U8)
+  padding : untrusted.Untrusted (Slice Std.U8)
+
 end net
