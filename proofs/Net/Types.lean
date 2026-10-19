@@ -111,4 +111,21 @@ structure ipv4.Ipv4Packet where
   payload : untrusted.Untrusted (Slice Std.U8)
   padding : untrusted.Untrusted (Slice Std.U8)
 
+/-- [net::udp::UdpHeader]
+    Source: 'crates/net/src/udp.rs', lines 20:0-27:1
+    Visibility: public -/
+structure udp.UdpHeader where
+  src_port : untrusted.bytes.BigEndian Std.U16
+  dst_port : untrusted.bytes.BigEndian Std.U16
+  length : untrusted.bytes.BigEndian Std.U16
+  checksum : untrusted.bytes.BigEndian Std.U16
+
+/-- [net::udp::Ipv4Udp]
+    Source: 'crates/net/src/udp.rs', lines 37:0-41:1
+    Visibility: public -/
+structure udp.Ipv4Udp where
+  ip : ipv4.Ipv4Packet
+  header : udp.UdpHeader
+  payload : untrusted.Untrusted (Slice Std.U8)
+
 end net

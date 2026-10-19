@@ -593,6 +593,11 @@ def inet.sum (acc : Std.U16) (data : Slice Std.U8) : Result Std.U16 := do
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.MIN_HEADER_LEN : Std.Usize := 20#usize
 
+/-- [net::ipv4::PROTO_UDP]
+    Source: 'crates/net/src/ipv4.rs', lines 26:0-26:29
+    Visibility: public -/
+@[global_simps, irreducible] def ipv4.PROTO_UDP : Std.U8 := 17#u8
+
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}::decode]:
     Source: 'crates/net/src/ipv4.rs', lines 33:4-35:5
     Visibility: public -/
@@ -948,6 +953,192 @@ def ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
   := {
   validate :=
     ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
+/-- [net::udp::HEADER_LEN]
+    Source: 'crates/net/src/udp.rs', lines 16:0-16:32
+    Visibility: public -/
+@[global_simps, irreducible] def udp.HEADER_LEN : Std.Usize := 8#usize
+
+/-- [net::udp::{impl untrusted::reader::Decode for net::udp::UdpHeader}::decode]:
+    Source: 'crates/net/src/udp.rs', lines 19:9-19:15
+    Visibility: public -/
+def udp.UdpHeader.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result udp.UdpHeader untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode
+          untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode
+            untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          ok (core.result.Result.Ok
+            {
+              src_port := val,
+              dst_port := val1,
+              length := val2,
+              checksum := val3
+            }, r8)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              udp.UdpHeader (core.convert.FromSame untrusted.ValidationError)
+              residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            udp.UdpHeader (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          udp.UdpHeader (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        udp.UdpHeader (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::udp::{impl untrusted::reader::Decode for net::udp::UdpHeader}]
+    Source: 'crates/net/src/udp.rs', lines 19:9-19:15 -/
+@[reducible]
+def udp.UdpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  udp.UdpHeader := {
+  decode := udp.UdpHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::udp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::udp::Ipv4Udp<'a>}::validate]:
+    Source: 'crates/net/src/udp.rs', lines 46:4-88:5
+    Visibility: public -/
+def udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result udp.Ipv4Udp untrusted.ValidationError)
+  := do
+  let u ← untrusted.Untrusted.new input
+  let r ←
+    untrusted.Untrusted.validate
+      ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue ip =>
+    let i := ip.header.protocol
+    if i != ipv4.PROTO_UDP
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    else
+      if ip.header.fragment.more_fragments
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        if ip.header.fragment.offset != 0#u16
+        then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+        else
+          let (header_len, total_len) ← ipv4.lengths input
+          let datagram ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+              { start := header_len, «end» := total_len }
+          let i1 := Slice.len datagram
+          if i1 < udp.HEADER_LEN
+          then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+          else
+            let s ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) datagram
+                { «end» := udp.HEADER_LEN }
+            let u1 ← untrusted.Untrusted.new s
+            let r1 ←
+              untrusted.reader.UntrustedShared0SliceU8.read_all
+                udp.UdpHeader.Insts.UntrustedReaderDecode u1
+            let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+            match cf1 with
+            | core.ops.control_flow.ControlFlow.Continue val =>
+              let i2 := val.length
+              let i3 ← lift (UScalar.cast .Usize i2)
+              let i4 := Slice.len datagram
+              if i3 != i4
+              then
+                let i5 := Slice.len datagram
+                let i6 ← lift (UScalar.cast .Usize i2)
+                ok (core.result.Result.Err
+                  (untrusted.ValidationError.LengthMismatch i5 i6))
+              else
+                let i5 := val.checksum
+                if i5 != 0#u16
+                then
+                  let s1 ←
+                    core.slice.index.Slice.index
+                      (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+                      { start := 12#usize, «end» := 20#usize }
+                  let acc ← inet.sum 0#u16 s1
+                  let s2 ←
+                    lift (Array.to_slice
+                      (Array.make 2#usize [ 0#u8, ipv4.PROTO_UDP ]))
+                  let acc1 ← inet.sum acc s2
+                  let s3 ←
+                    core.slice.index.Slice.index
+                      (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)
+                      datagram { start := 4#usize, «end» := 6#usize }
+                  let acc2 ← inet.sum acc1 s3
+                  let i6 ← inet.sum acc2 datagram
+                  if i6 != inet.VALID
+                  then
+                    ok (core.result.Result.Err
+                      untrusted.ValidationError.ChecksumMismatch)
+                  else
+                    let s4 ←
+                      core.slice.index.Slice.index
+                        (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8)
+                        datagram { start := udp.HEADER_LEN }
+                    let u2 ← untrusted.Untrusted.new s4
+                    ok (core.result.Result.Ok
+                      { ip, header := val, payload := u2 })
+                else
+                  let s1 ←
+                    core.slice.index.Slice.index
+                      (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8)
+                      datagram { start := udp.HEADER_LEN }
+                  let u2 ← untrusted.Untrusted.new s1
+                  ok (core.result.Result.Ok
+                    { ip, header := val, payload := u2 })
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                udp.Ipv4Udp (core.convert.FromSame untrusted.ValidationError)
+                residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      udp.Ipv4Udp (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [net::udp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::udp::Ipv4Udp<'a>}]
+    Source: 'crates/net/src/udp.rs', lines 43:0-89:1 -/
+@[reducible]
+def udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate udp.Ipv4Udp (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
 end net

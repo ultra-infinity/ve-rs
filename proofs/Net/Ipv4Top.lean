@@ -6,6 +6,9 @@ open Aeneas Aeneas.Std Result untrusted untrusted.reader
 
 namespace net.ipv4
 
+/-- The bytes carried by the IPv4 packet `l`: `[hl, tl)`. -/
+def payloadOf (l : List U8) : List U8 := (l.take (totalLen l)).drop (headerLen l)
+
 /-- `l` is a well-formed IPv4 packet, possibly followed by link-layer padding,
     that decodes to `p`: its header length `hl` and total length `tl` satisfy
     `20 ≤ hl ≤ tl ≤ l.length`, the first `hl` bytes have a valid checksum, the
@@ -16,7 +19,7 @@ def Ipv4Packet.Spec (l : List U8) (p : Ipv4Packet) : Prop :=
     inet.spec 0 (l.take (headerLen l)) = 0xFFFF ∧
     FmtD Ipv4Header.Insts.UntrustedReaderDecode (l.take 20) p.header 20 ∧
     (p.options : Slice U8).val = (l.take (headerLen l)).drop 20 ∧
-    (p.payload : Slice U8).val = (l.take (totalLen l)).drop (headerLen l) ∧
+    (p.payload : Slice U8).val = payloadOf l ∧
     (p.padding : Slice U8).val = l.drop (totalLen l)
 
 /-- **Spec theorem for `<Ipv4Packet as Validate<&[u8]>>::validate`**: accepts
@@ -65,8 +68,8 @@ theorem _root_.net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8Validati
         step*
         refine ⟨by scalar_tac, by scalar_tac, by scalar_tac, by scalar_tac, hck, hres, ?_, ?_, ?_⟩
         · rw [u1_post, s2_post, ← header_len_post]; simp [List.slice, List.drop_take]
-        · rw [u2_post, s3_post, ← header_len_post, ← header_len_post1]
-          simp [List.slice, List.drop_take]
+        · rw [u2_post, s3_post, header_len_post, header_len_post1]
+          simp [payloadOf, List.slice, List.drop_take]
         · rw [u3_post, s4_post, ← header_len_post1]
       · simp only [hu, hlen] at hres
         simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,
@@ -74,5 +77,22 @@ theorem _root_.net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8Validati
           core.convert.FromSame.from, bind_tc_ok, WP.spec_ok]
         rintro p ⟨-, -, -, -, -, hD, -⟩
         exact hres p.header hD
+
+/-! ## Consequences of the spec, for the layers above -/
+
+/-- A well-formed IPv4 packet determines its header. -/
+theorem Ipv4Packet.Spec.header_eq {l : List U8} {p p' : Ipv4Packet} (h : Ipv4Packet.Spec l p)
+    (h' : Ipv4Packet.Spec l p') : p.header = p'.header :=
+  ((FmtLaws Ipv4Header.Insts.UntrustedReaderDecode).functional _ _ _ _ _
+    h.2.2.2.2.2.1 h'.2.2.2.2.2.1).1
+
+/-- The bytes `[hl, tl)` of a packet, as `Ipv4Packet::validate`'s callers
+    slice them. -/
+theorem slice_eq_payloadOf (l : List U8) : l.slice (headerLen l) (totalLen l) = payloadOf l := by
+  simp [payloadOf, List.slice, List.drop_take]
+
+theorem length_payloadOf (l : List U8) (h : totalLen l ≤ l.length) :
+    (payloadOf l).length = totalLen l - headerLen l := by
+  simp [payloadOf]; omega
 
 end net.ipv4
