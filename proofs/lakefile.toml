@@ -13,3 +13,6 @@ name = "Untrusted"
 
 [[lean_lib]]
 name = "DeriveDemo"
+
+[[lean_lib]]
+name = "Net"

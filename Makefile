@@ -5,9 +5,9 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net aeneas-pin clean
 
-all: extract verify verify-demo
+all: extract verify verify-demo verify-net
 
 build:
 	cargo build --workspace
@@ -41,6 +41,11 @@ lean-deps:
 # Formally verify the `Decode` impls of the example user crate.
 verify-demo:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p derive-demo --lean-dir $(PROOFS)
+
+# Formally verify the `net` crate (its hand-written specs are in
+# $(PROOFS)/Net/Manual*.lean).
+verify-net:
+	cargo run -q -p cargo-untrusted -- untrusted verify -p net --lean-dir $(PROOFS)
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

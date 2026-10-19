@@ -59,6 +59,7 @@
                 ./examples
                 ./proofs/Untrusted
                 ./proofs/DeriveDemo
+                ./proofs/Net
                 ./proofs/lakefile.toml
               ];
             };
@@ -83,6 +84,12 @@
                 --lean-dir proofs --extract-only
               diff -ru proofs-committed/DeriveDemo proofs/DeriveDemo || {
                 echo 'ERROR: the derive-demo model is stale. Run `make verify-demo`.'
+                exit 1
+              }
+              cargo run -q -p cargo-untrusted -- untrusted verify -p net \
+                --lean-dir proofs --extract-only
+              diff -ru proofs-committed/Net proofs/Net || {
+                echo 'ERROR: the net model is stale. Run `make verify-net`.'
                 exit 1
               }
             '';

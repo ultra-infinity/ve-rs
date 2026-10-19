@@ -172,4 +172,23 @@ theorem FmtLaws {T : Type} (inst : Decode T) {D : List U8 → T → Nat → Prop
     [h : DecodesAs inst D F] : Laws (FmtD inst) (FmtF inst) :=
   h.laws
 
+/-! ## Helpers for hand-written decoders -/
+
+/-- `read_byte` in list form: on success the unread bytes were `b` followed by
+    the new unread bytes. Convenient for chaining byte-by-byte decoders. -/
+theorem Reader.read_byte.spec_cons (self : Reader) :
+    Reader.read_byte self ⦃ (res : core.result.Result U8 ValidationError) (self' : Reader) =>
+      match res with
+      | .Ok b => Reader.rest self = b :: Reader.rest self' ∧ self'.input = self.input ∧
+          self'.pos.val = self.pos.val + 1 ∧ Reader.Inv self'
+      | .Err e => Reader.rest self = [] ∧ e = .EndOfInput ∧ self' = self ⦄ := by
+  apply WP.spec_mono (Reader.read_byte.spec self)
+  rintro ⟨_ | _, self'⟩ h
+  · obtain ⟨hhead, hin, hpos, hinv⟩ := h
+    refine ⟨?_, hin, hpos, hinv⟩
+    rw [Reader.rest_advance self self' 1 hin hpos]
+    match hl : Reader.rest self, hhead with
+    | x :: t, hhead => simp_all
+  · exact h
+
 end untrusted.reader

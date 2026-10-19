@@ -7,14 +7,18 @@
 //! audit rejects `sorry` and unexpected axioms.
 //!
 //! Steps:
-//! 1. Charon translates only the crate's `Decode` impls (`--start-from`), with
-//!    `untrusted` opaque, so its items become references to our model.
+//! 1. Charon translates only the crate's `Decode` and `Validate` impls
+//!    (`--start-from`). Items of `untrusted` are foreign: its functions stay
+//!    references to our model, and its public types are re-translated (and
+//!    dropped again in step 3).
 //! 2. Aeneas generates `Types.lean`/`Funs.lean` in the Lean project.
 //! 3. Declarations duplicated from `untrusted` are dropped, and the external
 //!    templates replaced by imports of the verified `Untrusted` library.
 //! 4. One `derive_decode_spec` file per `Decode` impl is generated and built; an
 //!    impl whose automatic proof fails (e.g. a hand-written one) is reported,
-//!    and must be given a spec by hand in `<Module>/Manual.lean`.
+//!    and must be given a spec by hand in `<Module>/Manual.lean` (if derived
+//!    types build on it) or `<Module>/ManualTop.lean` (if it builds on them,
+//!    like a `Validate` impl), which are left untouched.
 //! 5. `untrusted_audit` checks coverage and axioms.
 //!
 //! Requires `charon`, `aeneas` and `lake` on `PATH` (the `untrusted` flake's dev
@@ -171,15 +175,15 @@ fn main() {
     let namespace = args.package.replace('-', "_");
     let llbc = PathBuf::from("target/charon").join(format!("{namespace}.llbc"));
 
-    // 1. Charon: only the `Decode` impls, with `untrusted` opaque.
+    // 1. Charon: only the `Decode` and `Validate` impls.
     require(
         run(Command::new("charon").args([
             "cargo",
             "--preset=aeneas",
-            "--opaque",
-            "untrusted",
             "--start-from",
             "{impl untrusted::reader::Decode for _}",
+            "--start-from",
+            "{impl untrusted::Validate for _}",
             "--dest-file",
             llbc.to_str().unwrap(),
             "--",
@@ -224,9 +228,19 @@ fn main() {
         return;
     }
 
-    // 4. One automatic spec per `Decode` impl.
+    // 4. One automatic spec per `Decode` impl, except those given by hand.
+    //    Hand-written specs live in `Manual.lean` (specs that derived types
+    //    build on; imported by every attempt) and `ManualTop.lean` (specs that
+    //    build on derived types, e.g. a `Validate` impl; imported by the audit).
     let funs = fs::read_to_string(out.join("Funs.lean")).unwrap();
-    let types = decode_impl_types(&funs, &namespace);
+    let manual_src = fs::read_to_string(out.join("Manual.lean")).unwrap_or_default();
+    let has_manual = out.join("Manual.lean").exists();
+    let all_types = decode_impl_types(&funs, &namespace);
+    let types: Vec<String> = all_types
+        .iter()
+        .cloned()
+        .filter(|ty| !manual_src.contains(&format!("{ty}.Insts.UntrustedReaderDecode.decode.spec")))
+        .collect();
     let specs = out.join("Specs");
     let _ = fs::remove_dir_all(&specs);
     fs::create_dir_all(&specs).unwrap();
@@ -240,6 +254,9 @@ fn main() {
         for ty in std::mem::take(&mut manual) {
             let short = ty.rsplit('.').next().unwrap().to_string();
             let mut src = format!("import {module}.Funs\nimport Untrusted\n");
+            if has_manual {
+                writeln!(src, "import {module}.Manual").unwrap();
+            }
             for p in &proved {
                 writeln!(src, "import {p}").unwrap();
             }
@@ -263,22 +280,31 @@ fn main() {
         }
     }
 
-    // 5. Audit everything, including hand-written specs in `Manual.lean`.
+    // 5. Audit everything, including the hand-written specs.
     let mut audit = format!("import {module}.Funs\nimport Untrusted\n");
+    if has_manual {
+        writeln!(audit, "import {module}.Manual").unwrap();
+    }
     for p in &proved {
         writeln!(audit, "import {p}").unwrap();
     }
-    if out.join("Manual.lean").exists() {
-        writeln!(audit, "import {module}.Manual").unwrap();
+    if out.join("ManualTop.lean").exists() {
+        writeln!(audit, "import {module}.ManualTop").unwrap();
     }
     writeln!(audit, "\nuntrusted_audit {module}.Funs {module}").unwrap();
     fs::write(out.join("Audit.lean"), audit).unwrap();
+    // Built as a module, so that Lake first builds everything it imports
+    // (including the hand-written specs); a failing audit fails the build.
     let audited = run(Command::new("lake")
-        .args(["env", "lean", &format!("{module}/Audit.lean")])
+        .args(["build", &format!("{module}.Audit")])
         .current_dir(&args.lean_dir));
 
     eprintln!();
-    eprintln!("{} `Decode` impls proved automatically", proved.len());
+    eprintln!(
+        "{} `Decode` impls proved automatically, {} by hand-written specs",
+        proved.len(),
+        all_types.len() - types.len()
+    );
     for ty in &manual {
         eprintln!(
             "needs a manual spec (`{ty}.Insts.UntrustedReaderDecode.decode.spec`) in {}/Manual.lean: {ty}",

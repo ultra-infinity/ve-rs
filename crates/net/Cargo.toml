@@ -1,0 +1,10 @@
+[package]
+name = "net"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Verified decoding of network frames, built on `untrusted`"
+
+[dependencies]
+untrusted = { path = "../untrusted" }
