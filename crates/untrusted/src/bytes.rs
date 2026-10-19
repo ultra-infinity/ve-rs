@@ -26,6 +26,12 @@ impl<T> LittleEndian<T> {
     }
 }
 
+/// Types decoded from a fixed number of bytes.
+pub trait FixedLen {
+    /// The number of bytes in the encoding.
+    const LEN: usize;
+}
+
 fn check_len(input: &[u8], expected: usize) -> Result<(), ValidationError> {
     if input.len() == expected {
         Ok(())
@@ -40,6 +46,14 @@ fn check_len(input: &[u8], expected: usize) -> Result<(), ValidationError> {
 /// Single-byte integers: byte order is irrelevant.
 macro_rules! impl_byte {
     ($($t:ty),+) => {$(
+        impl FixedLen for BigEndian<$t> {
+            const LEN: usize = 1;
+        }
+
+        impl FixedLen for LittleEndian<$t> {
+            const LEN: usize = 1;
+        }
+
         impl<'a> Validate<&'a [u8]> for BigEndian<$t> {
             type Err = ValidationError;
             fn validate(input: &'a [u8]) -> Result<Self, Self::Err> {
@@ -65,6 +79,14 @@ macro_rules! impl_byte {
 /// Aeneas can translate the decoding.
 macro_rules! impl_multi_byte {
     ($($t:ty, $u:ty, $n:expr;)+) => {$(
+        impl FixedLen for BigEndian<$t> {
+            const LEN: usize = $n;
+        }
+
+        impl FixedLen for LittleEndian<$t> {
+            const LEN: usize = $n;
+        }
+
         impl<'a> Validate<&'a [u8]> for BigEndian<$t> {
             type Err = ValidationError;
             fn validate(input: &'a [u8]) -> Result<Self, Self::Err> {

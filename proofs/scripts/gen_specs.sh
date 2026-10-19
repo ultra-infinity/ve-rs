@@ -230,4 +230,55 @@ import Untrusted.Proofs.Core" untrusted.bytes
   printf '\nend untrusted.bytes\n'
 } > "$out_dir/Bytes.lean"
 
-echo "Wrote $out_dir/Int.lean and $out_dir/Bytes.lean"
+# --- Typed reads: `Reader::read::<BigEndian<T>>()` etc. -----------------------
+
+# Instantiates the generic `Reader.read.spec` with a decoder's spec.
+read_spec() {
+  local order=$1 t=$2 n=$3 num value
+  if [[ $order == BigEndian ]]; then num=beNat; else num=leNat; fi
+  if is_signed "$t"; then value="(x : $t).bv = BitVec.ofNat $((8 * n)) ($num"
+  else value="(x : $t).val = $num"; fi
+  local i; i="$order$t.Insts.Untrusted"
+  cat <<EOF
+
+/-- **Spec theorem for \`Reader::read::<$order<${t,,}>>\`** -/
+@[step]
+theorem Reader.read.$order${t}_spec (self : Reader) (h : Reader.Inv self) :
+    Reader.read ${i}BytesFixedLen ${i}ValidateSharedASliceU8ValidationError self
+      ⦃ (res : core.result.Result ($order $t) ValidationError) (self' : Reader) =>
+        match res with
+        | .Ok x => $n ≤ (Reader.rest self).length ∧
+            $value ((Reader.rest self).take $n)$(is_signed "$t" && echo ")") ∧
+            self'.input = self.input ∧ self'.pos.val = self.pos.val + $n ∧ Reader.Inv self'
+        | .Err e => (Reader.rest self).length < $n ∧ e = .EndOfInput ∧ self' = self ⦄ := by
+  apply WP.spec_mono (Reader.read.spec ${i}BytesFixedLen
+    ${i}ValidateSharedASliceU8ValidationError self h $n#usize
+    (by simp [${i}BytesFixedLen.LEN])
+    (fun l r => match r with
+      | .Ok x => l.length = $n ∧ $value l$(is_signed "$t" && echo ")")
+      | .Err _ => l.length ≠ $n)
+    (fun s _ => WP.spec_mono (${i}ValidateSharedASliceU8ValidationError.validate.spec s)
+      (by rintro (_ | _) <;> simp_all)))
+  rintro ⟨_ | _, self'⟩ hpost
+  · simp_all
+  · simp only [WP.uncurry'_pair] at hpost ⊢
+    obtain ⟨rfl, hpost | ⟨hle, hne⟩⟩ := hpost
+    · simp_all
+    · exact absurd (by simp; scalar_tac) hne
+EOF
+}
+
+{
+  header "import Untrusted.Proofs.Reader
+import Untrusted.Proofs.Bytes" untrusted.reader
+  printf '\nset_option linter.dupNamespace false\n\nopen bytes\n'
+  for order in BigEndian LittleEndian; do
+    for spec in U8:1 I8:1 U16:2 U32:4 U64:8 U128:16 I16:2 I32:4 I64:8 I128:16; do
+      IFS=: read -r t n <<< "$spec"
+      read_spec "$order" "$t" "$n"
+    done
+  done
+  printf '\nend untrusted.reader\n'
+} > "$out_dir/ReadTyped.lean"
+
+echo "Wrote Int.lean, Bytes.lean and ReadTyped.lean in $out_dir"

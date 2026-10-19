@@ -32,24 +32,46 @@ def bytes.BigEndian (T : Type _) := T
 @[reducible]
 def bytes.LittleEndian (T : Type _) := T
 
+/-- Trait declaration: [untrusted::bytes::FixedLen]
+    Source: 'crates/untrusted/src/bytes.rs', lines 30:0-33:1
+    Visibility: public -/
+structure bytes.FixedLen (Self : Type _) where
+  LEN : Result Std.Usize
+
 /-- [untrusted::ValidationError]
-    Source: 'crates/untrusted/src/lib.rs', lines 39:0-44:1
+    Source: 'crates/untrusted/src/lib.rs', lines 51:0-60:1
     Visibility: public -/
 @[discriminant isize]
 inductive ValidationError where
 | LengthMismatch : Std.Usize → Std.Usize → ValidationError
 | OutOfRange : ValidationError
+| EndOfInput : ValidationError
+| TrailingData : ValidationError
 
 /-- Trait declaration: [untrusted::Validate]
-    Source: 'crates/untrusted/src/lib.rs', lines 33:0-36:1
+    Source: 'crates/untrusted/src/lib.rs', lines 45:0-48:1
     Visibility: public -/
 structure Validate (Self : Type _) (Input : Type _) (Self_Err : Type _) where
   validate : Input → Result (core.result.Result Self Self_Err)
 
 /-- [untrusted::Untrusted]
-    Source: 'crates/untrusted/src/lib.rs', lines 19:0-19:27
+    Source: 'crates/untrusted/src/lib.rs', lines 31:0-31:27
     Visibility: public -/
 @[reducible]
 def Untrusted (T : Type _) := T
+
+/-- [untrusted::reader::Reader]
+    Source: 'crates/untrusted/src/reader.rs', lines 15:0-18:1
+    Visibility: public -/
+structure reader.Reader where
+  input : Slice Std.U8
+  pos : Std.Usize
+
+/-- Trait declaration: [untrusted::reader::Parse]
+    Source: 'crates/untrusted/src/reader.rs', lines 27:0-29:1
+    Visibility: public -/
+structure reader.Parse (Self : Type _) where
+  parse : reader.Reader → Result ((core.result.Result Self ValidationError)
+    × reader.Reader)
 
 end untrusted
