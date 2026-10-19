@@ -157,6 +157,38 @@ structure icmp.Icmpv4 where
   header : icmp.IcmpHeader
   body : untrusted.Untrusted (Slice Std.U8)
 
+/-- [net::ipv6::Ipv6Addr]
+    Source: 'crates/net/src/ipv6.rs', lines 27:0-27:30
+    Visibility: public -/
+@[reducible]
+def ipv6.Ipv6Addr := Std.U128
+
+/-- [net::ipv6::VersionClassFlow]
+    Source: 'crates/net/src/ipv6.rs', lines 37:0-41:1
+    Visibility: public -/
+structure ipv6.VersionClassFlow where
+  traffic_class : Std.U8
+  flow_label : Std.U32
+
+/-- [net::ipv6::Ipv6Header]
+    Source: 'crates/net/src/ipv6.rs', lines 58:0-65:1
+    Visibility: public -/
+structure ipv6.Ipv6Header where
+  version_class_flow : ipv6.VersionClassFlow
+  payload_len : untrusted.bytes.BigEndian Std.U16
+  next_header : untrusted.bytes.BigEndian Std.U8
+  hop_limit : untrusted.bytes.BigEndian Std.U8
+  src : ipv6.Ipv6Addr
+  dst : ipv6.Ipv6Addr
+
+/-- [net::ipv6::Ipv6Packet]
+    Source: 'crates/net/src/ipv6.rs', lines 68:0-74:1
+    Visibility: public -/
+structure ipv6.Ipv6Packet where
+  header : ipv6.Ipv6Header
+  payload : untrusted.Untrusted (Slice Std.U8)
+  padding : untrusted.Untrusted (Slice Std.U8)
+
 /-- [net::udp::UdpHeader]
     Source: 'crates/net/src/udp.rs', lines 20:0-27:1
     Visibility: public -/

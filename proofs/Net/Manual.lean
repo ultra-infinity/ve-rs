@@ -5,3 +5,4 @@ import Net.Checksum
 import Net.Crc
 import Net.Fields
 import Net.Ipv4Fields
+import Net.Ipv6Fields

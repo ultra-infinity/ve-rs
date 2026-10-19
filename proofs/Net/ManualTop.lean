@@ -4,5 +4,6 @@
 import Net.ArpTop
 import Net.EthernetTop
 import Net.Ipv4Top
+import Net.Ipv6Top
 import Net.UdpTop
 import Net.IcmpTop
