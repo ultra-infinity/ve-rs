@@ -9,6 +9,7 @@
 //! - [`arp::Arp`]: ARP for IPv4 over Ethernet;
 //! - [`ipv4::Ipv4Packet`], [`ipv6::Ipv6Packet`]: IP packets;
 //! - [`udp::Ipv4Udp`], [`udp::Ipv6Udp`]: UDP datagrams, with their checksums;
+//! - [`tcp::Ipv4Tcp`], [`tcp::Ipv6Tcp`]: TCP segments, with their checksums;
 //! - [`icmp::Icmpv4`], [`icmp::Icmpv6`]: ICMP messages, with their checksums.
 //!
 //! The UDP and ICMP validators take the whole IP packet, since their checksums
@@ -23,6 +24,7 @@ pub mod icmp;
 pub mod inet;
 pub mod ipv4;
 pub mod ipv6;
+pub mod tcp;
 pub mod udp;
 
 #[cfg(test)]

@@ -1705,6 +1705,360 @@ def ipv4.Fragment.is_fragment (self : ipv4.Fragment) : Result Bool := do
     Visibility: public -/
 @[global_simps, irreducible] def ipv6.NEXT_UDP : Std.U8 := 17#u8
 
+/-- [net::tcp::PROTO_TCP]
+    Source: 'crates/net/src/tcp.rs', lines 21:0-21:28
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.PROTO_TCP : Std.U8 := 6#u8
+
+/-- [net::tcp::MIN_HEADER_LEN]
+    Source: 'crates/net/src/tcp.rs', lines 23:0-23:37
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.MIN_HEADER_LEN : Std.Usize := 20#usize
+
+/-- [net::tcp::{impl untrusted::reader::Decode for net::tcp::TcpHeader}::decode]:
+    Source: 'crates/net/src/tcp.rs', lines 26:9-26:15
+    Visibility: public -/
+def tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result tcp.TcpHeader untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode
+          untrusted.bytes.BigEndianU32.Insts.UntrustedReaderDecode r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode
+            untrusted.bytes.BigEndianU32.Insts.UntrustedReaderDecode r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              let (r13, r14) ←
+                untrusted.reader.Reader.decode
+                  untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r12
+              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r13
+              match cf6 with
+              | core.ops.control_flow.ControlFlow.Continue val6 =>
+                let (r15, r16) ←
+                  untrusted.reader.Reader.decode
+                    untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode
+                    r14
+                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r15
+                match cf7 with
+                | core.ops.control_flow.ControlFlow.Continue val7 =>
+                  let (r17, r18) ←
+                    untrusted.reader.Reader.decode
+                      untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode
+                      r16
+                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r17
+                  match cf8 with
+                  | core.ops.control_flow.ControlFlow.Continue val8 =>
+                    ok (core.result.Result.Ok
+                      {
+                        src_port := val,
+                        dst_port := val1,
+                        seq := val2,
+                        ack := val3,
+                        offset := val4,
+                        flags := val5,
+                        window := val6,
+                        checksum := val7,
+                        urgent := val8
+                      }, r18)
+                  | core.ops.control_flow.ControlFlow.Break residual =>
+                    let r19 ←
+                      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                        tcp.TcpHeader (core.convert.FromSame
+                        untrusted.ValidationError) residual
+                    ok (r19, r18)
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  let r17 ←
+                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                      tcp.TcpHeader (core.convert.FromSame
+                      untrusted.ValidationError) residual
+                  ok (r17, r16)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                let r15 ←
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    tcp.TcpHeader (core.convert.FromSame
+                    untrusted.ValidationError) residual
+                ok (r15, r14)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  tcp.TcpHeader (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                tcp.TcpHeader (core.convert.FromSame untrusted.ValidationError)
+                residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              tcp.TcpHeader (core.convert.FromSame untrusted.ValidationError)
+              residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            tcp.TcpHeader (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          tcp.TcpHeader (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        tcp.TcpHeader (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [net::tcp::{impl untrusted::reader::Decode for net::tcp::TcpHeader}]
+    Source: 'crates/net/src/tcp.rs', lines 26:9-26:15 -/
+@[reducible]
+def tcp.TcpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  tcp.TcpHeader := {
+  decode := tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::tcp::header]:
+    Source: 'crates/net/src/tcp.rs', lines 46:0-59:1 -/
+def tcp.header
+  (segment : Slice Std.U8) :
+  Result (core.result.Result (tcp.TcpHeader × Std.Usize)
+    untrusted.ValidationError)
+  := do
+  let i := Slice.len segment
+  if i < tcp.MIN_HEADER_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let s ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) segment
+        { «end» := tcp.MIN_HEADER_LEN }
+    let u ← untrusted.Untrusted.new s
+    let r ←
+      untrusted.reader.UntrustedShared0SliceU8.read_all
+        tcp.TcpHeader.Insts.UntrustedReaderDecode u
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i1 := val.offset
+      let i2 ← i1 / 16#u8
+      let off ← lift (UScalar.cast .Usize i2)
+      if off < 5#usize
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        let i3 ← 4#usize * off
+        let i4 := Slice.len segment
+        if i3 > i4
+        then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+        else ok (core.result.Result.Ok (val, i3))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (tcp.TcpHeader × Std.Usize) (core.convert.FromSame
+        untrusted.ValidationError) residual
+
+/-- [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv4Tcp<'a>}::validate]:
+    Source: 'crates/net/src/tcp.rs', lines 79:4-111:5
+    Visibility: public -/
+def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result tcp.Ipv4Tcp untrusted.ValidationError)
+  := do
+  let u ← untrusted.Untrusted.new input
+  let r ←
+    untrusted.Untrusted.validate
+      ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue ip =>
+    let i := ip.header.protocol
+    if i != tcp.PROTO_TCP
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    else
+      if ip.header.fragment.more_fragments
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        if ip.header.fragment.offset != 0#u16
+        then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+        else
+          let (header_len, total_len) ← ipv4.lengths input
+          let segment ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+              { start := header_len, «end» := total_len }
+          let r1 ← tcp.header segment
+          let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+          match cf1 with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let (header, hl) := val
+            let len := Slice.len segment
+            let s ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+                { start := 12#usize, «end» := 20#usize }
+            let acc ← inet.sum 0#u16 s
+            let s1 ←
+              lift (Array.to_slice
+                (Array.make 2#usize [ 0#u8, tcp.PROTO_TCP ]))
+            let acc1 ← inet.sum acc s1
+            let i1 ← len / 256#usize
+            let i2 ← lift (UScalar.cast .U8 i1)
+            let i3 ← len % 256#usize
+            let i4 ← lift (UScalar.cast .U8 i3)
+            let s2 ← lift (Array.to_slice (Array.make 2#usize [ i2, i4 ]))
+            let acc2 ← inet.sum acc1 s2
+            let i5 ← inet.sum acc2 segment
+            if i5 != inet.VALID
+            then
+              ok (core.result.Result.Err
+                untrusted.ValidationError.ChecksumMismatch)
+            else
+              let s3 ←
+                core.slice.index.Slice.index
+                  (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) segment
+                  { start := tcp.MIN_HEADER_LEN, «end» := hl }
+              let u1 ← untrusted.Untrusted.new s3
+              let s4 ←
+                core.slice.index.Slice.index
+                  (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8)
+                  segment { start := hl }
+              let u2 ← untrusted.Untrusted.new s4
+              ok (core.result.Result.Ok
+                { ip, header, options := u1, payload := u2 })
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              tcp.Ipv4Tcp (core.convert.FromSame untrusted.ValidationError)
+              residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      tcp.Ipv4Tcp (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv4Tcp<'a>}]
+    Source: 'crates/net/src/tcp.rs', lines 76:0-112:1 -/
+@[reducible]
+def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate tcp.Ipv4Tcp (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
+/-- [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv6Tcp<'a>}::validate]:
+    Source: 'crates/net/src/tcp.rs', lines 132:4-159:5
+    Visibility: public -/
+def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result tcp.Ipv6Tcp untrusted.ValidationError)
+  := do
+  let u ← untrusted.Untrusted.new input
+  let r ←
+    untrusted.Untrusted.validate
+      ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue ip =>
+    let i := ip.header.next_header
+    if i != tcp.PROTO_TCP
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    else
+      let «end» ← ipv6.payload_end input
+      let segment ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+          { start := ipv6.HEADER_LEN, «end» }
+      let r1 ← tcp.header segment
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let (header, hl) := val
+        let len := Slice.len segment
+        let s ←
+          core.slice.index.Slice.index
+            (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+            { start := 8#usize, «end» := 40#usize }
+        let acc ← inet.sum 0#u16 s
+        let a := Array.repeat 2#usize 0#u8
+        let s1 ← lift (Array.to_slice a)
+        let acc1 ← inet.sum acc s1
+        let i1 ← len / 256#usize
+        let i2 ← lift (UScalar.cast .U8 i1)
+        let i3 ← len % 256#usize
+        let i4 ← lift (UScalar.cast .U8 i3)
+        let s2 ← lift (Array.to_slice (Array.make 2#usize [ i2, i4 ]))
+        let acc2 ← inet.sum acc1 s2
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 4#usize [ 0#u8, 0#u8, 0#u8, tcp.PROTO_TCP ]))
+        let acc3 ← inet.sum acc2 s3
+        let i5 ← inet.sum acc3 segment
+        if i5 != inet.VALID
+        then
+          ok (core.result.Result.Err
+            untrusted.ValidationError.ChecksumMismatch)
+        else
+          let s4 ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) segment
+              { start := tcp.MIN_HEADER_LEN, «end» := hl }
+          let u1 ← untrusted.Untrusted.new s4
+          let s5 ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) segment
+              { start := hl }
+          let u2 ← untrusted.Untrusted.new s5
+          ok (core.result.Result.Ok
+            { ip, header, options := u1, payload := u2 })
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          tcp.Ipv6Tcp (core.convert.FromSame untrusted.ValidationError)
+          residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      tcp.Ipv6Tcp (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv6Tcp<'a>}]
+    Source: 'crates/net/src/tcp.rs', lines 129:0-160:1 -/
+@[reducible]
+def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate tcp.Ipv6Tcp (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
 /-- [net::udp::HEADER_LEN]
     Source: 'crates/net/src/udp.rs', lines 17:0-17:32
     Visibility: public -/

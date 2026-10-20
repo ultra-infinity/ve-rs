@@ -19,6 +19,7 @@ use net::ethernet::Frame;
 use net::icmp::{Icmpv4, Icmpv6};
 use net::ipv4::{self, Ipv4Packet};
 use net::ipv6::{self, Ipv6Packet};
+use net::tcp::{self, Ipv4Tcp, Ipv6Tcp};
 use net::udp::{Ipv4Udp, Ipv6Udp};
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -75,6 +76,17 @@ fn ipv4(bytes: &[u8]) -> Outcome {
             );
             Ok(("ipv4/udp", what))
         }
+        tcp::PROTO_TCP if !p.header.fragment.is_fragment() => {
+            let t = validate::<Ipv4Tcp>("ipv4/tcp", bytes)?;
+            let what = format!(
+                "{src}:{} -> {dst}:{} flags {:#04x} {}",
+                t.header.src_port.0,
+                t.header.dst_port.0,
+                t.header.flags.0,
+                show(&contents(t.payload)),
+            );
+            Ok(("ipv4/tcp", what))
+        }
         ipv4::PROTO_ICMP if !p.header.fragment.is_fragment() => {
             let m = validate::<Icmpv4>("ipv4/icmp", bytes)?;
             let what = format!(
@@ -100,6 +112,17 @@ fn ipv6(bytes: &[u8]) -> Outcome {
                 show(&contents(u.payload)),
             );
             Ok(("ipv6/udp", what))
+        }
+        tcp::PROTO_TCP => {
+            let t = validate::<Ipv6Tcp>("ipv6/tcp", bytes)?;
+            let what = format!(
+                "[{src}]:{} -> [{dst}]:{} flags {:#04x} {}",
+                t.header.src_port.0,
+                t.header.dst_port.0,
+                t.header.flags.0,
+                show(&contents(t.payload)),
+            );
+            Ok(("ipv6/tcp", what))
         }
         ipv6::NEXT_ICMPV6 => {
             let m = validate::<Icmpv6>("ipv6/icmp", bytes)?;

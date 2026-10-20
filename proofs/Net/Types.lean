@@ -197,6 +197,38 @@ structure icmp.Icmpv6 where
   header : icmp.IcmpHeader
   body : untrusted.Untrusted (Slice Std.U8)
 
+/-- [net::tcp::TcpHeader]
+    Source: 'crates/net/src/tcp.rs', lines 27:0-40:1
+    Visibility: public -/
+structure tcp.TcpHeader where
+  src_port : untrusted.bytes.BigEndian Std.U16
+  dst_port : untrusted.bytes.BigEndian Std.U16
+  seq : untrusted.bytes.BigEndian Std.U32
+  ack : untrusted.bytes.BigEndian Std.U32
+  offset : untrusted.bytes.BigEndian Std.U8
+  flags : untrusted.bytes.BigEndian Std.U8
+  window : untrusted.bytes.BigEndian Std.U16
+  checksum : untrusted.bytes.BigEndian Std.U16
+  urgent : untrusted.bytes.BigEndian Std.U16
+
+/-- [net::tcp::Ipv4Tcp]
+    Source: 'crates/net/src/tcp.rs', lines 69:0-74:1
+    Visibility: public -/
+structure tcp.Ipv4Tcp where
+  ip : ipv4.Ipv4Packet
+  header : tcp.TcpHeader
+  options : untrusted.Untrusted (Slice Std.U8)
+  payload : untrusted.Untrusted (Slice Std.U8)
+
+/-- [net::tcp::Ipv6Tcp]
+    Source: 'crates/net/src/tcp.rs', lines 122:0-127:1
+    Visibility: public -/
+structure tcp.Ipv6Tcp where
+  ip : ipv6.Ipv6Packet
+  header : tcp.TcpHeader
+  options : untrusted.Untrusted (Slice Std.U8)
+  payload : untrusted.Untrusted (Slice Std.U8)
+
 /-- [net::udp::UdpHeader]
     Source: 'crates/net/src/udp.rs', lines 21:0-28:1
     Visibility: public -/
