@@ -735,4 +735,304 @@ def name.Name.as_bytes (self : name.Name) : Result (Slice Std.U8) := do
     (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8)) self.bytes
     { «end» := self.len }
 
+/-- [adfilter::tls::PORT]
+    Source: 'crates/adfilter/src/tls.rs', lines 23:0-23:26
+    Visibility: public -/
+@[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
+
+/-- [adfilter::tls::CONTENT_HANDSHAKE]
+    Source: 'crates/adfilter/src/tls.rs', lines 25:0-25:37
+    Visibility: public -/
+@[global_simps, irreducible] def tls.CONTENT_HANDSHAKE : Std.U8 := 22#u8
+
+/-- [adfilter::tls::CLIENT_HELLO]
+    Source: 'crates/adfilter/src/tls.rs', lines 27:0-27:31
+    Visibility: public -/
+@[global_simps, irreducible] def tls.CLIENT_HELLO : Std.U8 := 1#u8
+
+/-- [adfilter::tls::EXT_SERVER_NAME]
+    Source: 'crates/adfilter/src/tls.rs', lines 29:0-29:37
+    Visibility: public -/
+@[global_simps, irreducible] def tls.EXT_SERVER_NAME : Std.Usize := 0#usize
+
+/-- [adfilter::tls::HOST_NAME]
+    Source: 'crates/adfilter/src/tls.rs', lines 31:0-31:28
+    Visibility: public -/
+@[global_simps, irreducible] def tls.HOST_NAME : Std.U8 := 0#u8
+
+/-- [adfilter::tls::RECORD_HEADER_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 33:0-33:39
+    Visibility: public -/
+@[global_simps, irreducible] def tls.RECORD_HEADER_LEN : Std.Usize := 5#usize
+
+/-- [adfilter::tls::HANDSHAKE_HEADER_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 35:0-35:42
+    Visibility: public -/
+@[global_simps, irreducible]
+def tls.HANDSHAKE_HEADER_LEN : Std.Usize := 4#usize
+
+/-- [adfilter::tls::VERSION_RANDOM_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 37:0-37:41
+    Visibility: public -/
+@[global_simps, irreducible] def tls.VERSION_RANDOM_LEN : Std.Usize := 34#usize
+
+/-- [adfilter::tls::be16]:
+    Source: 'crates/adfilter/src/tls.rs', lines 46:0-48:1 -/
+def tls.be16 (b : Slice Std.U8) («at» : Std.Usize) : Result Std.Usize := do
+  let i ← Slice.index_usize b «at»
+  let i1 ← lift (UScalar.cast .Usize i)
+  let i2 ← i1 * 256#usize
+  let i3 ← «at» + 1#usize
+  let i4 ← Slice.index_usize b i3
+  let i5 ← lift (UScalar.cast .Usize i4)
+  i2 + i5
+
+/-- [adfilter::tls::skip_vector8]:
+    Source: 'crates/adfilter/src/tls.rs', lines 52:0-62:1 -/
+def tls.skip_vector8
+  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  if pos >= «end»
+  then ok none
+  else
+    let i ← Slice.index_usize b pos
+    let n ← lift (UScalar.cast .Usize i)
+    let i1 ← «end» - pos
+    let i2 ← i1 - 1#usize
+    if n > i2
+    then ok none
+    else let i3 ← pos + 1#usize
+         let i4 ← i3 + n
+         ok (some i4)
+
+/-- [adfilter::tls::skip_vector16]:
+    Source: 'crates/adfilter/src/tls.rs', lines 66:0-76:1 -/
+def tls.skip_vector16
+  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i ← «end» - pos
+  if i < 2#usize
+  then ok none
+  else
+    let n ← tls.be16 b pos
+    let i1 ← i - 2#usize
+    if n > i1
+    then ok none
+    else let i2 ← pos + 2#usize
+         let i3 ← i2 + n
+         ok (some i3)
+
+/-- [adfilter::tls::find_server_name]: loop 0:
+    Source: 'crates/adfilter/src/tls.rs', lines 90:4-109:5 -/
+@[rust_loop]
+def tls.find_server_name_loop
+  (b : Slice Std.U8) («end» : Std.Usize) (pos : Std.Usize) (found : Bool)
+  («at» : Std.Usize) (len : Std.Usize) (bad : Bool) :
+  Result (Bool × Std.Usize × Std.Usize × Bool)
+  := do
+  if pos < «end»
+  then
+    if bad
+    then ok (found, «at», len, bad)
+    else
+      let i ← «end» - pos
+      if i < 4#usize
+      then tls.find_server_name_loop b «end» pos found «at» len true
+      else
+        let ty ← tls.be16 b pos
+        let i1 ← pos + 2#usize
+        let n ← tls.be16 b i1
+        let i2 ← i - 4#usize
+        if n > i2
+        then tls.find_server_name_loop b «end» pos found «at» len true
+        else
+          let (found1, at1, len1) ←
+            if found
+            then ok (found, «at», len)
+            else
+              if ty = tls.EXT_SERVER_NAME
+              then do
+                   let at2 ← pos + 4#usize
+                   ok (true, at2, n)
+              else ok (found, «at», len)
+          let i3 ← 4#usize + n
+          let pos1 ← pos + i3
+          tls.find_server_name_loop b «end» pos1 found1 at1 len1 bad
+  else ok (found, «at», len, bad)
+partial_fixpoint
+
+/-- [adfilter::tls::find_server_name]:
+    Source: 'crates/adfilter/src/tls.rs', lines 84:0-115:1 -/
+def tls.find_server_name
+  (b : Slice Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result (Option (Bool × Std.Usize × Std.Usize))
+  := do
+  let (found, «at», len, bad) ←
+    tls.find_server_name_loop b «end» start false 0#usize 0#usize false
+  if bad
+  then ok none
+  else ok (some (found, «at», len))
+
+/-- [adfilter::tls::host_name]:
+    Source: 'crates/adfilter/src/tls.rs', lines 119:0-134:1 -/
+def tls.host_name
+  (b : Slice Std.U8) («at» : Std.Usize) (len : Std.Usize) :
+  Result (Option name.Name)
+  := do
+  if len < 5#usize
+  then ok none
+  else
+    let i ← tls.be16 b «at»
+    let i1 ← len - 2#usize
+    if i != i1
+    then ok none
+    else
+      let i2 ← «at» + 2#usize
+      let i3 ← Slice.index_usize b i2
+      if i3 != tls.HOST_NAME
+      then ok none
+      else
+        let i4 ← «at» + 3#usize
+        let n ← tls.be16 b i4
+        let i5 ← len - 5#usize
+        if n > i5
+        then ok none
+        else
+          let i6 ← «at» + 5#usize
+          let i7 ← i6 + n
+          let s ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) b
+              { start := i6, «end» := i7 }
+          name.Name.from_text s
+
+/-- [adfilter::tls::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::tls::ClientHello}::validate]:
+    Source: 'crates/adfilter/src/tls.rs', lines 139:4-209:5
+    Visibility: public -/
+def
+  tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
+  (r : Slice Std.U8) :
+  Result (core.result.Result tls.ClientHello untrusted.ValidationError)
+  := do
+  let i := Slice.len r
+  if i < tls.RECORD_HEADER_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let i1 ← Slice.index_usize r 0#usize
+    if i1 != tls.CONTENT_HANDSHAKE
+    then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    else
+      let i2 ← Slice.index_usize r 1#usize
+      if i2 != 3#u8
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        let i3 ← Slice.index_usize r 2#usize
+        if i3 > 4#u8
+        then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+        else
+          let fragment_len ← tls.be16 r 3#usize
+          let i4 := Slice.len r
+          let i5 ← i4 - tls.RECORD_HEADER_LEN
+          if fragment_len > i5
+          then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+          else
+            let record_end ← tls.RECORD_HEADER_LEN + fragment_len
+            if fragment_len < tls.HANDSHAKE_HEADER_LEN
+            then
+              ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+            else
+              let i6 ← Slice.index_usize r tls.RECORD_HEADER_LEN
+              if i6 != tls.CLIENT_HELLO
+              then
+                ok (core.result.Result.Err
+                  untrusted.ValidationError.OutOfRange)
+              else
+                let body ← tls.RECORD_HEADER_LEN + tls.HANDSHAKE_HEADER_LEN
+                let i7 ← tls.RECORD_HEADER_LEN + 1#usize
+                let i8 ← Slice.index_usize r i7
+                let i9 ← lift (UScalar.cast .Usize i8)
+                let i10 ← i9 * 65536#usize
+                let i11 ← tls.RECORD_HEADER_LEN + 2#usize
+                let i12 ← tls.be16 r i11
+                let body_len ← i10 + i12
+                let i13 ← record_end - body
+                if body_len > i13
+                then
+                  ok (core.result.Result.Err
+                    untrusted.ValidationError.EndOfInput)
+                else
+                  let «end» ← body + body_len
+                  if body_len < tls.VERSION_RANDOM_LEN
+                  then
+                    ok (core.result.Result.Err
+                      untrusted.ValidationError.EndOfInput)
+                  else
+                    let session_id ← body + tls.VERSION_RANDOM_LEN
+                    let o ← tls.skip_vector8 r session_id «end»
+                    match o with
+                    | none =>
+                      ok (core.result.Result.Err
+                        untrusted.ValidationError.EndOfInput)
+                    | some p =>
+                      let o1 ← tls.skip_vector16 r p «end»
+                      match o1 with
+                      | none =>
+                        ok (core.result.Result.Err
+                          untrusted.ValidationError.EndOfInput)
+                      | some p1 =>
+                        let o2 ← tls.skip_vector8 r p1 «end»
+                        match o2 with
+                        | none =>
+                          ok (core.result.Result.Err
+                            untrusted.ValidationError.EndOfInput)
+                        | some p2 =>
+                          if p2 = «end»
+                          then
+                            ok (core.result.Result.Ok { server_name := none })
+                          else
+                            let o3 ← tls.skip_vector16 r p2 «end»
+                            match o3 with
+                            | none =>
+                              ok (core.result.Result.Err
+                                untrusted.ValidationError.EndOfInput)
+                            | some p3 =>
+                              if p3 != «end»
+                              then
+                                ok (core.result.Result.Err
+                                  untrusted.ValidationError.TrailingData)
+                              else
+                                let i14 ← p2 + 2#usize
+                                let o4 ← tls.find_server_name r i14 «end»
+                                match o4 with
+                                | none =>
+                                  ok (core.result.Result.Err
+                                    untrusted.ValidationError.OutOfRange)
+                                | some f =>
+                                  let (found, «at», len) := f
+                                  if found
+                                  then
+                                    let o5 ← tls.host_name r «at» len
+                                    match o5 with
+                                    | none =>
+                                      ok (core.result.Result.Err
+                                        untrusted.ValidationError.OutOfRange)
+                                    | some _ =>
+                                      ok (core.result.Result.Ok
+                                        { server_name := o5 })
+                                  else
+                                    ok (core.result.Result.Ok
+                                      { server_name := none })
+
+/-- Trait implementation: [adfilter::tls::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::tls::ClientHello}]
+    Source: 'crates/adfilter/src/tls.rs', lines 136:0-210:1 -/
+@[reducible]
+def tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError :
+  untrusted.Validate tls.ClientHello (Slice Std.U8) untrusted.ValidationError
+  := {
+  validate :=
+    tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
+}
+
 end adfilter

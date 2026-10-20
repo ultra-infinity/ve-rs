@@ -17,3 +17,4 @@
 pub mod blocklist;
 pub mod dns;
 pub mod name;
+pub mod tls;

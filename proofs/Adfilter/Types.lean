@@ -54,4 +54,10 @@ structure dns.DnsQuery where
   qclass : Std.U16
   question_len : Std.Usize
 
+/-- [adfilter::tls::ClientHello]
+    Source: 'crates/adfilter/src/tls.rs', lines 41:0-43:1
+    Visibility: public -/
+structure tls.ClientHello where
+  server_name : Option name.Name
+
 end adfilter
