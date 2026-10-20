@@ -60,6 +60,7 @@
                 ./proofs/Untrusted
                 ./proofs/DeriveDemo
                 ./proofs/Net
+                ./proofs/Wireguard
                 ./proofs/lakefile.toml
               ];
             };
@@ -90,6 +91,12 @@
                 --lean-dir proofs --extract-only
               diff -ru proofs-committed/Net proofs/Net || {
                 echo 'ERROR: the net model is stale. Run `make verify-net`.'
+                exit 1
+              }
+              cargo run -q -p cargo-untrusted -- untrusted verify -p wireguard \
+                --lean-dir proofs --extract-only --extract-all --link net=Net
+              diff -ru proofs-committed/Wireguard proofs/Wireguard || {
+                echo 'ERROR: the wireguard model is stale. Run `make verify-wireguard`.'
                 exit 1
               }
             '';

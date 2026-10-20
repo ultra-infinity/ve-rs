@@ -8,12 +8,14 @@
 //!
 //! Steps:
 //! 1. Charon translates only the crate's `Decode` and `Validate` impls
-//!    (`--start-from`). Items of `untrusted` are foreign: its functions stay
-//!    references to our model, and its public types are re-translated (and
-//!    dropped again in step 3).
+//!    (`--start-from`), or every item with `--extract-all`. Items of
+//!    `untrusted` (and of `--link`ed crates) are foreign: their functions stay
+//!    references to their models, and their public types are re-translated
+//!    (and dropped again in step 3).
 //! 2. Aeneas generates `Types.lean`/`Funs.lean` in the Lean project.
-//! 3. Declarations duplicated from `untrusted` are dropped, and the external
-//!    templates replaced by imports of the verified `Untrusted` library.
+//! 3. Declarations duplicated from `untrusted` and `--link`ed crates are
+//!    dropped, and the external templates replaced by imports of their
+//!    verified Lean libraries.
 //! 4. One `derive_decode_spec` file per `Decode` impl is generated and built; an
 //!    impl whose automatic proof fails (e.g. a hand-written one) is reported,
 //!    and must be given a spec by hand in `<Module>/Manual.lean` (if derived
@@ -34,18 +36,27 @@ struct Args {
     lean_dir: PathBuf,
     untrusted_lean: Option<PathBuf>,
     extract_only: bool,
+    /// Extract every item of the crate, not only its `Decode`/`Validate` impls.
+    extract_all: bool,
+    /// Verified crates this one depends on, with their Lean library names.
+    links: Vec<(String, String)>,
 }
 
 fn usage() -> ! {
     eprintln!(
         "usage: cargo untrusted verify -p <package> [--lean-dir <dir>] [--untrusted-lean <dir>]\n\
-         \x20                          [--extract-only]\n\
+         \x20                          [--extract-only] [--extract-all] [--link <crate>=<Lib>]...\n\
          \n\
          --lean-dir        Lean project to generate into (default: proofs)\n\
          --untrusted-lean  path to the `untrusted` Lean package, used when a new\n\
          \x20                 Lean project has to be created\n\
          --extract-only    only regenerate the Lean model (steps 1-3), e.g. to\n\
-         \x20                 check that a committed model is up to date"
+         \x20                 check that a committed model is up to date\n\
+         --extract-all     extract every item of the crate, not only its `Decode`\n\
+         \x20                 and `Validate` impls; all of them then need specs\n\
+         --link            a verified crate this one uses, and its Lean library in\n\
+         \x20                 the same Lean project (e.g. `net=Net`): its items are\n\
+         \x20                 taken from that library instead of re-translated"
     );
     exit(2)
 }
@@ -61,12 +72,24 @@ fn parse_args() -> Args {
     }
     let (mut package, mut lean_dir, mut untrusted_lean) = (None, None, None);
     let mut extract_only = false;
+    let mut extract_all = false;
+    let mut links = Vec::new();
     while let Some(a) = args.next() {
         match a.as_str() {
             "-p" | "--package" => package = args.next(),
             "--lean-dir" => lean_dir = args.next().map(PathBuf::from),
             "--untrusted-lean" => untrusted_lean = args.next().map(PathBuf::from),
             "--extract-only" => extract_only = true,
+            "--extract-all" => extract_all = true,
+            "--link" => {
+                let Some((krate, lib)) = args.next().and_then(|l| {
+                    let (c, m) = l.split_once('=')?;
+                    Some((c.replace('-', "_"), m.to_string()))
+                }) else {
+                    usage()
+                };
+                links.push((krate, lib));
+            }
             _ => usage(),
         }
     }
@@ -75,6 +98,8 @@ fn parse_args() -> Args {
         lean_dir: lean_dir.unwrap_or_else(|| PathBuf::from("proofs")),
         untrusted_lean,
         extract_only,
+        extract_all,
+        links,
     }
 }
 
@@ -107,31 +132,35 @@ fn module_name(package: &str) -> String {
 }
 
 /// Drops the paragraphs (Aeneas emits one declaration per paragraph) that
-/// declare items of the `untrusted` crate: they are taken from the verified
-/// `Untrusted` library instead.
+/// declare items of the already-verified `crates` (`untrusted`, and any
+/// `--link`ed crate): they are taken from those crates' Lean libraries
+/// instead.
 ///
-/// Returns the names those paragraphs declared outside the `untrusted.`
-/// prefix. Impls for built-in types, such as `Decode for [u8; N]`, are named
-/// after the type (`ArrayU8N.…`), so the generated code refers to them
-/// unqualified; they are re-exported into the crate's namespace.
-fn drop_untrusted_decls(path: &Path) -> Vec<String> {
+/// Returns, per crate, the names those paragraphs declared outside the crate's
+/// own prefix. Impls for built-in types, such as `Decode for [u8; N]`, are
+/// named after the type (`ArrayU8N.…`), so the generated code refers to them
+/// unqualified; they are re-exported into this crate's namespace.
+fn drop_verified_decls(path: &Path, crates: &[&str]) -> Vec<(String, String)> {
     let text = fs::read_to_string(path).expect("read generated Lean file");
     let mut unqualified = Vec::new();
     let kept: Vec<&str> = text
         .split("\n\n")
         .filter(|p| {
             let flat = p.split_whitespace().collect::<Vec<_>>().join(" ");
-            let from_untrusted = ["rust_trait ", "rust_trait_impl ", "rust_type ", "rust_fun "]
-                .iter()
-                .any(|attr| flat.contains(&format!("{attr}\"untrusted::")));
-            if from_untrusted {
+            let from = crates.iter().find(|c| {
+                ["rust_trait ", "rust_trait_impl ", "rust_type ", "rust_fun "]
+                    .iter()
+                    .any(|attr| flat.contains(&format!("{attr}\"{c}::")))
+            });
+            if let Some(c) = from {
                 let names = p.lines().filter_map(|l| {
                     let name = l.strip_prefix("def ")?.split_whitespace().next()?;
-                    (!name.starts_with("untrusted.")).then(|| name.to_string())
+                    (!crates.iter().any(|k| name.starts_with(&format!("{k}."))))
+                        .then(|| (c.to_string(), name.to_string()))
                 });
                 unqualified.extend(names);
             }
-            !from_untrusted
+            from.is_none()
         })
         .collect();
     fs::write(path, kept.join("\n\n")).expect("write generated Lean file");
@@ -190,23 +219,20 @@ fn main() {
     let namespace = args.package.replace('-', "_");
     let llbc = PathBuf::from("target/charon").join(format!("{namespace}.llbc"));
 
-    // 1. Charon: only the `Decode` and `Validate` impls.
-    require(
-        run(Command::new("charon").args([
-            "cargo",
-            "--preset=aeneas",
+    // 1. Charon: only the `Decode` and `Validate` impls, unless asked for the
+    //    whole crate.
+    let mut charon = Command::new("charon");
+    charon.args(["cargo", "--preset=aeneas"]);
+    if !args.extract_all {
+        charon.args([
             "--start-from",
             "{impl untrusted::reader::Decode for _}",
             "--start-from",
             "{impl untrusted::Validate for _}",
-            "--dest-file",
-            llbc.to_str().unwrap(),
-            "--",
-            "-p",
-            &args.package,
-        ])),
-        "charon",
-    );
+        ]);
+    }
+    charon.args(["--dest-file", llbc.to_str().unwrap(), "--", "-p", &args.package]);
+    require(run(&mut charon), "charon");
 
     // 2. Aeneas.
     ensure_lean_project(&args.lean_dir, &module, args.untrusted_lean.as_deref());
@@ -231,22 +257,38 @@ fn main() {
         "aeneas",
     );
 
-    // 3. Link against the verified `Untrusted` library.
-    drop_untrusted_decls(&out.join("Types.lean"));
-    let reexports = drop_untrusted_decls(&out.join("Funs.lean"));
+    // 3. Link against the verified `Untrusted` library, and the libraries of
+    //    any `--link`ed crates.
+    let mut libs = vec![("untrusted", "Untrusted")];
+    libs.extend(args.links.iter().map(|(c, l)| (c.as_str(), l.as_str())));
+    let crates: Vec<&str> = libs.iter().map(|(c, _)| *c).collect();
+    drop_verified_decls(&out.join("Types.lean"), &crates);
+    let reexports = drop_verified_decls(&out.join("Funs.lean"), &crates);
     for t in ["TypesExternal_Template.lean", "FunsExternal_Template.lean"] {
         let _ = fs::remove_file(out.join(t));
     }
-    fs::write(out.join("TypesExternal.lean"), "import Untrusted.Types\n").unwrap();
-    let mut funs_external = String::from("import Untrusted.Funs\n");
-    if !reexports.is_empty() {
-        writeln!(
-            funs_external,
-            "\nnamespace {namespace}\nexport untrusted ({})\nend {namespace}",
-            reexports.join(" ")
-        )
-        .unwrap();
+    let mut types_external = String::new();
+    let mut funs_external = String::new();
+    for (_, lib) in &libs {
+        writeln!(types_external, "import {lib}.Types").unwrap();
+        writeln!(funs_external, "import {lib}.Funs").unwrap();
     }
+    for (krate, _) in &libs {
+        let names: Vec<&str> = reexports
+            .iter()
+            .filter(|(c, _)| c == krate)
+            .map(|(_, n)| n.as_str())
+            .collect();
+        if !names.is_empty() {
+            writeln!(
+                funs_external,
+                "\nnamespace {namespace}\nexport {krate} ({})\nend {namespace}",
+                names.join(" ")
+            )
+            .unwrap();
+        }
+    }
+    fs::write(out.join("TypesExternal.lean"), types_external).unwrap();
     fs::write(out.join("FunsExternal.lean"), funs_external).unwrap();
     if args.extract_only {
         return;

@@ -5,9 +5,9 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net vm-test aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard vm-test aeneas-pin clean
 
-all: extract verify verify-demo verify-net
+all: extract verify verify-demo verify-net verify-wireguard
 
 build:
 	cargo build --workspace
@@ -46,6 +46,13 @@ verify-demo:
 # $(PROOFS)/Net/Manual*.lean).
 verify-net:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p net --lean-dir $(PROOFS)
+
+# Formally verify the `wireguard` crate: every item, not only its `Decode` impls,
+# linked against the verified `net` model (hand-written specs in
+# $(PROOFS)/Wireguard/).
+WIREGUARD_FLAGS := --extract-all --link net=Net
+verify-wireguard:
+	cargo run -q -p cargo-untrusted -- untrusted verify -p wireguard --lean-dir $(PROOFS) $(WIREGUARD_FLAGS)
 
 # Run real traffic through the verified `net` decoders: two QEMU VMs exchange
 # ARP, ICMP and UDP over IPv4 and IPv6 (needs KVM). The capture and the

@@ -1,0 +1,11 @@
+[package]
+name = "wireguard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "A verified, sans-IO WireGuard core, built on `untrusted` and `net`"
+
+[dependencies]
+net = { path = "../net" }
+untrusted = { path = "../untrusted" }

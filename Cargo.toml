@@ -5,6 +5,7 @@ members = [
   "crates/untrusted-derive",
   "crates/cargo-untrusted",
   "crates/net",
+  "crates/wireguard",
   "examples/derive-demo",
   "examples/net-pcap",
 ]

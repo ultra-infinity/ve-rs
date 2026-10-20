@@ -16,3 +16,6 @@ name = "DeriveDemo"
 
 [[lean_lib]]
 name = "Net"
+
+[[lean_lib]]
+name = "Wireguard"
