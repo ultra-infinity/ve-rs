@@ -23,6 +23,201 @@ noncomputable section
 
 namespace wireguard
 
+/-- [wireguard::allowed_ips::MAX_ALLOWED_IPS]
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 14:0-14:38
+    Visibility: public -/
+@[global_simps, irreducible]
+def allowed_ips.MAX_ALLOWED_IPS : Std.Usize := 64#usize
+
+/-- [wireguard::allowed_ips::width]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 36:0-42:1 -/
+def allowed_ips.width (v6 : Bool) : Result Std.U32 := do
+  if v6
+  then ok 128#u32
+  else ok 32#u32
+
+/-- [wireguard::allowed_ips::block]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 46:0-52:1 -/
+def allowed_ips.block
+  (v6 : Bool) (len : Std.U32) : Result (Option Std.U128) := do
+  let i ← allowed_ips.width v6
+  let host_bits ← i - len
+  if host_bits >= 128#u32
+  then ok none
+  else let i1 ← 1#u128 <<< host_bits
+       ok (some i1)
+
+/-- [wireguard::allowed_ips::valid]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 56:0-64:1 -/
+def allowed_ips.valid
+  (v6 : Bool) (addr : Std.U128) (len : Std.U32) : Result Bool := do
+  let i ← allowed_ips.width v6
+  if len > i
+  then ok false
+  else
+    if v6
+    then ok true
+    else let i1 ← lift (UScalar.cast .U128 core.num.U32.MAX)
+         ok (addr <= i1)
+
+/-- [wireguard::allowed_ips::canonical]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 67:0-72:1 -/
+def allowed_ips.canonical
+  (v6 : Bool) (addr : Std.U128) (len : Std.U32) : Result Std.U128 := do
+  let o ← allowed_ips.block v6 len
+  match o with
+  | none => ok 0#u128
+  | some b => let i ← addr / b
+              i * b
+
+/-- [wireguard::allowed_ips::matches]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 75:0-77:1 -/
+def allowed_ips.matches
+  (v6 : Bool) (addr : Std.U128) (len : Std.U32) (ip : Std.U128) :
+  Result Bool
+  := do
+  let i ← allowed_ips.canonical v6 ip len
+  ok (i = addr)
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::new]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 81:4-91:5
+    Visibility: public -/
+def allowed_ips.AllowedIps.new : Result allowed_ips.AllowedIps := do
+  let a :=
+    Array.repeat 64#usize
+      { v6 := false, addr := 0#u128, len := 0#u32, peer := 0#u16 }
+  ok { entries := a, count := 0#usize }
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::find]: loop 0:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 124:8-130:9 -/
+@[rust_loop]
+def allowed_ips.AllowedIps.find_loop
+  (self : allowed_ips.AllowedIps) (v6 : Bool) (addr : Std.U128) (len : Std.U32)
+  (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < self.count
+  then
+    let ai ← Array.index_usize self.entries i
+    if ai.v6 = v6
+    then
+      if ai.len = len
+      then
+        if ai.addr = addr
+        then ok i
+        else
+          let i1 ← i + 1#usize
+          allowed_ips.AllowedIps.find_loop self v6 addr len i1
+      else
+        let i1 ← i + 1#usize
+        allowed_ips.AllowedIps.find_loop self v6 addr len i1
+    else
+      let i1 ← i + 1#usize
+      allowed_ips.AllowedIps.find_loop self v6 addr len i1
+  else ok i
+partial_fixpoint
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::find]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 122:4-132:5 -/
+@[reducible]
+def allowed_ips.AllowedIps.find
+  (self : allowed_ips.AllowedIps) (v6 : Bool) (addr : Std.U128) (len : Std.U32)
+  :
+  Result Std.Usize
+  := do
+  allowed_ips.AllowedIps.find_loop self v6 addr len 0#usize
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::insert]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 97:4-118:5
+    Visibility: public -/
+def allowed_ips.AllowedIps.insert
+  (self : allowed_ips.AllowedIps) (v6 : Bool) (addr : Std.U128) (len : Std.U32)
+  (peer : Std.U16) :
+  Result (Bool × allowed_ips.AllowedIps)
+  := do
+  let b ← allowed_ips.valid v6 addr len
+  if b
+  then
+    let addr1 ← allowed_ips.canonical v6 addr len
+    let i ← allowed_ips.AllowedIps.find self v6 addr1 len
+    if i < self.count
+    then
+      let (ai, index_mut_back) ← Array.index_mut_usize self.entries i
+      let a := index_mut_back { ai with peer }
+      ok (true, { self with entries := a })
+    else
+      if self.count = allowed_ips.MAX_ALLOWED_IPS
+      then ok (false, self)
+      else
+        let a ←
+          Array.update self.entries self.count
+            ({ v6, addr := addr1, len, peer } : allowed_ips.AllowedIp)
+        let i1 ← self.count + 1#usize
+        ok (true, { entries := a, count := i1 })
+  else ok (false, self)
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::lookup]: loop 0:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 138:8-147:9
+    Visibility: public -/
+@[rust_loop]
+def allowed_ips.AllowedIps.lookup_loop
+  (self : allowed_ips.AllowedIps) (v6 : Bool) (ip : Std.U128)
+  (best : Option allowed_ips.AllowedIp) (i : Std.Usize) :
+  Result (Option allowed_ips.AllowedIp)
+  := do
+  if i < self.count
+  then
+    let e ← Array.index_usize self.entries i
+    let best1 ←
+      if e.v6 = v6
+      then
+        do
+        let b ← allowed_ips.matches v6 e.addr e.len ip
+        if b
+        then
+          let (b1, i1, i2, i3) ←
+            match best with
+            | none => ok (e.v6, e.addr, e.len, e.peer)
+            | some b2 =>
+              if b2.len >= e.len
+              then ok (b2.v6, b2.addr, b2.len, b2.peer)
+              else ok (e.v6, e.addr, e.len, e.peer)
+          ok (some ({ v6 := b1, addr := i1, len := i2, peer := i3 } :
+            allowed_ips.AllowedIp))
+        else ok best
+      else ok best
+    let i1 ← i + 1#usize
+    allowed_ips.AllowedIps.lookup_loop self v6 ip best1 i1
+  else ok best
+partial_fixpoint
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::lookup]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 135:4-154:5
+    Visibility: public -/
+def allowed_ips.AllowedIps.lookup
+  (self : allowed_ips.AllowedIps) (v6 : Bool) (ip : Std.U128) :
+  Result (Option Std.U16)
+  := do
+  let best ← allowed_ips.AllowedIps.lookup_loop self v6 ip none 0#usize
+  match best with
+  | none => ok none
+  | some b => ok (some b.peer)
+
+/-- [wireguard::allowed_ips::{impl core::default::Default for wireguard::allowed_ips::AllowedIps}::default]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 158:4-160:5
+    Visibility: public -/
+def allowed_ips.AllowedIps.Insts.CoreDefaultDefault.default
+  : Result allowed_ips.AllowedIps := do
+  allowed_ips.AllowedIps.new
+
+/-- Trait implementation: [wireguard::allowed_ips::{impl core::default::Default for wireguard::allowed_ips::AllowedIps}]
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 157:0-161:1 -/
+@[reducible]
+def allowed_ips.AllowedIps.Insts.CoreDefaultDefault : core.default.Default
+  allowed_ips.AllowedIps := {
+  default := allowed_ips.AllowedIps.Insts.CoreDefaultDefault.default
+}
+
 /-- [wireguard::cookie::LABEL_MAC1]
     Source: 'crates/wireguard/src/cookie.rs', lines 22:0-22:45
     Visibility: public -/

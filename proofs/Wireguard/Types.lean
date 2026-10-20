@@ -19,6 +19,22 @@ set_option maxRecDepth 2048
 
 namespace wireguard
 
+/-- [wireguard::allowed_ips::AllowedIp]
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 18:0-25:1
+    Visibility: public -/
+structure allowed_ips.AllowedIp where
+  v6 : Bool
+  addr : Std.U128
+  len : Std.U32
+  peer : Std.U16
+
+/-- [wireguard::allowed_ips::AllowedIps]
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 29:0-33:1
+    Visibility: public -/
+structure allowed_ips.AllowedIps where
+  entries : Array allowed_ips.AllowedIp 64#usize
+  count : Std.Usize
+
 /-- Trait declaration: [wireguard::crypto::Crypto]
     Source: 'crates/wireguard/src/crypto.rs', lines 25:0-86:1
     Visibility: public -/

@@ -110,7 +110,9 @@ mod tests {
 
     /// A deterministic pseudo-random sequence.
     fn lcg(state: &mut u64) -> u64 {
-        *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         *state >> 33
     }
 
@@ -135,7 +137,11 @@ mod tests {
                     _ => (base + x % 300).saturating_sub(150),
                 };
                 base = base.max(c);
-                assert_eq!(w.check_and_update(c), r.accept(c), "round {round}, counter {c}");
+                assert_eq!(
+                    w.check_and_update(c),
+                    r.accept(c),
+                    "round {round}, counter {c}"
+                );
                 if r.n == r.seen.len() {
                     break;
                 }
