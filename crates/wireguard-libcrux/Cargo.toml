@@ -1,0 +1,13 @@
+[package]
+name = "wireguard-libcrux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "The cryptographic primitives of `wireguard`, from libcrux"
+
+[dependencies]
+wireguard = { path = "../wireguard" }
+libcrux-blake2 = "=0.0.9"
+libcrux-chacha20poly1305 = "=0.0.10"
+libcrux-curve25519 = "=0.0.9"

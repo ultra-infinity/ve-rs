@@ -23,6 +23,164 @@ noncomputable section
 
 namespace wireguard
 
+/-- [wireguard::crypto::KEY_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 11:0-11:30
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.KEY_LEN : Std.Usize := 32#usize
+
+/-- [wireguard::crypto::MAC_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 13:0-13:30
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.MAC_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::crypto::XNONCE_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 15:0-15:33
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.XNONCE_LEN : Std.Usize := 24#usize
+
+/-- [wireguard::crypto::AEAD_TAG_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 17:0-17:35
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.AEAD_TAG_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::crypto::BLOCK_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 19:0-19:32
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.BLOCK_LEN : Std.Usize := 64#usize
+
+/-- [wireguard::crypto::hmac]: loop 0:
+    Source: 'crates/wireguard/src/crypto.rs', lines 91:4-94:5
+    Visibility: public -/
+@[rust_loop]
+def crypto.hmac_loop0
+  (key : Array Std.U8 32#usize) (pad : Array Std.U8 64#usize) (i : Std.Usize) :
+  Result (Array Std.U8 64#usize)
+  := do
+  if i < crypto.BLOCK_LEN
+  then
+    let i1 ←
+      if i < crypto.KEY_LEN
+      then do
+           let i2 ← Array.index_usize key i
+           ok (i2 ^^^ 54#u8)
+      else ok 54#u8
+    let a ← Array.update pad i i1
+    let i2 ← i + 1#usize
+    crypto.hmac_loop0 key a i2
+  else ok pad
+partial_fixpoint
+
+/-- [wireguard::crypto::hmac]: loop 1:
+    Source: 'crates/wireguard/src/crypto.rs', lines 99:4-102:5
+    Visibility: public -/
+@[rust_loop]
+def crypto.hmac_loop1
+  (pad : Array Std.U8 64#usize) (i : Std.Usize) :
+  Result (Array Std.U8 64#usize)
+  := do
+  if i < crypto.BLOCK_LEN
+  then
+    let i1 ← lift (54#u8 ^^^ 92#u8)
+    let i2 ← Array.index_usize pad i
+    let i3 ← lift (i2 ^^^ i1)
+    let a ← Array.update pad i i3
+    let i4 ← i + 1#usize
+    crypto.hmac_loop1 a i4
+  else ok pad
+partial_fixpoint
+
+/-- [wireguard::crypto::hmac]:
+    Source: 'crates/wireguard/src/crypto.rs', lines 87:0-106:1
+    Visibility: public -/
+def crypto.hmac
+  {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (msg : Slice Std.U8) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let pad := Array.repeat 64#usize 0#u8
+  let pad1 ← crypto.hmac_loop0 key pad 0#usize
+  let inner := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice pad1)
+  let inner1 ← CryptoInst.hash c s msg inner
+  let pad2 ← crypto.hmac_loop1 pad1 0#usize
+  let out := Array.repeat 32#usize 0#u8
+  let s1 ← lift (Array.to_slice pad2)
+  let s2 ← lift (Array.to_slice inner1)
+  CryptoInst.hash c s1 s2 out
+
+/-- [wireguard::crypto::append_byte]: loop 0:
+    Source: 'crates/wireguard/src/crypto.rs', lines 112:4-115:5 -/
+@[rust_loop]
+def crypto.append_byte_loop
+  (t : Array Std.U8 32#usize) (out : Array Std.U8 33#usize) (i : Std.Usize) :
+  Result (Array Std.U8 33#usize)
+  := do
+  if i < crypto.KEY_LEN
+  then
+    let i1 ← Array.index_usize t i
+    let a ← Array.update out i i1
+    let i2 ← i + 1#usize
+    crypto.append_byte_loop t a i2
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::crypto::append_byte]:
+    Source: 'crates/wireguard/src/crypto.rs', lines 109:0-117:1 -/
+def crypto.append_byte
+  (t : Array Std.U8 32#usize) (b : Std.U8) :
+  Result (Array Std.U8 33#usize)
+  := do
+  let out := Array.repeat 33#usize b
+  crypto.append_byte_loop t out 0#usize
+
+/-- [wireguard::crypto::kdf1]:
+    Source: 'crates/wireguard/src/crypto.rs', lines 120:0-123:1
+    Visibility: public -/
+def crypto.kdf1
+  {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (input : Slice Std.U8) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let t0 ← crypto.hmac CryptoInst c key input
+  let s ← lift (Array.to_slice (Array.make 1#usize [ 1#u8 ]))
+  crypto.hmac CryptoInst c t0 s
+
+/-- [wireguard::crypto::kdf2]:
+    Source: 'crates/wireguard/src/crypto.rs', lines 126:0-131:1
+    Visibility: public -/
+def crypto.kdf2
+  {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (input : Slice Std.U8) :
+  Result ((Array Std.U8 32#usize) × (Array Std.U8 32#usize))
+  := do
+  let t0 ← crypto.hmac CryptoInst c key input
+  let s ← lift (Array.to_slice (Array.make 1#usize [ 1#u8 ]))
+  let t1 ← crypto.hmac CryptoInst c t0 s
+  let a ← crypto.append_byte t1 2#u8
+  let s1 ← lift (Array.to_slice a)
+  let t2 ← crypto.hmac CryptoInst c t0 s1
+  ok (t1, t2)
+
+/-- [wireguard::crypto::kdf3]:
+    Source: 'crates/wireguard/src/crypto.rs', lines 134:0-144:1
+    Visibility: public -/
+def crypto.kdf3
+  {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (input : Slice Std.U8) :
+  Result ((Array Std.U8 32#usize) × (Array Std.U8 32#usize) × (Array Std.U8
+    32#usize))
+  := do
+  let t0 ← crypto.hmac CryptoInst c key input
+  let s ← lift (Array.to_slice (Array.make 1#usize [ 1#u8 ]))
+  let t1 ← crypto.hmac CryptoInst c t0 s
+  let a ← crypto.append_byte t1 2#u8
+  let s1 ← lift (Array.to_slice a)
+  let t2 ← crypto.hmac CryptoInst c t0 s1
+  let a1 ← crypto.append_byte t2 3#u8
+  let s2 ← lift (Array.to_slice a1)
+  let t3 ← crypto.hmac CryptoInst c t0 s2
+  ok (t1, t2, t3)
+
 /-- [wireguard::inner::ipv4_source]:
     Source: 'crates/wireguard/src/inner.rs', lines 7:0-12:1
     Visibility: public -/

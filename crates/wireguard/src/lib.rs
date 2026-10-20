@@ -7,5 +7,6 @@
 
 #![no_std]
 
+pub mod crypto;
 pub mod inner;
 pub mod message;

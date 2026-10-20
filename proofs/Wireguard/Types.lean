@@ -19,6 +19,30 @@ set_option maxRecDepth 2048
 
 namespace wireguard
 
+/-- Trait declaration: [wireguard::crypto::Crypto]
+    Source: 'crates/wireguard/src/crypto.rs', lines 25:0-84:1
+    Visibility: public -/
+structure crypto.Crypto (Self : Type _) where
+  x25519 : Self → Array Std.U8 32#usize → Array Std.U8 32#usize → Array
+    Std.U8 32#usize → Result (Bool × (Array Std.U8 32#usize))
+  x25519_public : Self → Array Std.U8 32#usize → Array Std.U8 32#usize →
+    Result (Array Std.U8 32#usize)
+  hash : Self → Slice Std.U8 → Slice Std.U8 → Array Std.U8 32#usize →
+    Result (Array Std.U8 32#usize)
+  mac : Self → Array Std.U8 32#usize → Slice Std.U8 → Array Std.U8
+    16#usize → Result (Array Std.U8 16#usize)
+  aead_seal : Self → Array Std.U8 32#usize → Std.U64 → Slice Std.U8 →
+    Slice Std.U8 → Slice Std.U8 → Result (Slice Std.U8)
+  aead_open : Self → Array Std.U8 32#usize → Std.U64 → Slice Std.U8 →
+    Slice Std.U8 → Slice Std.U8 → Result (Bool × (Slice Std.U8))
+  xaead_seal : Self → Array Std.U8 32#usize → Array Std.U8 24#usize →
+    Slice Std.U8 → Slice Std.U8 → Slice Std.U8 → Result (Slice Std.U8)
+  xaead_open : Self → Array Std.U8 32#usize → Array Std.U8 24#usize →
+    Slice Std.U8 → Slice Std.U8 → Slice Std.U8 → Result (Bool × (Slice
+    Std.U8))
+  ct_eq : Self → Array Std.U8 16#usize → Array Std.U8 16#usize → Result
+    Bool
+
 /-- [wireguard::message::Initiation]
     Source: 'crates/wireguard/src/message.rs', lines 49:0-56:1
     Visibility: public -/

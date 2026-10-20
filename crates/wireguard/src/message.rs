@@ -247,7 +247,10 @@ mod tests {
             mac2: [4; 16],
         };
         let bytes = r.encode();
-        assert_eq!(&bytes[..12], &[2, 0, 0, 0, 7, 0, 0, 0, 0xef, 0xbe, 0xad, 0xde]);
+        assert_eq!(
+            &bytes[..12],
+            &[2, 0, 0, 0, 7, 0, 0, 0, 0xef, 0xbe, 0xad, 0xde]
+        );
         assert!(matches!(decode(&bytes), Ok(Message::Response(d)) if d == r));
 
         let c = CookieReply {
@@ -273,23 +276,38 @@ mod tests {
         assert_eq!(t.packet.read_all::<Count>(), Ok(Count(32)));
         // Just the tag (a keepalive): accepted. Shorter: rejected.
         assert!(matches!(decode(&bytes[..32]), Ok(Message::Transport(_))));
-        assert!(matches!(decode(&bytes[..31]), Err(ValidationError::EndOfInput)));
+        assert!(matches!(
+            decode(&bytes[..31]),
+            Err(ValidationError::EndOfInput)
+        ));
     }
 
     #[test]
     fn rejects_malformed_messages() {
         let bytes = initiation().encode();
         // Wrong lengths.
-        assert!(matches!(decode(&bytes[..147]), Err(ValidationError::EndOfInput)));
+        assert!(matches!(
+            decode(&bytes[..147]),
+            Err(ValidationError::EndOfInput)
+        ));
         let mut longer = [0u8; 149];
         longer[..148].copy_from_slice(&bytes);
-        assert!(matches!(decode(&longer), Err(ValidationError::TrailingData)));
+        assert!(matches!(
+            decode(&longer),
+            Err(ValidationError::TrailingData)
+        ));
         // Unknown types, and non-zero reserved bytes.
         for (i, v) in [(0, 0), (0, 5), (1, 1), (3, 0x80)] {
             let mut b = bytes;
             b[i] = v;
-            assert!(matches!(decode(&b), Err(ValidationError::OutOfRange)), "byte {i}");
+            assert!(
+                matches!(decode(&b), Err(ValidationError::OutOfRange)),
+                "byte {i}"
+            );
         }
-        assert!(matches!(decode(&bytes[..3]), Err(ValidationError::EndOfInput)));
+        assert!(matches!(
+            decode(&bytes[..3]),
+            Err(ValidationError::EndOfInput)
+        ));
     }
 }
