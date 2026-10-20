@@ -19,4 +19,58 @@ set_option maxRecDepth 2048
 
 namespace wireguard
 
+/-- [wireguard::message::Initiation]
+    Source: 'crates/wireguard/src/message.rs', lines 49:0-56:1
+    Visibility: public -/
+structure message.Initiation where
+  sender : untrusted.bytes.LittleEndian Std.U32
+  ephemeral : Array Std.U8 32#usize
+  encrypted_static : Array Std.U8 48#usize
+  encrypted_timestamp : Array Std.U8 28#usize
+  mac1 : Array Std.U8 16#usize
+  mac2 : Array Std.U8 16#usize
+
+/-- [wireguard::message::Response]
+    Source: 'crates/wireguard/src/message.rs', lines 60:0-67:1
+    Visibility: public -/
+structure message.Response where
+  sender : untrusted.bytes.LittleEndian Std.U32
+  receiver : untrusted.bytes.LittleEndian Std.U32
+  ephemeral : Array Std.U8 32#usize
+  encrypted_nothing : Array Std.U8 16#usize
+  mac1 : Array Std.U8 16#usize
+  mac2 : Array Std.U8 16#usize
+
+/-- [wireguard::message::CookieReply]
+    Source: 'crates/wireguard/src/message.rs', lines 71:0-75:1
+    Visibility: public -/
+structure message.CookieReply where
+  receiver : untrusted.bytes.LittleEndian Std.U32
+  nonce : Array Std.U8 24#usize
+  encrypted_cookie : Array Std.U8 32#usize
+
+/-- [wireguard::message::TransportHeader]
+    Source: 'crates/wireguard/src/message.rs', lines 79:0-82:1
+    Visibility: public -/
+structure message.TransportHeader where
+  receiver : untrusted.bytes.LittleEndian Std.U32
+  counter : untrusted.bytes.LittleEndian Std.U64
+
+/-- [wireguard::message::Transport]
+    Source: 'crates/wireguard/src/message.rs', lines 86:0-90:1
+    Visibility: public -/
+structure message.Transport where
+  header : message.TransportHeader
+  packet : untrusted.Untrusted (Slice Std.U8)
+
+/-- [wireguard::message::Message]
+    Source: 'crates/wireguard/src/message.rs', lines 93:0-98:1
+    Visibility: public -/
+@[discriminant isize]
+inductive message.Message where
+| Initiation : message.Initiation → message.Message
+| Response : message.Response → message.Message
+| CookieReply : message.CookieReply → message.Message
+| Transport : message.Transport → message.Message
+
 end wireguard

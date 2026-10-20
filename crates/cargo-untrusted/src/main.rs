@@ -147,10 +147,19 @@ fn drop_verified_decls(path: &Path, crates: &[&str]) -> Vec<(String, String)> {
         .split("\n\n")
         .filter(|p| {
             let flat = p.split_whitespace().collect::<Vec<_>>().join(" ");
+            // An item of a verified crate: its Rust path starts with the
+            // crate, or (e.g. a `core` trait impl for one of its types) its
+            // Lean name does.
             let from = crates.iter().find(|c| {
                 ["rust_trait ", "rust_trait_impl ", "rust_type ", "rust_fun "]
                     .iter()
                     .any(|attr| flat.contains(&format!("{attr}\"{c}::")))
+                    || p.lines().any(|l| {
+                        ["def ", "structure ", "inductive "].iter().any(|kw| {
+                            l.strip_prefix(kw)
+                                .is_some_and(|rest| rest.starts_with(&format!("{c}.")))
+                        })
+                    })
             });
             if let Some(c) = from {
                 let names = p.lines().filter_map(|l| {
@@ -223,7 +232,20 @@ fn main() {
     //    whole crate.
     let mut charon = Command::new("charon");
     charon.args(["cargo", "--preset=aeneas"]);
-    if !args.extract_all {
+    if args.extract_all {
+        // Derived standard impls are for tests and printing; they would each
+        // need a spec, and verified code must not rely on them.
+        for t in [
+            "core::fmt::Debug",
+            "core::clone::Clone",
+            "core::marker::Copy",
+            "core::cmp::PartialEq<_>",
+            "core::cmp::Eq",
+            "core::marker::StructuralPartialEq",
+        ] {
+            charon.args(["--exclude", &format!("{{impl {t} for _}}")]);
+        }
+    } else {
         charon.args([
             "--start-from",
             "{impl untrusted::reader::Decode for _}",

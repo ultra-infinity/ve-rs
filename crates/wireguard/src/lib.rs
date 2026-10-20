@@ -8,3 +8,4 @@
 #![no_std]
 
 pub mod inner;
+pub mod message;

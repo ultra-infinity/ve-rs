@@ -19,6 +19,14 @@ def allowedAxioms : Array Name :=
 def returnsResult (ty : Expr) : Bool :=
   ty.getForallBody.getAppFn.constName? == some ``Aeneas.Std.Result
 
+/-- `f.mutual`, the auxiliary that `partial_fixpoint` defines `f` through when
+    `f`'s fixed parameters are not a prefix of its parameters. It is not a
+    function of the Rust code: the spec of `f` covers it. -/
+def isFixpointAux (env : Environment) (n : Name) : Bool :=
+  match n with
+  | .str f "mutual" => env.contains f
+  | _ => false
+
 elab "untrusted_audit " model:ident proofs:ident : command => do
   let env ← getEnv
   let inModule (pre : Name) (n : Name) : Bool :=
@@ -30,7 +38,8 @@ elab "untrusted_audit " model:ident proofs:ident : command => do
   let funs := consts.filterMap fun (n, info) =>
     match info with
     | .defnInfo d =>
-      if inModule model.getId n && returnsResult d.type && !n.isInternal then some n else none
+      if inModule model.getId n && returnsResult d.type && !n.isInternal &&
+          !isFixpointAux env n then some n else none
     | _ => none
   let missing := funs.filter fun n => !env.contains (n ++ `spec)
   -- 2. Axioms, for every proof (theorem or Prop-valued instance).

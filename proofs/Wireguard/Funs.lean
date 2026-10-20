@@ -37,4 +37,610 @@ def inner.ipv4_source (packet : Slice Std.U8) : Result (Option Std.U32) := do
                                 ok (some i)
   | core.result.Result.Err _ => ok none
 
+/-- [wireguard::message::TYPE_INITIATION]
+    Source: 'crates/wireguard/src/message.rs', lines 26:0-26:35
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_INITIATION : Std.U32 := 1#u32
+
+/-- [wireguard::message::TYPE_RESPONSE]
+    Source: 'crates/wireguard/src/message.rs', lines 28:0-28:33
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_RESPONSE : Std.U32 := 2#u32
+
+/-- [wireguard::message::TYPE_COOKIE_REPLY]
+    Source: 'crates/wireguard/src/message.rs', lines 30:0-30:37
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_COOKIE_REPLY : Std.U32 := 3#u32
+
+/-- [wireguard::message::TYPE_TRANSPORT]
+    Source: 'crates/wireguard/src/message.rs', lines 32:0-32:34
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_TRANSPORT : Std.U32 := 4#u32
+
+/-- [wireguard::message::TYPE_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 35:0-35:30
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_LEN : Std.Usize := 4#usize
+
+/-- [wireguard::message::INITIATION_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 37:0-37:38
+    Visibility: public -/
+@[global_simps, irreducible]
+def message.INITIATION_LEN : Std.Usize := 148#usize
+
+/-- [wireguard::message::RESPONSE_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 39:0-39:35
+    Visibility: public -/
+@[global_simps, irreducible] def message.RESPONSE_LEN : Std.Usize := 92#usize
+
+/-- [wireguard::message::COOKIE_REPLY_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 41:0-41:39
+    Visibility: public -/
+@[global_simps, irreducible]
+def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
+
+/-- [wireguard::message::TRANSPORT_HEADER_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 43:0-43:43
+    Visibility: public -/
+@[global_simps, irreducible]
+def message.TRANSPORT_HEADER_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::message::TAG_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 45:0-45:30
+    Visibility: public -/
+@[global_simps, irreducible] def message.TAG_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15
+    Visibility: public -/
+def message.Initiation.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result message.Initiation untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+        32#usize) r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+          48#usize) r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+            28#usize) r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok
+                {
+                  sender := val,
+                  ephemeral := val1,
+                  encrypted_static := val2,
+                  encrypted_timestamp := val3,
+                  mac1 := val4,
+                  mac2 := val5
+                }, r12)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  message.Initiation (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                message.Initiation (core.convert.FromSame
+                untrusted.ValidationError) residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              message.Initiation (core.convert.FromSame
+              untrusted.ValidationError) residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            message.Initiation (core.convert.FromSame
+            untrusted.ValidationError) residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          message.Initiation (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.Initiation (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}]
+    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15 -/
+@[reducible]
+def message.Initiation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  message.Initiation := {
+  decode := message.Initiation.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Response}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 59:9-59:15
+    Visibility: public -/
+def message.Response.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result message.Response untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+          32#usize) r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+            16#usize) r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok
+                {
+                  sender := val,
+                  receiver := val1,
+                  ephemeral := val2,
+                  encrypted_nothing := val3,
+                  mac1 := val4,
+                  mac2 := val5
+                }, r12)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  message.Response (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                message.Response (core.convert.FromSame
+                untrusted.ValidationError) residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              message.Response (core.convert.FromSame
+              untrusted.ValidationError) residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            message.Response (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          message.Response (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.Response (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Response}]
+    Source: 'crates/wireguard/src/message.rs', lines 59:9-59:15 -/
+@[reducible]
+def message.Response.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  message.Response := {
+  decode := message.Response.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15
+    Visibility: public -/
+def message.CookieReply.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result message.CookieReply untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+        24#usize) r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+          32#usize) r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        ok (core.result.Result.Ok
+          { receiver := val, nonce := val1, encrypted_cookie := val2 }, r6)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            message.CookieReply (core.convert.FromSame
+            untrusted.ValidationError) residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          message.CookieReply (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.CookieReply (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}]
+    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15 -/
+@[reducible]
+def message.CookieReply.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  message.CookieReply := {
+  decode := message.CookieReply.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15
+    Visibility: public -/
+def message.TransportHeader.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result message.TransportHeader
+    untrusted.ValidationError) × untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.LittleEndianU64.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      ok (core.result.Result.Ok { receiver := val, counter := val1 }, r4)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          message.TransportHeader (core.convert.FromSame
+          untrusted.ValidationError) residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.TransportHeader (core.convert.FromSame
+        untrusted.ValidationError) residual
+    ok (r3, r2)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}]
+    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15 -/
+@[reducible]
+def message.TransportHeader.Insts.UntrustedReaderDecode :
+  untrusted.reader.Decode message.TransportHeader := {
+  decode := message.TransportHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [wireguard::message::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for wireguard::message::Message<'a>}::validate]:
+    Source: 'crates/wireguard/src/message.rs', lines 103:4-130:5
+    Visibility: public -/
+def
+  message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result message.Message untrusted.ValidationError)
+  := do
+  let i := Slice.len input
+  if i < message.TYPE_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let s ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) input
+        { «end» := message.TYPE_LEN }
+    let u ← untrusted.Untrusted.new s
+    let r ←
+      untrusted.Untrusted.validate
+        untrusted.bytes.LittleEndianU32.Insts.UntrustedValidateSharedASliceU8ValidationError
+        u
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let s1 ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) input
+          { start := message.TYPE_LEN }
+      let body ← untrusted.Untrusted.new s1
+      if val = message.TYPE_INITIATION
+      then
+        let r1 ←
+          untrusted.reader.UntrustedShared0SliceU8.read_all
+            message.Initiation.Insts.UntrustedReaderDecode body
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          ok (core.result.Result.Ok (message.Message.Initiation val1))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            message.Message (core.convert.FromSame untrusted.ValidationError)
+            residual
+      else
+        if val = message.TYPE_RESPONSE
+        then
+          let r1 ←
+            untrusted.reader.UntrustedShared0SliceU8.read_all
+              message.Response.Insts.UntrustedReaderDecode body
+          let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+          match cf1 with
+          | core.ops.control_flow.ControlFlow.Continue val1 =>
+            ok (core.result.Result.Ok (message.Message.Response val1))
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              message.Message (core.convert.FromSame untrusted.ValidationError)
+              residual
+        else
+          if val = message.TYPE_COOKIE_REPLY
+          then
+            let r1 ←
+              untrusted.reader.UntrustedShared0SliceU8.read_all
+                message.CookieReply.Insts.UntrustedReaderDecode body
+            let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+            match cf1 with
+            | core.ops.control_flow.ControlFlow.Continue val1 =>
+              ok (core.result.Result.Ok (message.Message.CookieReply val1))
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                message.Message (core.convert.FromSame
+                untrusted.ValidationError) residual
+          else
+            if val = message.TYPE_TRANSPORT
+            then
+              let i1 := Slice.len input
+              let i2 ← message.TRANSPORT_HEADER_LEN + message.TAG_LEN
+              if i1 < i2
+              then
+                ok (core.result.Result.Err
+                  untrusted.ValidationError.EndOfInput)
+              else
+                let s2 ←
+                  core.slice.index.Slice.index
+                    (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) input
+                    {
+                      start := message.TYPE_LEN,
+                      «end» := message.TRANSPORT_HEADER_LEN
+                    }
+                let u1 ← untrusted.Untrusted.new s2
+                let r1 ←
+                  untrusted.reader.UntrustedShared0SliceU8.read_all
+                    message.TransportHeader.Insts.UntrustedReaderDecode u1
+                let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+                match cf1 with
+                | core.ops.control_flow.ControlFlow.Continue val1 =>
+                  let s3 ←
+                    core.slice.index.Slice.index
+                      (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8)
+                      input { start := message.TRANSPORT_HEADER_LEN }
+                  let u2 ← untrusted.Untrusted.new s3
+                  ok (core.result.Result.Ok (message.Message.Transport
+                    { header := val1, packet := u2 }))
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    message.Message (core.convert.FromSame
+                    untrusted.ValidationError) residual
+            else
+              ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.Message (core.convert.FromSame untrusted.ValidationError)
+        residual
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for wireguard::message::Message<'a>}]
+    Source: 'crates/wireguard/src/message.rs', lines 100:0-131:1 -/
+@[reducible]
+def message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate message.Message (Slice Std.U8) untrusted.ValidationError
+  := {
+  validate :=
+    message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
+/-- [wireguard::message::put_bytes]: loop 0:
+    Source: 'crates/wireguard/src/message.rs', lines 149:4-152:5 -/
+@[rust_loop]
+def message.put_bytes_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let i3 ← pos + i
+    let s ← Slice.update out i3 i2
+    let i4 ← i + 1#usize
+    message.put_bytes_loop s pos src i4
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::message::put_bytes]:
+    Source: 'crates/wireguard/src/message.rs', lines 147:0-154:1 -/
+def message.put_bytes
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let out1 ← message.put_bytes_loop out pos src 0#usize
+  let i := Slice.len src
+  let i1 ← pos + i
+  ok (i1, out1)
+
+/-- [wireguard::message::put_u32]:
+    Source: 'crates/wireguard/src/message.rs', lines 135:0-143:1 -/
+def message.put_u32
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U32) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let i ← v % 256#u32
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← v / 256#u32
+  let i3 ← i2 % 256#u32
+  let i4 ← lift (UScalar.cast .U8 i3)
+  let i5 ← v / 65536#u32
+  let i6 ← i5 % 256#u32
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← v / 16777216#u32
+  let i9 ← lift (UScalar.cast .U8 i8)
+  let s ← lift (Array.to_slice (Array.make 4#usize [ i1, i4, i7, i9 ]))
+  message.put_bytes out pos s
+
+/-- [wireguard::message::{wireguard::message::Initiation}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 158:4-168:5
+    Visibility: public -/
+def message.Initiation.encode
+  (self : message.Initiation) : Result (Array Std.U8 148#usize) := do
+  let out := Array.repeat 148#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_INITIATION
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.sender
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let s5 ← lift (Array.to_slice self.ephemeral)
+  let (pos2, s6) ← message.put_bytes s4 pos1 s5
+  let out3 := to_slice_mut_back2 s6
+  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s8 ← lift (Array.to_slice self.encrypted_static)
+  let (pos3, s9) ← message.put_bytes s7 pos2 s8
+  let out4 := to_slice_mut_back3 s9
+  let (s10, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
+  let s11 ← lift (Array.to_slice self.encrypted_timestamp)
+  let (pos4, s12) ← message.put_bytes s10 pos3 s11
+  let out5 := to_slice_mut_back4 s12
+  let (s13, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
+  let s14 ← lift (Array.to_slice self.mac1)
+  let (pos5, s15) ← message.put_bytes s13 pos4 s14
+  let out6 := to_slice_mut_back5 s15
+  let (s16, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
+  let s17 ← lift (Array.to_slice self.mac2)
+  let (_, s18) ← message.put_bytes s16 pos5 s17
+  ok (to_slice_mut_back6 s18)
+
+/-- [wireguard::message::{wireguard::message::Response}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 173:4-183:5
+    Visibility: public -/
+def message.Response.encode
+  (self : message.Response) : Result (Array Std.U8 92#usize) := do
+  let out := Array.repeat 92#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_RESPONSE
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.sender
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let i1 := self.receiver
+  let (pos2, s5) ← message.put_u32 s4 pos1 i1
+  let out3 := to_slice_mut_back2 s5
+  let (s6, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s7 ← lift (Array.to_slice self.ephemeral)
+  let (pos3, s8) ← message.put_bytes s6 pos2 s7
+  let out4 := to_slice_mut_back3 s8
+  let (s9, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
+  let s10 ← lift (Array.to_slice self.encrypted_nothing)
+  let (pos4, s11) ← message.put_bytes s9 pos3 s10
+  let out5 := to_slice_mut_back4 s11
+  let (s12, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
+  let s13 ← lift (Array.to_slice self.mac1)
+  let (pos5, s14) ← message.put_bytes s12 pos4 s13
+  let out6 := to_slice_mut_back5 s14
+  let (s15, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
+  let s16 ← lift (Array.to_slice self.mac2)
+  let (_, s17) ← message.put_bytes s15 pos5 s16
+  ok (to_slice_mut_back6 s17)
+
+/-- [wireguard::message::{wireguard::message::CookieReply}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 188:4-195:5
+    Visibility: public -/
+def message.CookieReply.encode
+  (self : message.CookieReply) : Result (Array Std.U8 64#usize) := do
+  let out := Array.repeat 64#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_COOKIE_REPLY
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.receiver
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let s5 ← lift (Array.to_slice self.nonce)
+  let (pos2, s6) ← message.put_bytes s4 pos1 s5
+  let out3 := to_slice_mut_back2 s6
+  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s8 ← lift (Array.to_slice self.encrypted_cookie)
+  let (_, s9) ← message.put_bytes s7 pos2 s8
+  ok (to_slice_mut_back3 s9)
+
 end wireguard
