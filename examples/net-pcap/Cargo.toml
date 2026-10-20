@@ -1,0 +1,11 @@
+[package]
+name = "net-pcap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Runs the frames of a pcap capture through the verified `net` decoders"
+
+[dependencies]
+net = { path = "../../crates/net" }
+untrusted = { path = "../../crates/untrusted" }

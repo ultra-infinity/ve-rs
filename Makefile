@@ -5,7 +5,7 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net vm-test aeneas-pin clean
 
 all: extract verify verify-demo verify-net
 
@@ -46,6 +46,12 @@ verify-demo:
 # $(PROOFS)/Net/Manual*.lean).
 verify-net:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p net --lean-dir $(PROOFS)
+
+# Run real traffic through the verified `net` decoders: two QEMU VMs exchange
+# ARP, ICMP and UDP over IPv4 and IPv6 (needs KVM). The capture and the
+# report end up in `result/`.
+vm-test:
+	nix build .#net-vm-test -L
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

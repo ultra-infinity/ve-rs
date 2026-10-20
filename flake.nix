@@ -97,6 +97,59 @@
           };
         };
 
+        # `net-pcap`: runs a pcap capture through the verified `net` decoders.
+        packages = {
+          net-pcap = pkgs.rustPlatform.buildRustPackage {
+            pname = "net-pcap";
+            version = "0.1.0";
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./crates
+                ./examples
+              ];
+            };
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "-p"
+              "net-pcap"
+            ];
+            doCheck = false;
+          };
+        }
+
+        # Two VMs on a virtual LAN: the client sends ARP, ICMP and UDP over
+        # IPv4 and IPv6; the server captures what it receives and runs it
+        # through `net-pcap`, failing if any frame is rejected or any layer saw
+        # no traffic. Run with `make vm-test` (needs KVM).
+        // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+          net-vm-test = pkgs.testers.runNixOSTest {
+            name = "net-vm-test";
+            nodes =
+              let
+                common = {
+                  networking.firewall.enable = false;
+                  environment.systemPackages = [
+                    pkgs.ethtool
+                    pkgs.socat
+                    pkgs.tcpdump
+                  ];
+                };
+              in
+              {
+                client = common;
+                server = common // {
+                  environment.systemPackages = common.environment.systemPackages ++ [
+                    self.packages.${system}.net-pcap
+                  ];
+                };
+              };
+            testScript = builtins.readFile ./examples/net-pcap/vm-test.py;
+          };
+        };
+
         devShells.default = pkgs.mkShell {
           packages = [
             aeneasPkg
