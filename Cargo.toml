@@ -8,6 +8,7 @@ members = [
   "crates/wireguard",
   "crates/wireguard-libcrux",
   "crates/wg-userspace",
+  "crates/adfilter",
   "examples/derive-demo",
   "examples/net-pcap",
 ]

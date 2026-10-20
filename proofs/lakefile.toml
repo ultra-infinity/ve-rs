@@ -19,3 +19,6 @@ name = "Net"
 
 [[lean_lib]]
 name = "Wireguard"
+
+[[lean_lib]]
+name = "Adfilter"

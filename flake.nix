@@ -61,6 +61,7 @@
                 ./proofs/DeriveDemo
                 ./proofs/Net
                 ./proofs/Wireguard
+                ./proofs/Adfilter
                 ./proofs/lakefile.toml
               ];
             };
@@ -97,6 +98,12 @@
                 --lean-dir proofs --extract-only --extract-all --link net=Net
               diff -ru proofs-committed/Wireguard proofs/Wireguard || {
                 echo 'ERROR: the wireguard model is stale. Run `make verify-wireguard`.'
+                exit 1
+              }
+              cargo run -q -p cargo-untrusted -- untrusted verify -p adfilter \
+                --lean-dir proofs --extract-only --extract-all --link net=Net
+              diff -ru proofs-committed/Adfilter proofs/Adfilter || {
+                echo 'ERROR: the adfilter model is stale. Run `make verify-adfilter`.'
                 exit 1
               }
             '';

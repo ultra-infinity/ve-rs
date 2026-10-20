@@ -5,9 +5,9 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard vm-test wg-vm-test aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard verify-adfilter vm-test wg-vm-test aeneas-pin clean
 
-all: extract verify verify-demo verify-net verify-wireguard
+all: extract verify verify-demo verify-net verify-wireguard verify-adfilter
 
 build:
 	cargo build --workspace
@@ -54,6 +54,12 @@ verify-net:
 WIREGUARD_FLAGS := --extract-all --link net=Net
 verify-wireguard:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p wireguard --lean-dir $(PROOFS) $(WIREGUARD_FLAGS)
+
+# Formally verify the `adfilter` crate: every item, linked against the
+# verified `net` model (hand-written specs in $(PROOFS)/Adfilter/).
+ADFILTER_FLAGS := --extract-all --link net=Net
+verify-adfilter:
+	cargo run -q -p cargo-untrusted -- untrusted verify -p adfilter --lean-dir $(PROOFS) $(ADFILTER_FLAGS)
 
 # Run real traffic through the verified `net` decoders: two QEMU VMs exchange
 # ARP, ICMP and UDP over IPv4 and IPv6 (needs KVM). The capture and the
