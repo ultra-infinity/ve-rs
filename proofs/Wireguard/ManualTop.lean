@@ -3,3 +3,4 @@
 import Wireguard.InnerTop
 import Wireguard.MessageTop
 import Wireguard.Crypto
+import Wireguard.NoiseTop

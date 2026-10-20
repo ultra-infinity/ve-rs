@@ -97,4 +97,25 @@ inductive message.Message where
 | CookieReply : message.CookieReply → message.Message
 | Transport : message.Transport → message.Message
 
+/-- [wireguard::noise::Chain]
+    Source: 'crates/wireguard/src/noise.rs', lines 32:0-35:1
+    Visibility: public -/
+structure noise.Chain where
+  key : Array Std.U8 32#usize
+  hash : Array Std.U8 32#usize
+
+/-- [wireguard::noise::InitiatorState]
+    Source: 'crates/wireguard/src/noise.rs', lines 39:0-42:1
+    Visibility: public -/
+structure noise.InitiatorState where
+  chain : noise.Chain
+  ephemeral_private : Array Std.U8 32#usize
+
+/-- [wireguard::noise::InitiationStatic]
+    Source: 'crates/wireguard/src/noise.rs', lines 47:0-50:1
+    Visibility: public -/
+structure noise.InitiationStatic where
+  chain : noise.Chain
+  initiator_static : Array Std.U8 32#usize
+
 end wireguard

@@ -801,4 +801,330 @@ def message.CookieReply.encode
   let (_, s9) ← message.put_bytes s7 pos2 s8
   ok (to_slice_mut_back3 s9)
 
+/-- [wireguard::noise::CONSTRUCTION]
+    Source: 'crates/wireguard/src/noise.rs', lines 24:0-24:77
+    Visibility: public -/
+@[global_simps, irreducible]
+def noise.CONSTRUCTION : Array Std.U8 37#usize :=
+  Array.make 37#usize [
+    78#u8, 111#u8, 105#u8, 115#u8, 101#u8, 95#u8, 73#u8, 75#u8, 112#u8, 115#u8,
+    107#u8, 50#u8, 95#u8, 50#u8, 53#u8, 53#u8, 49#u8, 57#u8, 95#u8, 67#u8,
+    104#u8, 97#u8, 67#u8, 104#u8, 97#u8, 80#u8, 111#u8, 108#u8, 121#u8, 95#u8,
+    66#u8, 76#u8, 65#u8, 75#u8, 69#u8, 50#u8, 115#u8
+    ]
+
+/-- [wireguard::noise::IDENTIFIER]
+    Source: 'crates/wireguard/src/noise.rs', lines 26:0-26:72
+    Visibility: public -/
+@[global_simps, irreducible]
+def noise.IDENTIFIER : Array Std.U8 34#usize :=
+  Array.make 34#usize [
+    87#u8, 105#u8, 114#u8, 101#u8, 71#u8, 117#u8, 97#u8, 114#u8, 100#u8, 32#u8,
+    118#u8, 49#u8, 32#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8, 32#u8, 74#u8,
+    97#u8, 115#u8, 111#u8, 110#u8, 64#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8,
+    46#u8, 99#u8, 111#u8, 109#u8
+    ]
+
+/-- [wireguard::noise::TIMESTAMP_LEN]
+    Source: 'crates/wireguard/src/noise.rs', lines 28:0-28:36
+    Visibility: public -/
+@[global_simps, irreducible] def noise.TIMESTAMP_LEN : Std.Usize := 12#usize
+
+/-- [wireguard::noise::mix_hash]:
+    Source: 'crates/wireguard/src/noise.rs', lines 53:0-57:1 -/
+def noise.mix_hash
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (h : Array Std.U8 32#usize) (data : Slice Std.U8) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let out := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice h)
+  cryptoCryptoInst.hash c s data out
+
+/-- [wireguard::noise::initial_chain]:
+    Source: 'crates/wireguard/src/noise.rs', lines 61:0-67:1
+    Visibility: public -/
+def noise.initial_chain
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (responder_static : Array Std.U8 32#usize) :
+  Result noise.Chain
+  := do
+  let key := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice noise.CONSTRUCTION)
+  let s1 ← lift (Array.to_slice (Std.Array.empty Std.U8))
+  let key1 ← cryptoCryptoInst.hash c s s1 key
+  let s2 ← lift (Array.to_slice noise.IDENTIFIER)
+  let hash ← noise.mix_hash cryptoCryptoInst c key1 s2
+  let s3 ← lift (Array.to_slice responder_static)
+  let hash1 ← noise.mix_hash cryptoCryptoInst c hash s3
+  ok { key := key1, hash := hash1 }
+
+/-- [wireguard::noise::create_initiation]:
+    Source: 'crates/wireguard/src/noise.rs', lines 72:0-118:1
+    Visibility: public -/
+def noise.create_initiation
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize)
+  (local_public : Array Std.U8 32#usize)
+  (remote_public : Array Std.U8 32#usize)
+  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
+  (timestamp : Array Std.U8 12#usize) :
+  Result (Option (message.Initiation × noise.InitiatorState))
+  := do
+  let chain ← noise.initial_chain cryptoCryptoInst c remote_public
+  let ephemeral := Array.repeat 32#usize 0#u8
+  let ephemeral1 ←
+    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
+  let s ← lift (Array.to_slice ephemeral1)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice ephemeral1)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ← cryptoCryptoInst.x25519 c ephemeral_private remote_public dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
+    let encrypted_static := Array.repeat 48#usize 0#u8
+    let s3 ← lift (Array.to_slice hash)
+    let s4 ← lift (Array.to_slice local_public)
+    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut encrypted_static)
+    let s6 ← cryptoCryptoInst.aead_seal c k 0#u64 s3 s4 s5
+    let encrypted_static1 := to_slice_mut_back s6
+    let s7 ← lift (Array.to_slice encrypted_static1)
+    let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
+    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private remote_public dh1
+    if b1
+    then
+      let s8 ← lift (Array.to_slice dh2)
+      let (key2, k1) ← crypto.kdf2 cryptoCryptoInst c key1 s8
+      let encrypted_timestamp := Array.repeat 28#usize 0#u8
+      let s9 ← lift (Array.to_slice hash1)
+      let s10 ← lift (Array.to_slice timestamp)
+      let (s11, to_slice_mut_back1) ←
+        lift (Array.to_slice_mut encrypted_timestamp)
+      let s12 ← cryptoCryptoInst.aead_seal c k1 0#u64 s9 s10 s11
+      let encrypted_timestamp1 := to_slice_mut_back1 s12
+      let s13 ← lift (Array.to_slice encrypted_timestamp1)
+      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s13
+      let a := Array.repeat 16#usize 0#u8
+      let a1 := Array.repeat 16#usize 0#u8
+      ok (some
+        ({
+           sender := sender,
+           ephemeral := ephemeral1,
+           encrypted_static := encrypted_static1,
+           encrypted_timestamp := encrypted_timestamp1,
+           mac1 := a,
+           mac2 := a1
+         }, { chain := { key := key2, hash := hash2 }, ephemeral_private }))
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::consume_initiation_static]:
+    Source: 'crates/wireguard/src/noise.rs', lines 123:0-146:1
+    Visibility: public -/
+def noise.consume_initiation_static
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize)
+  (local_public : Array Std.U8 32#usize) (msg : message.Initiation) :
+  Result (Option noise.InitiationStatic)
+  := do
+  let chain ← noise.initial_chain cryptoCryptoInst c local_public
+  let s ← lift (Array.to_slice msg.ephemeral)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice msg.ephemeral)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
+    let initiator_static := Array.repeat 32#usize 0#u8
+    let s3 ← lift (Array.to_slice hash)
+    let s4 ← lift (Array.to_slice msg.encrypted_static)
+    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut initiator_static)
+    let (b1, s6) ← cryptoCryptoInst.aead_open c k 0#u64 s3 s4 s5
+    if b1
+    then
+      let s7 ← lift (Array.to_slice msg.encrypted_static)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
+      let initiator_static1 := to_slice_mut_back s6
+      ok (some
+        {
+          chain := { key := key1, hash := hash1 },
+          initiator_static := initiator_static1
+        })
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::consume_initiation_timestamp]:
+    Source: 'crates/wireguard/src/noise.rs', lines 151:0-174:1
+    Visibility: public -/
+def noise.consume_initiation_timestamp
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize) (st : noise.InitiationStatic)
+  (msg : message.Initiation) :
+  Result (Option (noise.Chain × (Array Std.U8 12#usize)))
+  := do
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c local_private st.initiator_static dh
+  if b
+  then
+    let s ← lift (Array.to_slice dh1)
+    let (key, k) ← crypto.kdf2 cryptoCryptoInst c st.chain.key s
+    let timestamp := Array.repeat 12#usize 0#u8
+    let s1 ← lift (Array.to_slice st.chain.hash)
+    let s2 ← lift (Array.to_slice msg.encrypted_timestamp)
+    let (s3, to_slice_mut_back) ← lift (Array.to_slice_mut timestamp)
+    let (b1, s4) ← cryptoCryptoInst.aead_open c k 0#u64 s1 s2 s3
+    if b1
+    then
+      let s5 ← lift (Array.to_slice msg.encrypted_timestamp)
+      let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s5
+      let timestamp1 := to_slice_mut_back s4
+      ok (some ({ key, hash }, timestamp1))
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::timestamp_after]: loop 0:
+    Source: 'crates/wireguard/src/noise.rs', lines 180:4-187:1
+    Visibility: public -/
+@[rust_loop]
+def noise.timestamp_after_loop
+  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) (i : Std.Usize) :
+  Result Bool
+  := do
+  if i < noise.TIMESTAMP_LEN
+  then
+    let i1 ← Array.index_usize a i
+    let i2 ← Array.index_usize b i
+    if i1 != i2
+    then ok (i1 > i2)
+    else let i3 ← i + 1#usize
+         noise.timestamp_after_loop a b i3
+  else ok false
+partial_fixpoint
+
+/-- [wireguard::noise::timestamp_after]:
+    Source: 'crates/wireguard/src/noise.rs', lines 178:0-187:1
+    Visibility: public -/
+@[reducible]
+def noise.timestamp_after
+  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) : Result Bool := do
+  noise.timestamp_after_loop a b 0#usize
+
+/-- [wireguard::noise::create_response]:
+    Source: 'crates/wireguard/src/noise.rs', lines 192:0-234:1
+    Visibility: public -/
+def noise.create_response
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (chain : noise.Chain) (initiator_ephemeral : Array Std.U8 32#usize)
+  (initiator_static : Array Std.U8 32#usize) (psk : Array Std.U8 32#usize)
+  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
+  (receiver : Std.U32) :
+  Result (Option (message.Response × noise.Chain))
+  := do
+  let ephemeral := Array.repeat 32#usize 0#u8
+  let ephemeral1 ←
+    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
+  let s ← lift (Array.to_slice ephemeral1)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice ephemeral1)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c ephemeral_private initiator_ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
+    let (b1, dh2) ←
+      cryptoCryptoInst.x25519 c ephemeral_private initiator_static dh1
+    if b1
+    then
+      let s3 ← lift (Array.to_slice dh2)
+      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
+      let s4 ← lift (Array.to_slice psk)
+      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
+      let s5 ← lift (Array.to_slice t)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
+      let encrypted_nothing := Array.repeat 16#usize 0#u8
+      let s6 ← lift (Array.to_slice hash1)
+      let s7 ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let (s8, to_slice_mut_back) ←
+        lift (Array.to_slice_mut encrypted_nothing)
+      let s9 ← cryptoCryptoInst.aead_seal c k 0#u64 s6 s7 s8
+      let encrypted_nothing1 := to_slice_mut_back s9
+      let s10 ← lift (Array.to_slice encrypted_nothing1)
+      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s10
+      let a := Array.repeat 16#usize 0#u8
+      let a1 := Array.repeat 16#usize 0#u8
+      ok (some
+        ({
+           sender := sender,
+           receiver := receiver,
+           ephemeral := ephemeral1,
+           encrypted_nothing := encrypted_nothing1,
+           mac1 := a,
+           mac2 := a1
+         }, { key := key3, hash := hash2 }))
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::consume_response]:
+    Source: 'crates/wireguard/src/noise.rs', lines 238:0-264:1
+    Visibility: public -/
+def noise.consume_response
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (st : noise.InitiatorState) (local_private : Array Std.U8 32#usize)
+  (psk : Array Std.U8 32#usize) (msg : message.Response) :
+  Result (Option noise.Chain)
+  := do
+  let s ← lift (Array.to_slice msg.ephemeral)
+  let key ← crypto.kdf1 cryptoCryptoInst c st.chain.key s
+  let s1 ← lift (Array.to_slice msg.ephemeral)
+  let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c st.ephemeral_private msg.ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
+    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh1
+    if b1
+    then
+      let s3 ← lift (Array.to_slice dh2)
+      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
+      let s4 ← lift (Array.to_slice psk)
+      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
+      let s5 ← lift (Array.to_slice t)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
+      let s6 ← lift (Array.to_slice hash1)
+      let s7 ← lift (Array.to_slice msg.encrypted_nothing)
+      let (s8, _) ← lift (Array.to_slice_mut (Std.Array.empty Std.U8))
+      let (b2, _) ← cryptoCryptoInst.aead_open c k 0#u64 s6 s7 s8
+      if b2
+      then
+        let s9 ← lift (Array.to_slice msg.encrypted_nothing)
+        let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s9
+        ok (some { key := key3, hash := hash2 })
+      else ok none
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::transport_keys]:
+    Source: 'crates/wireguard/src/noise.rs', lines 268:0-270:1
+    Visibility: public -/
+def noise.transport_keys
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (chain : noise.Chain) :
+  Result ((Array Std.U8 32#usize) × (Array Std.U8 32#usize))
+  := do
+  let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+  crypto.kdf2 cryptoCryptoInst c chain.key s
+
 end wireguard

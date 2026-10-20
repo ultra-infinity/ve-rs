@@ -32,6 +32,13 @@ structure Primitives where
   xaead : Key → (Array U8 24#usize) → List U8 → List U8 → List U8
   aead_length : ∀ k n ad m, (aead k n ad m).length = m.length + 16
   xaead_length : ∀ k n ad m, (xaead k n ad m).length = m.length + 16
+  /-- Encryption is injective in the plaintext (ChaCha20 XORs it with a
+      keystream), so a ciphertext has at most one plaintext. -/
+  aead_inj : ∀ k n ad m m', aead k n ad m = aead k n ad m' → m = m'
+  xaead_inj : ∀ k n ad m m', xaead k n ad m = xaead k n ad m' → m = m'
+  /-- X25519 is commutative: both sides of a Diffie-Hellman exchange get the
+      same result. -/
+  dh_comm : ∀ a b, dh a (pub b) = dh b (pub a)
 
 /-- The laws of the `Crypto` implementation `inst` on the value `c`: each
     method computes one of `P`'s functions and never fails, given buffers of
@@ -202,6 +209,59 @@ theorem append_byte.spec (t : Key) (b : U8) :
 section
 variable {C : Type} {inst : Crypto C} {c : C} {P : Primitives} [h : Laws inst c P]
 include h
+
+@[step]
+theorem Laws.x25519_step (k p out : Key) :
+    inst.x25519 c k p out ⦃ (b : Bool) (r : Key) =>
+      b = decide ((P.dh k p).val ≠ List.replicate 32 0#u8) ∧ r = P.dh k p ⦄ := by
+  rw [Laws.x25519]; simp
+
+@[step]
+theorem Laws.x25519_public_step (k out : Key) :
+    inst.x25519_public c k out ⦃ (r : Key) => r = P.pub k ⦄ := by
+  rw [Laws.x25519_public]; simp
+
+@[step]
+theorem Laws.mac_step (k : Key) (m : Slice U8) (out : Array U8 16#usize) :
+    inst.mac c k m out ⦃ (r : Array U8 16#usize) => r = P.mac k m.val ⦄ := by
+  rw [Laws.mac]; simp
+
+@[step]
+theorem Laws.ct_eq_step (a b : Array U8 16#usize) :
+    inst.ct_eq c a b ⦃ (r : Bool) => r = decide (a = b) ⦄ := by
+  rw [Laws.ct_eq]; simp
+
+@[step]
+theorem Laws.aead_seal_step (k : Key) (n : U64) (ad m out : Slice U8)
+    (h : out.length = m.length + 16) :
+    inst.aead_seal c k n ad m out ⦃ (r : Slice U8) => r.val = P.aead k n.val ad.val m.val ⦄ := by
+  obtain ⟨out', h1, h2⟩ := Laws.aead_seal (inst := inst) (c := c) k n ad m out h
+  rw [h1]; simpa using h2
+
+@[step]
+theorem Laws.aead_open_step (k : Key) (n : U64) (ad ct out : Slice U8)
+    (h : out.length + 16 = ct.length) :
+    inst.aead_open c k n ad ct out ⦃ (b : Bool) (r : Slice U8) =>
+      r.length = out.length ∧ (b = true ↔ ∃ m, P.aead k n.val ad.val m = ct.val) ∧
+      (b = true → P.aead k n.val ad.val r.val = ct.val) ⦄ := by
+  obtain ⟨b, out', h1, h2⟩ := Laws.aead_open (inst := inst) (c := c) k n ad ct out h
+  rw [h1]; simpa using h2
+
+@[step]
+theorem Laws.xaead_seal_step (k : Key) (n : Array U8 24#usize) (ad m out : Slice U8)
+    (h : out.length = m.length + 16) :
+    inst.xaead_seal c k n ad m out ⦃ (r : Slice U8) => r.val = P.xaead k n ad.val m.val ⦄ := by
+  obtain ⟨out', h1, h2⟩ := Laws.xaead_seal (inst := inst) (c := c) k n ad m out h
+  rw [h1]; simpa using h2
+
+@[step]
+theorem Laws.xaead_open_step (k : Key) (n : Array U8 24#usize) (ad ct out : Slice U8)
+    (h : out.length + 16 = ct.length) :
+    inst.xaead_open c k n ad ct out ⦃ (b : Bool) (r : Slice U8) =>
+      r.length = out.length ∧ (b = true ↔ ∃ m, P.xaead k n ad.val m = ct.val) ∧
+      (b = true → P.xaead k n ad.val r.val = ct.val) ⦄ := by
+  obtain ⟨b, out', h1, h2⟩ := Laws.xaead_open (inst := inst) (c := c) k n ad ct out h
+  rw [h1]; simpa using h2
 
 @[step]
 theorem Laws.hash_step (a b : Slice U8) (out : Key) :
