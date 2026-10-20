@@ -155,7 +155,7 @@ pub const TTL: u8 = 64;
 pub const MAX_PACKET_LEN: usize = 65535;
 
 /// The bytes of `v`, big-endian.
-fn be32(v: u32) -> [u8; 4] {
+pub(crate) fn be32(v: u32) -> [u8; 4] {
     [
         (v / 16_777_216) as u8,
         (v / 65536 % 256) as u8,
@@ -176,9 +176,10 @@ fn be128(v: u128) -> [u8; 16] {
     ]
 }
 
-/// The IPv4 header of a UDP packet of `total` bytes from `src` to `dst`,
-/// with `checksum`: no options, not fragmented, don't-fragment set.
-fn ipv4_header(src: u32, dst: u32, total: u16, checksum: u16) -> [u8; 20] {
+/// The IPv4 header of a packet of `total` bytes from `src` to `dst` carrying
+/// protocol `proto`, with `checksum`: no options, not fragmented,
+/// don't-fragment set.
+pub(crate) fn ipv4_header(src: u32, dst: u32, total: u16, proto: u8, checksum: u16) -> [u8; 20] {
     let s = be32(src);
     let d = be32(dst);
     [
@@ -191,7 +192,7 @@ fn ipv4_header(src: u32, dst: u32, total: u16, checksum: u16) -> [u8; 20] {
         0x40,
         0,
         TTL,
-        PROTO_UDP,
+        proto,
         (checksum / 256) as u8,
         (checksum % 256) as u8,
         s[0],
@@ -205,9 +206,10 @@ fn ipv4_header(src: u32, dst: u32, total: u16, checksum: u16) -> [u8; 20] {
     ]
 }
 
-/// The IPv6 header of a packet from `src` to `dst` carrying a UDP datagram
-/// of `len` bytes: traffic class and flow label 0, no extension headers.
-fn ipv6_header(src: u128, dst: u128, len: u16) -> [u8; 40] {
+/// The IPv6 header of a packet from `src` to `dst` carrying `len` bytes
+/// under next header `next`: traffic class and flow label 0, no extension
+/// headers.
+pub(crate) fn ipv6_header(src: u128, dst: u128, len: u16, next: u8) -> [u8; 40] {
     let s = be128(src);
     let d = be128(dst);
     [
@@ -217,7 +219,7 @@ fn ipv6_header(src: u128, dst: u128, len: u16) -> [u8; 40] {
         0,
         (len / 256) as u8,
         (len % 256) as u8,
-        NEXT_UDP,
+        next,
         TTL,
         s[0],
         s[1],
@@ -269,7 +271,7 @@ fn udp_header(src_port: u16, dst_port: u16, len: u16, checksum: u16) -> [u8; 8] 
 }
 
 /// Copies `src` to `out[pos..pos + src.len()]`, which must exist.
-fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) {
+pub(crate) fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) {
     let mut i = 0;
     while i < src.len() {
         out[pos + i] = src[i];
@@ -313,8 +315,8 @@ pub fn encode_ipv4(
     let total = n as u16;
     let len = (n - 20) as u16;
     // Each checksum is computed with its field 0, as `Ipv4Udp` checks it.
-    let zero = ipv4_header(src.0, dst.0, total, 0);
-    let header = ipv4_header(src.0, dst.0, total, 0xFFFF - inet::sum(0, &zero));
+    let zero = ipv4_header(src.0, dst.0, total, PROTO_UDP, 0);
+    let header = ipv4_header(src.0, dst.0, total, PROTO_UDP, 0xFFFF - inet::sum(0, &zero));
     let udp0 = udp_header(src_port, dst_port, len, 0);
     let acc = inet::sum(0, &header[12..20]);
     let acc = inet::sum(acc, &[0, PROTO_UDP]);
@@ -352,7 +354,7 @@ pub fn encode_ipv6(
         return None;
     }
     let len = (n - 40) as u16;
-    let header = ipv6_header(src.0, dst.0, len);
+    let header = ipv6_header(src.0, dst.0, len, NEXT_UDP);
     // The checksum is computed with its field 0, as `Ipv6Udp` checks it.
     let udp0 = udp_header(src_port, dst_port, len, 0);
     let acc = inet::sum(0, &header[8..40]);

@@ -15,6 +15,7 @@
 use crate::inet;
 use crate::ipv4::{self, Ipv4Packet};
 use crate::ipv6::{self, Ipv6Packet};
+use crate::udp::{be32, ipv4_header, ipv6_header, put_bytes};
 use untrusted::{BigEndian, Decode, Untrusted, Validate, ValidationError};
 
 /// The protocol number (IPv4) and next header (IPv6) of TCP.
@@ -159,6 +160,116 @@ impl<'a> Validate<&'a [u8]> for Ipv6Tcp<'a> {
     }
 }
 
+/// The ACK flag.
+pub const FLAG_ACK: u8 = 0x10;
+/// The RST flag.
+pub const FLAG_RST: u8 = 0x04;
+/// Length of an IPv4 packet carrying a bare segment.
+pub const BARE_IPV4_LEN: usize = 40;
+/// Length of an IPv6 packet carrying a bare segment.
+pub const BARE_IPV6_LEN: usize = 60;
+
+/// A TCP header without options: data offset 5, window 0, urgent pointer 0.
+fn tcp_header(src_port: u16, dst_port: u16, seq: u32, ack: u32, flags: u8, checksum: u16) -> [u8; 20] {
+    let s = be32(seq);
+    let a = be32(ack);
+    [
+        (src_port / 256) as u8,
+        (src_port % 256) as u8,
+        (dst_port / 256) as u8,
+        (dst_port % 256) as u8,
+        s[0],
+        s[1],
+        s[2],
+        s[3],
+        a[0],
+        a[1],
+        a[2],
+        a[3],
+        0x50,
+        flags,
+        0,
+        0,
+        (checksum / 256) as u8,
+        (checksum % 256) as u8,
+        0,
+        0,
+    ]
+}
+
+/// Writes to the start of `out` an IPv4 packet (no options, not fragmented,
+/// don't-fragment set) carrying a bare TCP segment, with no options or data,
+/// from `src:src_port` to `dst:dst_port` with `seq`, `ack` and `flags`, both
+/// checksums computed: a reset, for instance. Returns its length
+/// ([`BARE_IPV4_LEN`]), or `None` if `out` is too short.
+///
+/// `proofs/Net/TcpEncode.lean` proves that [`Ipv4Tcp`] accepts the result
+/// and decodes it back to these addresses, ports, numbers and flags.
+#[allow(clippy::too_many_arguments)]
+pub fn encode_ipv4(
+    src: ipv4::Ipv4Addr,
+    dst: ipv4::Ipv4Addr,
+    src_port: u16,
+    dst_port: u16,
+    seq: u32,
+    ack: u32,
+    flags: u8,
+    out: &mut [u8],
+) -> Option<usize> {
+    if out.len() < BARE_IPV4_LEN {
+        return None;
+    }
+    // Each checksum is computed with its field 0, as `Ipv4Tcp` checks it.
+    let zero = ipv4_header(src.0, dst.0, 40, PROTO_TCP, 0);
+    let header = ipv4_header(src.0, dst.0, 40, PROTO_TCP, 0xFFFF - inet::sum(0, &zero));
+    let seg0 = tcp_header(src_port, dst_port, seq, ack, flags, 0);
+    // The pseudo-header: the addresses, a zero byte, the protocol and the
+    // segment length (20).
+    let acc = inet::sum(0, &header[12..20]);
+    let acc = inet::sum(acc, &[0, PROTO_TCP, 0, 20]);
+    let s = inet::sum(acc, &seg0);
+    let seg = tcp_header(src_port, dst_port, seq, ack, flags, 0xFFFF - s);
+    put_bytes(out, 0, &header);
+    put_bytes(out, 20, &seg);
+    Some(BARE_IPV4_LEN)
+}
+
+/// Writes to the start of `out` an IPv6 packet (no extension headers)
+/// carrying a bare TCP segment, with no options or data, from
+/// `src:src_port` to `dst:dst_port` with `seq`, `ack` and `flags`, its
+/// checksum computed. Returns its length ([`BARE_IPV6_LEN`]), or `None` if
+/// `out` is too short.
+///
+/// `proofs/Net/TcpEncode.lean` proves that [`Ipv6Tcp`] accepts the result
+/// and decodes it back to these addresses, ports, numbers and flags.
+#[allow(clippy::too_many_arguments)]
+pub fn encode_ipv6(
+    src: ipv6::Ipv6Addr,
+    dst: ipv6::Ipv6Addr,
+    src_port: u16,
+    dst_port: u16,
+    seq: u32,
+    ack: u32,
+    flags: u8,
+    out: &mut [u8],
+) -> Option<usize> {
+    if out.len() < BARE_IPV6_LEN {
+        return None;
+    }
+    let header = ipv6_header(src.0, dst.0, 20, PROTO_TCP);
+    // The checksum is computed with its field 0, as `Ipv6Tcp` checks it, over
+    // the pseudo-header: the addresses, the segment length (20) as 32 bits,
+    // three zero bytes and the next header.
+    let seg0 = tcp_header(src_port, dst_port, seq, ack, flags, 0);
+    let acc = inet::sum(0, &header[8..40]);
+    let acc = inet::sum(acc, &[0, 0, 0, 20, 0, 0, 0, PROTO_TCP]);
+    let s = inet::sum(acc, &seg0);
+    let seg = tcp_header(src_port, dst_port, seq, ack, flags, 0xFFFF - s);
+    put_bytes(out, 0, &header);
+    put_bytes(out, 40, &seg);
+    Some(BARE_IPV6_LEN)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,5 +362,28 @@ mod tests {
             Untrusted::new(&buf[..n]).validate::<Ipv6Tcp>().err(),
             Some(ValidationError::ChecksumMismatch)
         );
+    }
+
+    #[test]
+    fn encodes_bare_segments() {
+        use crate::ipv4::Ipv4Addr;
+        use crate::ipv6::Ipv6Addr;
+        let mut out = [0u8; 64];
+        let flags = FLAG_RST | FLAG_ACK;
+        let n = encode_ipv4(Ipv4Addr(0x0a00_0001), Ipv4Addr(0x0a00_0002), 443, 40000, 7, 99, flags, &mut out)
+            .unwrap();
+        assert_eq!(n, BARE_IPV4_LEN);
+        let t = validate(&out[..n]).ok().unwrap();
+        assert_eq!((t.ip.header.src.0, t.ip.header.dst.0), (0x0a00_0001, 0x0a00_0002));
+        let h = t.header;
+        assert_eq!((h.src_port.0, h.dst_port.0, h.seq.0, h.ack.0, h.flags.0), (443, 40000, 7, 99, 0x14));
+        assert_eq!(t.payload.read_all::<Count>(), Ok(Count(0)));
+        let n = encode_ipv6(Ipv6Addr(1), Ipv6Addr(2), 443, 40000, u32::MAX, 0, flags, &mut out).unwrap();
+        assert_eq!(n, BARE_IPV6_LEN);
+        let t = Untrusted::new(&out[..n]).validate::<Ipv6Tcp>().ok().unwrap();
+        assert_eq!((t.ip.header.src.0, t.ip.header.dst.0), (1, 2));
+        assert_eq!((t.header.seq.0, t.header.ack.0, t.header.flags.0), (u32::MAX, 0, 0x14));
+        assert!(encode_ipv4(Ipv4Addr(1), Ipv4Addr(2), 1, 2, 0, 0, 0, &mut out[..39]).is_none());
+        assert!(encode_ipv6(Ipv6Addr(1), Ipv6Addr(2), 1, 2, 0, 0, 0, &mut out[..59]).is_none());
     }
 }

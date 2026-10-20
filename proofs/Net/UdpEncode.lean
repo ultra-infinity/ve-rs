@@ -192,9 +192,9 @@ theorem be128.spec (v : U128) :
 
 /-- **Spec theorem for `ipv4_header`**. -/
 @[step]
-theorem ipv4_header.spec (src dst : U32) (total checksum : U16) :
-    ipv4_header src dst total checksum ⦃ (r : Array U8 20#usize) =>
-      r.val.map (·.val) = [69, 0] ++ be16N total.val ++ [0, 0, 64, 0, 64, 17] ++
+theorem ipv4_header.spec (src dst : U32) (total : U16) (proto : U8) (checksum : U16) :
+    ipv4_header src dst total proto checksum ⦃ (r : Array U8 20#usize) =>
+      r.val.map (·.val) = [69, 0] ++ be16N total.val ++ [0, 0, 64, 0, 64, proto.val] ++
         be16N checksum.val ++ be32N src.val ++ be32N dst.val ⦄ := by
   unfold ipv4_header
   step*
@@ -203,14 +203,14 @@ theorem ipv4_header.spec (src dst : U32) (total checksum : U16) :
   have ht := total.hBounds
   have hc := checksum.hBounds
   simp only [UScalarTy.U16_numBits_eq] at ht hc
-  simp [Array.make, be16N, be32N, *, cast_u8, ipv4.PROTO_UDP] at *
+  simp [Array.make, be16N, be32N, *, cast_u8] at *
   omega
 
 /-- **Spec theorem for `ipv6_header`**. -/
 @[step]
-theorem ipv6_header.spec (src dst : U128) (len : U16) :
-    ipv6_header src dst len ⦃ (r : Array U8 40#usize) =>
-      r.val.map (·.val) = [96, 0, 0, 0] ++ be16N len.val ++ [17, 64] ++ be128N src.val ++
+theorem ipv6_header.spec (src dst : U128) (len : U16) (next : U8) :
+    ipv6_header src dst len next ⦃ (r : Array U8 40#usize) =>
+      r.val.map (·.val) = [96, 0, 0, 0] ++ be16N len.val ++ [next.val, 64] ++ be128N src.val ++
         be128N dst.val ⦄ := by
   unfold ipv6_header
   step*
@@ -219,7 +219,7 @@ theorem ipv6_header.spec (src dst : U128) (len : U16) :
   have hl := len.hBounds
   simp only [UScalarTy.U16_numBits_eq] at hl
   simp only [be128N, be32N] at gs gd
-  simp [Array.make, be16N, be128N, be32N, *, cast_u8, ipv6.NEXT_UDP] at *
+  simp [Array.make, be16N, be128N, be32N, *, cast_u8] at *
   omega
 
 /-- **Spec theorem for `udp_header`**. -/
@@ -553,6 +553,8 @@ theorem encode_ipv4.spec (src dst : U32) (sp dp : U16) (data out : Slice U8) :
   · simp only [Slice.length, out2_post, out1_post, s6_post, s7_post, List.length_append,
       List.length_take, List.length_drop]
     simp; scalar_tac
+  have hP : ipv4.PROTO_UDP.val = 17 := by simp [ipv4.PROTO_UDP]
+  rw [hP] at header_post zero_post
   have hnv : n.val = 28 + data.length := by scalar_tac
   have hnl : n.val ≤ out.length := by scalar_tac
   have htot : total.val = n.val := by
@@ -650,6 +652,8 @@ theorem encode_ipv6.spec (src dst : U128) (sp dp : U16) (data out : Slice U8) :
   step*
   all_goals try (simp only [Slice.length, out1_post, out2_post, s6_post, s7_post,
     List.length_append, List.length_take, List.length_drop, Array.val_to_slice]; simp; scalar_tac)
+  have hN : ipv6.NEXT_UDP.val = 17 := by simp [ipv6.NEXT_UDP]
+  rw [hN] at header_post
   have hnv : n.val = 48 + data.length := by scalar_tac
   have hnl : n.val ≤ out.length := by scalar_tac
   have hlen : len.val = 8 + data.length := by

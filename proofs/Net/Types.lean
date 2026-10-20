@@ -198,7 +198,7 @@ structure icmp.Icmpv6 where
   body : untrusted.Untrusted (Slice Std.U8)
 
 /-- [net::tcp::TcpHeader]
-    Source: 'crates/net/src/tcp.rs', lines 27:0-40:1
+    Source: 'crates/net/src/tcp.rs', lines 28:0-41:1
     Visibility: public -/
 structure tcp.TcpHeader where
   src_port : untrusted.bytes.BigEndian Std.U16
@@ -212,7 +212,7 @@ structure tcp.TcpHeader where
   urgent : untrusted.bytes.BigEndian Std.U16
 
 /-- [net::tcp::Ipv4Tcp]
-    Source: 'crates/net/src/tcp.rs', lines 69:0-74:1
+    Source: 'crates/net/src/tcp.rs', lines 70:0-75:1
     Visibility: public -/
 structure tcp.Ipv4Tcp where
   ip : ipv4.Ipv4Packet
@@ -221,7 +221,7 @@ structure tcp.Ipv4Tcp where
   payload : untrusted.Untrusted (Slice Std.U8)
 
 /-- [net::tcp::Ipv6Tcp]
-    Source: 'crates/net/src/tcp.rs', lines 122:0-127:1
+    Source: 'crates/net/src/tcp.rs', lines 123:0-128:1
     Visibility: public -/
 structure tcp.Ipv6Tcp where
   ip : ipv6.Ipv6Packet

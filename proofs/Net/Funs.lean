@@ -1706,17 +1706,17 @@ def ipv4.Fragment.is_fragment (self : ipv4.Fragment) : Result Bool := do
 @[global_simps, irreducible] def ipv6.NEXT_UDP : Std.U8 := 17#u8
 
 /-- [net::tcp::PROTO_TCP]
-    Source: 'crates/net/src/tcp.rs', lines 21:0-21:28
+    Source: 'crates/net/src/tcp.rs', lines 22:0-22:28
     Visibility: public -/
 @[global_simps, irreducible] def tcp.PROTO_TCP : Std.U8 := 6#u8
 
 /-- [net::tcp::MIN_HEADER_LEN]
-    Source: 'crates/net/src/tcp.rs', lines 23:0-23:37
+    Source: 'crates/net/src/tcp.rs', lines 24:0-24:37
     Visibility: public -/
 @[global_simps, irreducible] def tcp.MIN_HEADER_LEN : Std.Usize := 20#usize
 
 /-- [net::tcp::{impl untrusted::reader::Decode for net::tcp::TcpHeader}::decode]:
-    Source: 'crates/net/src/tcp.rs', lines 26:9-26:15
+    Source: 'crates/net/src/tcp.rs', lines 27:9-27:15
     Visibility: public -/
 def tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -1847,7 +1847,7 @@ def tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::tcp::{impl untrusted::reader::Decode for net::tcp::TcpHeader}]
-    Source: 'crates/net/src/tcp.rs', lines 26:9-26:15 -/
+    Source: 'crates/net/src/tcp.rs', lines 27:9-27:15 -/
 @[reducible]
 def tcp.TcpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   tcp.TcpHeader := {
@@ -1855,7 +1855,7 @@ def tcp.TcpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::tcp::header]:
-    Source: 'crates/net/src/tcp.rs', lines 46:0-59:1 -/
+    Source: 'crates/net/src/tcp.rs', lines 47:0-60:1 -/
 def tcp.header
   (segment : Slice Std.U8) :
   Result (core.result.Result (tcp.TcpHeader × Std.Usize)
@@ -1893,7 +1893,7 @@ def tcp.header
         untrusted.ValidationError) residual
 
 /-- [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv4Tcp<'a>}::validate]:
-    Source: 'crates/net/src/tcp.rs', lines 79:4-111:5
+    Source: 'crates/net/src/tcp.rs', lines 80:4-112:5
     Visibility: public -/
 def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
   (input : Slice Std.U8) :
@@ -1969,7 +1969,7 @@ def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
       tcp.Ipv4Tcp (core.convert.FromSame untrusted.ValidationError) residual
 
 /-- Trait implementation: [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv4Tcp<'a>}]
-    Source: 'crates/net/src/tcp.rs', lines 76:0-112:1 -/
+    Source: 'crates/net/src/tcp.rs', lines 77:0-113:1 -/
 @[reducible]
 def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate tcp.Ipv4Tcp (Slice Std.U8) untrusted.ValidationError := {
@@ -1978,7 +1978,7 @@ def tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv6Tcp<'a>}::validate]:
-    Source: 'crates/net/src/tcp.rs', lines 132:4-159:5
+    Source: 'crates/net/src/tcp.rs', lines 133:4-160:5
     Visibility: public -/
 def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
   (input : Slice Std.U8) :
@@ -2051,13 +2051,310 @@ def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
       tcp.Ipv6Tcp (core.convert.FromSame untrusted.ValidationError) residual
 
 /-- Trait implementation: [net::tcp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::tcp::Ipv6Tcp<'a>}]
-    Source: 'crates/net/src/tcp.rs', lines 129:0-160:1 -/
+    Source: 'crates/net/src/tcp.rs', lines 130:0-161:1 -/
 @[reducible]
 def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate tcp.Ipv6Tcp (Slice Std.U8) untrusted.ValidationError := {
   validate :=
     tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
+
+/-- [net::tcp::FLAG_ACK]
+    Source: 'crates/net/src/tcp.rs', lines 164:0-164:30
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.FLAG_ACK : Std.U8 := 16#u8
+
+/-- [net::tcp::FLAG_RST]
+    Source: 'crates/net/src/tcp.rs', lines 166:0-166:30
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.FLAG_RST : Std.U8 := 4#u8
+
+/-- [net::tcp::BARE_IPV4_LEN]
+    Source: 'crates/net/src/tcp.rs', lines 168:0-168:36
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.BARE_IPV4_LEN : Std.Usize := 40#usize
+
+/-- [net::tcp::BARE_IPV6_LEN]
+    Source: 'crates/net/src/tcp.rs', lines 170:0-170:36
+    Visibility: public -/
+@[global_simps, irreducible] def tcp.BARE_IPV6_LEN : Std.Usize := 60#usize
+
+/-- [net::udp::be32]:
+    Source: 'crates/net/src/udp.rs', lines 158:0-165:1 -/
+def udp.be32 (v : Std.U32) : Result (Array Std.U8 4#usize) := do
+  let i ← v / 16777216#u32
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← v / 65536#u32
+  let i3 ← i2 % 256#u32
+  let i4 ← lift (UScalar.cast .U8 i3)
+  let i5 ← v / 256#u32
+  let i6 ← i5 % 256#u32
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← v % 256#u32
+  let i9 ← lift (UScalar.cast .U8 i8)
+  ok (Array.make 4#usize [ i1, i4, i7, i9 ])
+
+/-- [net::tcp::tcp_header]:
+    Source: 'crates/net/src/tcp.rs', lines 173:0-198:1 -/
+def tcp.tcp_header
+  (src_port : Std.U16) (dst_port : Std.U16) (seq : Std.U32) (ack : Std.U32)
+  (flags : Std.U8) (checksum : Std.U16) :
+  Result (Array Std.U8 20#usize)
+  := do
+  let s ← udp.be32 seq
+  let a ← udp.be32 ack
+  let i ← src_port / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← src_port % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← dst_port / 256#u16
+  let i5 ← lift (UScalar.cast .U8 i4)
+  let i6 ← dst_port % 256#u16
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← Array.index_usize s 0#usize
+  let i9 ← Array.index_usize s 1#usize
+  let i10 ← Array.index_usize s 2#usize
+  let i11 ← Array.index_usize s 3#usize
+  let i12 ← Array.index_usize a 0#usize
+  let i13 ← Array.index_usize a 1#usize
+  let i14 ← Array.index_usize a 2#usize
+  let i15 ← Array.index_usize a 3#usize
+  let i16 ← checksum / 256#u16
+  let i17 ← lift (UScalar.cast .U8 i16)
+  let i18 ← checksum % 256#u16
+  let i19 ← lift (UScalar.cast .U8 i18)
+  ok
+    (Array.make 20#usize [
+      i1, i3, i5, i7, i8, i9, i10, i11, i12, i13, i14, i15, 80#u8, flags, 0#u8,
+      0#u8, i17, i19, 0#u8, 0#u8
+      ])
+
+/-- [net::udp::put_bytes]: loop 0:
+    Source: 'crates/net/src/udp.rs', lines 276:4-279:5 -/
+@[rust_loop]
+def udp.put_bytes_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let i3 ← pos + i
+    let s ← Slice.update out i3 i2
+    let i4 ← i + 1#usize
+    udp.put_bytes_loop s pos src i4
+  else ok out
+partial_fixpoint
+
+/-- [net::udp::put_bytes]:
+    Source: 'crates/net/src/udp.rs', lines 274:0-280:1 -/
+@[reducible]
+def udp.put_bytes
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
+  Result (Slice Std.U8)
+  := do
+  udp.put_bytes_loop out pos src 0#usize
+
+/-- [net::udp::TTL]
+    Source: 'crates/net/src/udp.rs', lines 153:0-153:23
+    Visibility: public -/
+@[global_simps, irreducible] def udp.TTL : Std.U8 := 64#u8
+
+/-- [net::udp::ipv4_header]:
+    Source: 'crates/net/src/udp.rs', lines 182:0-207:1 -/
+def udp.ipv4_header
+  (src : Std.U32) (dst : Std.U32) (total : Std.U16) (proto : Std.U8)
+  (checksum : Std.U16) :
+  Result (Array Std.U8 20#usize)
+  := do
+  let s ← udp.be32 src
+  let d ← udp.be32 dst
+  let i ← total / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← total % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← checksum / 256#u16
+  let i5 ← lift (UScalar.cast .U8 i4)
+  let i6 ← checksum % 256#u16
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← Array.index_usize s 0#usize
+  let i9 ← Array.index_usize s 1#usize
+  let i10 ← Array.index_usize s 2#usize
+  let i11 ← Array.index_usize s 3#usize
+  let i12 ← Array.index_usize d 0#usize
+  let i13 ← Array.index_usize d 1#usize
+  let i14 ← Array.index_usize d 2#usize
+  let i15 ← Array.index_usize d 3#usize
+  ok
+    (Array.make 20#usize [
+      69#u8, 0#u8, i1, i3, 0#u8, 0#u8, 64#u8, 0#u8, udp.TTL, proto, i5, i7, i8,
+      i9, i10, i11, i12, i13, i14, i15
+      ])
+
+/-- [net::tcp::encode_ipv4]:
+    Source: 'crates/net/src/tcp.rs', lines 209:0-235:1
+    Visibility: public -/
+def tcp.encode_ipv4
+  (src : ipv4.Ipv4Addr) (dst : ipv4.Ipv4Addr) (src_port : Std.U16)
+  (dst_port : Std.U16) (seq : Std.U32) (ack : Std.U32) (flags : Std.U8)
+  (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8))
+  := do
+  let i := Slice.len out
+  if i < tcp.BARE_IPV4_LEN
+  then ok (none, out)
+  else
+    let zero ← udp.ipv4_header src dst 40#u16 tcp.PROTO_TCP 0#u16
+    let s ← lift (Array.to_slice zero)
+    let i1 ← inet.sum 0#u16 s
+    let i2 ← 65535#u16 - i1
+    let header ← udp.ipv4_header src dst 40#u16 tcp.PROTO_TCP i2
+    let seg0 ← tcp.tcp_header src_port dst_port seq ack flags 0#u16
+    let s1 ←
+      core.array.Array.index (core.ops.index.IndexSlice
+        (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) header
+        { start := 12#usize, «end» := 20#usize }
+    let acc ← inet.sum 0#u16 s1
+    let s2 ←
+      lift (Array.to_slice
+        (Array.make 4#usize [ 0#u8, tcp.PROTO_TCP, 0#u8, 20#u8 ]))
+    let acc1 ← inet.sum acc s2
+    let s3 ← lift (Array.to_slice seg0)
+    let s4 ← inet.sum acc1 s3
+    let i3 ← 65535#u16 - s4
+    let seg ← tcp.tcp_header src_port dst_port seq ack flags i3
+    let s5 ← lift (Array.to_slice header)
+    let out1 ← udp.put_bytes out 0#usize s5
+    let s6 ← lift (Array.to_slice seg)
+    let out2 ← udp.put_bytes out1 20#usize s6
+    ok (some tcp.BARE_IPV4_LEN, out2)
+
+/-- [net::udp::be128]:
+    Source: 'crates/net/src/udp.rs', lines 168:0-177:1 -/
+def udp.be128 (v : Std.U128) : Result (Array Std.U8 16#usize) := do
+  let i ← v / 79228162514264337593543950336#u128
+  let i1 ← lift (UScalar.cast .U32 i)
+  let a ← udp.be32 i1
+  let i2 ← v / 18446744073709551616#u128
+  let i3 ← i2 % 4294967296#u128
+  let i4 ← lift (UScalar.cast .U32 i3)
+  let b ← udp.be32 i4
+  let i5 ← v / 4294967296#u128
+  let i6 ← i5 % 4294967296#u128
+  let i7 ← lift (UScalar.cast .U32 i6)
+  let c ← udp.be32 i7
+  let i8 ← v % 4294967296#u128
+  let i9 ← lift (UScalar.cast .U32 i8)
+  let d ← udp.be32 i9
+  let i10 ← Array.index_usize a 0#usize
+  let i11 ← Array.index_usize a 1#usize
+  let i12 ← Array.index_usize a 2#usize
+  let i13 ← Array.index_usize a 3#usize
+  let i14 ← Array.index_usize b 0#usize
+  let i15 ← Array.index_usize b 1#usize
+  let i16 ← Array.index_usize b 2#usize
+  let i17 ← Array.index_usize b 3#usize
+  let i18 ← Array.index_usize c 0#usize
+  let i19 ← Array.index_usize c 1#usize
+  let i20 ← Array.index_usize c 2#usize
+  let i21 ← Array.index_usize c 3#usize
+  let i22 ← Array.index_usize d 0#usize
+  let i23 ← Array.index_usize d 1#usize
+  let i24 ← Array.index_usize d 2#usize
+  let i25 ← Array.index_usize d 3#usize
+  ok
+    (Array.make 16#usize [
+      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
+      i24, i25
+      ])
+
+/-- [net::udp::ipv6_header]:
+    Source: 'crates/net/src/udp.rs', lines 212:0-257:1 -/
+def udp.ipv6_header
+  (src : Std.U128) (dst : Std.U128) (len : Std.U16) (next : Std.U8) :
+  Result (Array Std.U8 40#usize)
+  := do
+  let s ← udp.be128 src
+  let d ← udp.be128 dst
+  let i ← len / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← len % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← Array.index_usize s 0#usize
+  let i5 ← Array.index_usize s 1#usize
+  let i6 ← Array.index_usize s 2#usize
+  let i7 ← Array.index_usize s 3#usize
+  let i8 ← Array.index_usize s 4#usize
+  let i9 ← Array.index_usize s 5#usize
+  let i10 ← Array.index_usize s 6#usize
+  let i11 ← Array.index_usize s 7#usize
+  let i12 ← Array.index_usize s 8#usize
+  let i13 ← Array.index_usize s 9#usize
+  let i14 ← Array.index_usize s 10#usize
+  let i15 ← Array.index_usize s 11#usize
+  let i16 ← Array.index_usize s 12#usize
+  let i17 ← Array.index_usize s 13#usize
+  let i18 ← Array.index_usize s 14#usize
+  let i19 ← Array.index_usize s 15#usize
+  let i20 ← Array.index_usize d 0#usize
+  let i21 ← Array.index_usize d 1#usize
+  let i22 ← Array.index_usize d 2#usize
+  let i23 ← Array.index_usize d 3#usize
+  let i24 ← Array.index_usize d 4#usize
+  let i25 ← Array.index_usize d 5#usize
+  let i26 ← Array.index_usize d 6#usize
+  let i27 ← Array.index_usize d 7#usize
+  let i28 ← Array.index_usize d 8#usize
+  let i29 ← Array.index_usize d 9#usize
+  let i30 ← Array.index_usize d 10#usize
+  let i31 ← Array.index_usize d 11#usize
+  let i32 ← Array.index_usize d 12#usize
+  let i33 ← Array.index_usize d 13#usize
+  let i34 ← Array.index_usize d 14#usize
+  let i35 ← Array.index_usize d 15#usize
+  ok
+    (Array.make 40#usize [
+      96#u8, 0#u8, 0#u8, 0#u8, i1, i3, next, udp.TTL, i4, i5, i6, i7, i8, i9,
+      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
+      i24, i25, i26, i27, i28, i29, i30, i31, i32, i33, i34, i35
+      ])
+
+/-- [net::tcp::encode_ipv6]:
+    Source: 'crates/net/src/tcp.rs', lines 246:0-271:1
+    Visibility: public -/
+def tcp.encode_ipv6
+  (src : ipv6.Ipv6Addr) (dst : ipv6.Ipv6Addr) (src_port : Std.U16)
+  (dst_port : Std.U16) (seq : Std.U32) (ack : Std.U32) (flags : Std.U8)
+  (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8))
+  := do
+  let i := Slice.len out
+  if i < tcp.BARE_IPV6_LEN
+  then ok (none, out)
+  else
+    let header ← udp.ipv6_header src dst 20#u16 tcp.PROTO_TCP
+    let seg0 ← tcp.tcp_header src_port dst_port seq ack flags 0#u16
+    let s ←
+      core.array.Array.index (core.ops.index.IndexSlice
+        (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) header
+        { start := 8#usize, «end» := 40#usize }
+    let acc ← inet.sum 0#u16 s
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 8#usize [
+          0#u8, 0#u8, 0#u8, 20#u8, 0#u8, 0#u8, 0#u8, tcp.PROTO_TCP
+          ]))
+    let acc1 ← inet.sum acc s1
+    let s2 ← lift (Array.to_slice seg0)
+    let s3 ← inet.sum acc1 s2
+    let i1 ← 65535#u16 - s3
+    let seg ← tcp.tcp_header src_port dst_port seq ack flags i1
+    let s4 ← lift (Array.to_slice header)
+    let out1 ← udp.put_bytes out 0#usize s4
+    let s5 ← lift (Array.to_slice seg)
+    let out2 ← udp.put_bytes out1 40#usize s5
+    ok (some tcp.BARE_IPV6_LEN, out2)
 
 /-- [net::udp::HEADER_LEN]
     Source: 'crates/net/src/udp.rs', lines 17:0-17:32
@@ -2345,153 +2642,13 @@ def udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError :
     udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
-/-- [net::udp::TTL]
-    Source: 'crates/net/src/udp.rs', lines 153:0-153:23
-    Visibility: public -/
-@[global_simps, irreducible] def udp.TTL : Std.U8 := 64#u8
-
 /-- [net::udp::MAX_PACKET_LEN]
     Source: 'crates/net/src/udp.rs', lines 155:0-155:40
     Visibility: public -/
 @[global_simps, irreducible] def udp.MAX_PACKET_LEN : Std.Usize := 65535#usize
 
-/-- [net::udp::be32]:
-    Source: 'crates/net/src/udp.rs', lines 158:0-165:1 -/
-def udp.be32 (v : Std.U32) : Result (Array Std.U8 4#usize) := do
-  let i ← v / 16777216#u32
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← v / 65536#u32
-  let i3 ← i2 % 256#u32
-  let i4 ← lift (UScalar.cast .U8 i3)
-  let i5 ← v / 256#u32
-  let i6 ← i5 % 256#u32
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← v % 256#u32
-  let i9 ← lift (UScalar.cast .U8 i8)
-  ok (Array.make 4#usize [ i1, i4, i7, i9 ])
-
-/-- [net::udp::be128]:
-    Source: 'crates/net/src/udp.rs', lines 168:0-177:1 -/
-def udp.be128 (v : Std.U128) : Result (Array Std.U8 16#usize) := do
-  let i ← v / 79228162514264337593543950336#u128
-  let i1 ← lift (UScalar.cast .U32 i)
-  let a ← udp.be32 i1
-  let i2 ← v / 18446744073709551616#u128
-  let i3 ← i2 % 4294967296#u128
-  let i4 ← lift (UScalar.cast .U32 i3)
-  let b ← udp.be32 i4
-  let i5 ← v / 4294967296#u128
-  let i6 ← i5 % 4294967296#u128
-  let i7 ← lift (UScalar.cast .U32 i6)
-  let c ← udp.be32 i7
-  let i8 ← v % 4294967296#u128
-  let i9 ← lift (UScalar.cast .U32 i8)
-  let d ← udp.be32 i9
-  let i10 ← Array.index_usize a 0#usize
-  let i11 ← Array.index_usize a 1#usize
-  let i12 ← Array.index_usize a 2#usize
-  let i13 ← Array.index_usize a 3#usize
-  let i14 ← Array.index_usize b 0#usize
-  let i15 ← Array.index_usize b 1#usize
-  let i16 ← Array.index_usize b 2#usize
-  let i17 ← Array.index_usize b 3#usize
-  let i18 ← Array.index_usize c 0#usize
-  let i19 ← Array.index_usize c 1#usize
-  let i20 ← Array.index_usize c 2#usize
-  let i21 ← Array.index_usize c 3#usize
-  let i22 ← Array.index_usize d 0#usize
-  let i23 ← Array.index_usize d 1#usize
-  let i24 ← Array.index_usize d 2#usize
-  let i25 ← Array.index_usize d 3#usize
-  ok
-    (Array.make 16#usize [
-      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
-      i24, i25
-      ])
-
-/-- [net::udp::ipv4_header]:
-    Source: 'crates/net/src/udp.rs', lines 181:0-206:1 -/
-def udp.ipv4_header
-  (src : Std.U32) (dst : Std.U32) (total : Std.U16) (checksum : Std.U16) :
-  Result (Array Std.U8 20#usize)
-  := do
-  let s ← udp.be32 src
-  let d ← udp.be32 dst
-  let i ← total / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← total % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← checksum / 256#u16
-  let i5 ← lift (UScalar.cast .U8 i4)
-  let i6 ← checksum % 256#u16
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← Array.index_usize s 0#usize
-  let i9 ← Array.index_usize s 1#usize
-  let i10 ← Array.index_usize s 2#usize
-  let i11 ← Array.index_usize s 3#usize
-  let i12 ← Array.index_usize d 0#usize
-  let i13 ← Array.index_usize d 1#usize
-  let i14 ← Array.index_usize d 2#usize
-  let i15 ← Array.index_usize d 3#usize
-  ok
-    (Array.make 20#usize [
-      69#u8, 0#u8, i1, i3, 0#u8, 0#u8, 64#u8, 0#u8, udp.TTL, ipv4.PROTO_UDP,
-      i5, i7, i8, i9, i10, i11, i12, i13, i14, i15
-      ])
-
-/-- [net::udp::ipv6_header]:
-    Source: 'crates/net/src/udp.rs', lines 210:0-255:1 -/
-def udp.ipv6_header
-  (src : Std.U128) (dst : Std.U128) (len : Std.U16) :
-  Result (Array Std.U8 40#usize)
-  := do
-  let s ← udp.be128 src
-  let d ← udp.be128 dst
-  let i ← len / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← len % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← Array.index_usize s 0#usize
-  let i5 ← Array.index_usize s 1#usize
-  let i6 ← Array.index_usize s 2#usize
-  let i7 ← Array.index_usize s 3#usize
-  let i8 ← Array.index_usize s 4#usize
-  let i9 ← Array.index_usize s 5#usize
-  let i10 ← Array.index_usize s 6#usize
-  let i11 ← Array.index_usize s 7#usize
-  let i12 ← Array.index_usize s 8#usize
-  let i13 ← Array.index_usize s 9#usize
-  let i14 ← Array.index_usize s 10#usize
-  let i15 ← Array.index_usize s 11#usize
-  let i16 ← Array.index_usize s 12#usize
-  let i17 ← Array.index_usize s 13#usize
-  let i18 ← Array.index_usize s 14#usize
-  let i19 ← Array.index_usize s 15#usize
-  let i20 ← Array.index_usize d 0#usize
-  let i21 ← Array.index_usize d 1#usize
-  let i22 ← Array.index_usize d 2#usize
-  let i23 ← Array.index_usize d 3#usize
-  let i24 ← Array.index_usize d 4#usize
-  let i25 ← Array.index_usize d 5#usize
-  let i26 ← Array.index_usize d 6#usize
-  let i27 ← Array.index_usize d 7#usize
-  let i28 ← Array.index_usize d 8#usize
-  let i29 ← Array.index_usize d 9#usize
-  let i30 ← Array.index_usize d 10#usize
-  let i31 ← Array.index_usize d 11#usize
-  let i32 ← Array.index_usize d 12#usize
-  let i33 ← Array.index_usize d 13#usize
-  let i34 ← Array.index_usize d 14#usize
-  let i35 ← Array.index_usize d 15#usize
-  ok
-    (Array.make 40#usize [
-      96#u8, 0#u8, 0#u8, 0#u8, i1, i3, ipv6.NEXT_UDP, udp.TTL, i4, i5, i6, i7,
-      i8, i9, i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22,
-      i23, i24, i25, i26, i27, i28, i29, i30, i31, i32, i33, i34, i35
-      ])
-
 /-- [net::udp::udp_header]:
-    Source: 'crates/net/src/udp.rs', lines 258:0-269:1 -/
+    Source: 'crates/net/src/udp.rs', lines 260:0-271:1 -/
 def udp.udp_header
   (src_port : Std.U16) (dst_port : Std.U16) (len : Std.U16)
   (checksum : Std.U16) :
@@ -2515,42 +2672,15 @@ def udp.udp_header
   let i15 ← lift (UScalar.cast .U8 i14)
   ok (Array.make 8#usize [ i1, i3, i5, i7, i9, i11, i13, i15 ])
 
-/-- [net::udp::put_bytes]: loop 0:
-    Source: 'crates/net/src/udp.rs', lines 274:4-277:5 -/
-@[rust_loop]
-def udp.put_bytes_loop
-  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
-  Result (Slice Std.U8)
-  := do
-  let i1 := Slice.len src
-  if i < i1
-  then
-    let i2 ← Slice.index_usize src i
-    let i3 ← pos + i
-    let s ← Slice.update out i3 i2
-    let i4 ← i + 1#usize
-    udp.put_bytes_loop s pos src i4
-  else ok out
-partial_fixpoint
-
-/-- [net::udp::put_bytes]:
-    Source: 'crates/net/src/udp.rs', lines 272:0-278:1 -/
-@[reducible]
-def udp.put_bytes
-  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
-  Result (Slice Std.U8)
-  := do
-  udp.put_bytes_loop out pos src 0#usize
-
 /-- [net::udp::udp_checksum]:
-    Source: 'crates/net/src/udp.rs', lines 283:0-289:1 -/
+    Source: 'crates/net/src/udp.rs', lines 285:0-291:1 -/
 def udp.udp_checksum (s : Std.U16) : Result Std.U16 := do
   if s = 65535#u16
   then ok 65535#u16
   else 65535#u16 - s
 
 /-- [net::udp::encode_ipv4]:
-    Source: 'crates/net/src/udp.rs', lines 298:0-330:1
+    Source: 'crates/net/src/udp.rs', lines 300:0-332:1
     Visibility: public -/
 def udp.encode_ipv4
   (src : ipv4.Ipv4Addr) (dst : ipv4.Ipv4Addr) (src_port : Std.U16)
@@ -2571,11 +2701,11 @@ def udp.encode_ipv4
       let total ← lift (UScalar.cast .U16 n)
       let i4 ← n - 20#usize
       let len ← lift (UScalar.cast .U16 i4)
-      let zero ← udp.ipv4_header src dst total 0#u16
+      let zero ← udp.ipv4_header src dst total ipv4.PROTO_UDP 0#u16
       let s ← lift (Array.to_slice zero)
       let i5 ← inet.sum 0#u16 s
       let i6 ← 65535#u16 - i5
-      let header ← udp.ipv4_header src dst total i6
+      let header ← udp.ipv4_header src dst total ipv4.PROTO_UDP i6
       let udp0 ← udp.udp_header src_port dst_port len 0#u16
       let s1 ←
         core.array.Array.index (core.ops.index.IndexSlice
@@ -2603,7 +2733,7 @@ def udp.encode_ipv4
       ok (some n, out3)
 
 /-- [net::udp::encode_ipv6]:
-    Source: 'crates/net/src/udp.rs', lines 339:0-370:1
+    Source: 'crates/net/src/udp.rs', lines 341:0-372:1
     Visibility: public -/
 def udp.encode_ipv6
   (src : ipv6.Ipv6Addr) (dst : ipv6.Ipv6Addr) (src_port : Std.U16)
@@ -2623,7 +2753,7 @@ def udp.encode_ipv6
     else
       let i4 ← n - 40#usize
       let len ← lift (UScalar.cast .U16 i4)
-      let header ← udp.ipv6_header src dst len
+      let header ← udp.ipv6_header src dst len ipv6.NEXT_UDP
       let udp0 ← udp.udp_header src_port dst_port len 0#u16
       let s ←
         core.array.Array.index (core.ops.index.IndexSlice
