@@ -1865,6 +1865,70 @@ def bytes.LittleEndianI128.Insts.UntrustedReaderDecode : reader.Decode
   decode := bytes.LittleEndianI128.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::read_byte]:
+    Source: 'crates/untrusted/src/reader.rs', lines 104:4-112:5
+    Visibility: public -/
+def reader.Reader.read_byte
+  (self : reader.Reader) :
+  Result ((core.result.Result Std.U8 ValidationError) × reader.Reader)
+  := do
+  let i := Slice.len self.input
+  if self.pos < i
+  then
+    let b ← Slice.index_usize self.input self.pos
+    let i1 ← self.pos + 1#usize
+    ok (core.result.Result.Ok b, { self with pos := i1 })
+  else ok (core.result.Result.Err ValidationError.EndOfInput, self)
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for [u8; N]}::decode]: loop 0:
+    Source: 'crates/untrusted/src/bytes.rs', lines 164:8-169:5
+    Visibility: public -/
+@[rust_loop]
+def ArrayU8N.Insts.UntrustedReaderDecode.decode_loop
+  {N : Std.Usize} (r : reader.Reader) (out : Array Std.U8 N) (i : Std.Usize) :
+  Result ((core.result.Result (Array Std.U8 N) ValidationError) ×
+    reader.Reader)
+  := do
+  if i < N
+  then
+    let (r1, r2) ← reader.Reader.read_byte r
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let a ← Array.update out i val
+      let i1 ← i + 1#usize
+      ArrayU8N.Insts.UntrustedReaderDecode.decode_loop r2 a i1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r3 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Array Std.U8 N) (core.convert.FromSame ValidationError) residual
+      ok (r3, r2)
+  else ok (core.result.Result.Ok out, r)
+partial_fixpoint
+
+/-- [untrusted::bytes::{impl untrusted::reader::Decode for [u8; N]}::decode]:
+    Source: 'crates/untrusted/src/bytes.rs', lines 158:4-169:5
+    Visibility: public -/
+def ArrayU8N.Insts.UntrustedReaderDecode.decode
+  (N : Std.Usize) (r : reader.Reader) :
+  Result ((core.result.Result (Array Std.U8 N) ValidationError) ×
+    reader.Reader)
+  := do
+  let i ← reader.Reader.remaining r
+  if i < N
+  then ok (core.result.Result.Err ValidationError.EndOfInput, r)
+  else
+    let out := Array.repeat N 0#u8
+    ArrayU8N.Insts.UntrustedReaderDecode.decode_loop r out 0#usize
+
+/-- Trait implementation: [untrusted::bytes::{impl untrusted::reader::Decode for [u8; N]}]
+    Source: 'crates/untrusted/src/bytes.rs', lines 157:0-170:1 -/
+@[reducible]
+def ArrayU8N.Insts.UntrustedReaderDecode (N : Std.Usize) : reader.Decode (Array
+  Std.U8 N) := {
+  decode := ArrayU8N.Insts.UntrustedReaderDecode.decode N
+}
+
 /-- [untrusted::int::{impl untrusted::Validate<u8, untrusted::ValidationError> for u16}::validate]:
     Source: 'crates/untrusted/src/int.rs', lines 16:12-23:13; this code is generated from a macro invocation at: 'crates/untrusted/src/int.rs', lines 76:0-83:1
     Visibility: public -/
@@ -4902,21 +4966,6 @@ def reader.Reader.peek (self : reader.Reader) (b : Std.U8) : Result Bool := do
   then let i1 ← Slice.index_usize self.input self.pos
        ok (i1 = b)
   else ok false
-
-/-- [untrusted::reader::{untrusted::reader::Reader<'a>}::read_byte]:
-    Source: 'crates/untrusted/src/reader.rs', lines 104:4-112:5
-    Visibility: public -/
-def reader.Reader.read_byte
-  (self : reader.Reader) :
-  Result ((core.result.Result Std.U8 ValidationError) × reader.Reader)
-  := do
-  let i := Slice.len self.input
-  if self.pos < i
-  then
-    let b ← Slice.index_usize self.input self.pos
-    let i1 ← self.pos + 1#usize
-    ok (core.result.Result.Ok b, { self with pos := i1 })
-  else ok (core.result.Result.Err ValidationError.EndOfInput, self)
 
 /-- [untrusted::reader::{untrusted::reader::Reader<'a>}::read_bytes]:
     Source: 'crates/untrusted/src/reader.rs', lines 115:4-125:5

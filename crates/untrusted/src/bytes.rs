@@ -152,9 +152,41 @@ macro_rules! impl_decode {
 
 impl_decode!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
 
+/// Exactly `N` bytes, copied out of the input: a key, a nonce, a MAC. Fails
+/// without consuming anything if fewer than `N` bytes remain.
+impl<const N: usize> Decode for [u8; N] {
+    fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
+        if r.remaining() < N {
+            return Err(ValidationError::EndOfInput);
+        }
+        let mut out = [0u8; N];
+        let mut i = 0;
+        while i < N {
+            out[i] = r.read_byte()?;
+            i += 1;
+        }
+        Ok(out)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn byte_arrays() {
+        use crate::Untrusted;
+        assert_eq!(Untrusted::new(&[1, 2, 3][..]).read_all::<[u8; 3]>(), Ok([1, 2, 3]));
+        assert_eq!(Untrusted::new(&[][..]).read_all::<[u8; 0]>(), Ok([]));
+        assert_eq!(
+            Untrusted::new(&[1, 2][..]).read_all::<[u8; 3]>(),
+            Err(ValidationError::EndOfInput)
+        );
+        assert_eq!(
+            Untrusted::new(&[1, 2, 3, 4][..]).read_all::<[u8; 3]>(),
+            Err(ValidationError::TrailingData)
+        );
+    }
 
     #[test]
     fn big_endian() {

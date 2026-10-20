@@ -35,6 +35,14 @@ def implFor (impls : Array (Expr × Name)) (t : Expr) : CommandElabM Name := do
   | #[] => throwError "no `Decode` impl found for field type {t}"
   | ms => throwError "several `Decode` impls for field type {t}: {ms.map (·.2)}"
 
+/-- The `Decode` impl for the field type `t`, as a term. A fixed-size byte
+    array `Array U8 n` uses the generic `[u8; N]` impl, applied to `n`. -/
+def implTermFor (impls : Array (Expr × Name)) (t : Expr) : CommandElabM String := do
+  if t.isAppOfArity ``Aeneas.Std.Array 2 && t.appFn!.appArg! == .const ``Aeneas.Std.U8 [] then
+    let n ← liftTermElabM do return toString (← ppExpr t.appArg!)
+    return s!"(untrusted.ArrayU8N.Insts.UntrustedReaderDecode ({n}))"
+  return toString (← implFor impls t)
+
 /-- The function a `Decode` impl record points to, e.g. `S.Insts.UntrustedReaderDecode.decode`. -/
 def decodeFnOf (env : Environment) (inst : Name) : CommandElabM Name := do
   let some (.defnInfo d) := env.find? inst | throwError "{inst} is not a definition"
@@ -48,12 +56,12 @@ def nestSeq (items : List String) (nil : String) (f : String → String → Stri
 /-- The generated declarations for type `S` with impl `inst`. Each field is
     given by how to access it from `v : S` and its `Decode` impl; `inj` proves
     that `S.fields` is injective. -/
-def render (S inst decodeFn : Name) (fields : List (String × Name)) (inj : String) : String :=
+def render (S inst decodeFn : Name) (fields : List (String × String)) (inj : String) : String :=
   let s := toString S
   let fieldsTuple :=
     "(" ++ String.intercalate ", " (fields.map (·.1)) ++
       (if fields.isEmpty then "" else ", ") ++ "())"
-  let insts := fields.map fun (_, i) => toString i
+  let insts := fields.map (·.2)
   let D := nestSeq insts "Dnil" fun i acc => s!"(Dseq (FmtD {i}) {acc})"
   let F := nestSeq insts "Fnil" fun i acc => s!"(Fseq (FmtD {i}) (FmtF {i}) {acc})"
   let laws := nestSeq insts "Laws.nil" fun i acc => s!"((FmtLaws {i}).seq {acc})"
@@ -173,7 +181,7 @@ elab "derive_decode_spec " id:ident : command => do
   let inst ← implFor impls (.const S [])
   let decodeFn ← decodeFnOf env inst
   let (fs, inj) ← fieldsOf env S
-  let fields ← fs.mapM fun (a, t) => return (a, ← implFor impls t)
+  let fields ← fs.mapM fun (a, t) => return (a, ← implTermFor impls t)
   let text := render S inst decodeFn fields inj
   if untrusted.derive.show.get (← getOptions) then
     logInfo m!"derive_decode_spec {S}:\n{text}"

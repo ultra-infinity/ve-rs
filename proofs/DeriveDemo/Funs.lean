@@ -139,8 +139,58 @@ def Pair.Insts.UntrustedReaderDecode : untrusted.reader.Decode Pair := {
   decode := Pair.Insts.UntrustedReaderDecode.decode
 }
 
-/-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Marker}::decode]:
+/-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Keyed}::decode]:
     Source: 'examples/derive-demo/src/lib.rs', lines 27:9-27:15
+    Visibility: public -/
+def Keyed.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result Keyed untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+        32#usize) r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+          16#usize) r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        ok (core.result.Result.Ok { id := val, key := val1, tag := val2 }, r6)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Keyed (core.convert.FromSame untrusted.ValidationError) residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Keyed (core.convert.FromSame untrusted.ValidationError) residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Keyed (core.convert.FromSame untrusted.ValidationError) residual
+    ok (r3, r2)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Keyed}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 27:9-27:15 -/
+@[reducible]
+def Keyed.Insts.UntrustedReaderDecode : untrusted.reader.Decode Keyed := {
+  decode := Keyed.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Marker}::decode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 35:9-35:15
     Visibility: public -/
 def Marker.Insts.UntrustedReaderDecode.decode
   (_r : untrusted.reader.Reader) :
@@ -150,7 +200,7 @@ def Marker.Insts.UntrustedReaderDecode.decode
   ok (core.result.Result.Ok (), _r)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Marker}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 27:9-27:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 35:9-35:15 -/
 @[reducible]
 def Marker.Insts.UntrustedReaderDecode : untrusted.reader.Decode Marker := {
   decode := Marker.Insts.UntrustedReaderDecode.decode

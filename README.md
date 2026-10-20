@@ -57,6 +57,8 @@ assert_eq!(
     reader unchanged.
   - Sub-slices are handed back as `Untrusted`, so they too must be validated
     before use.
+- **Fixed-size byte arrays:** `[u8; N]` decodes as exactly the next `N` bytes,
+  copied, e.g. a key or a MAC. It can be a field of a derived struct.
 - **`#[derive(Decode)]`:** decodes a struct's fields one after another, in
   declaration order. Works for named, tuple and unit structs.
 
@@ -200,7 +202,7 @@ Please read these carefully. They are real costs, not footnotes.
   function), no combinators, no streaming input, and no `alloc` types such as
   `Vec` or `String`. Every decodable type is a struct with a `Decode` impl.
 - **Narrow format support today:**
-  - fixed-width integers in either byte order;
+  - fixed-width integers in either byte order, and fixed-size byte arrays;
   - structs made of those or of other derived structs;
   - **no** enums or tagged unions, length-prefixed fields, value constraints,
     or encoding (writing bytes back).

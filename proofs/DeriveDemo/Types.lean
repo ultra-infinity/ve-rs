@@ -39,8 +39,16 @@ structure Packet where
 def Pair :=
   untrusted.bytes.BigEndian Std.U16 × untrusted.bytes.LittleEndian Std.U16
 
+/-- [derive_demo::Keyed]
+    Source: 'examples/derive-demo/src/lib.rs', lines 28:0-32:1
+    Visibility: public -/
+structure Keyed where
+  id : untrusted.bytes.LittleEndian Std.U32
+  key : Array Std.U8 32#usize
+  tag : Array Std.U8 16#usize
+
 /-- [derive_demo::Marker]
-    Source: 'examples/derive-demo/src/lib.rs', lines 28:0-28:18
+    Source: 'examples/derive-demo/src/lib.rs', lines 36:0-36:18
     Visibility: public -/
 @[reducible]
 def Marker := Unit

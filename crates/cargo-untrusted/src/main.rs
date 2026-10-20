@@ -109,18 +109,33 @@ fn module_name(package: &str) -> String {
 /// Drops the paragraphs (Aeneas emits one declaration per paragraph) that
 /// declare items of the `untrusted` crate: they are taken from the verified
 /// `Untrusted` library instead.
-fn drop_untrusted_decls(path: &Path) {
+///
+/// Returns the names those paragraphs declared outside the `untrusted.`
+/// prefix. Impls for built-in types, such as `Decode for [u8; N]`, are named
+/// after the type (`ArrayU8N.…`), so the generated code refers to them
+/// unqualified; they are re-exported into the crate's namespace.
+fn drop_untrusted_decls(path: &Path) -> Vec<String> {
     let text = fs::read_to_string(path).expect("read generated Lean file");
+    let mut unqualified = Vec::new();
     let kept: Vec<&str> = text
         .split("\n\n")
         .filter(|p| {
             let flat = p.split_whitespace().collect::<Vec<_>>().join(" ");
-            !["rust_trait ", "rust_trait_impl ", "rust_type ", "rust_fun "]
+            let from_untrusted = ["rust_trait ", "rust_trait_impl ", "rust_type ", "rust_fun "]
                 .iter()
-                .any(|attr| flat.contains(&format!("{attr}\"untrusted::")))
+                .any(|attr| flat.contains(&format!("{attr}\"untrusted::")));
+            if from_untrusted {
+                let names = p.lines().filter_map(|l| {
+                    let name = l.strip_prefix("def ")?.split_whitespace().next()?;
+                    (!name.starts_with("untrusted.")).then(|| name.to_string())
+                });
+                unqualified.extend(names);
+            }
+            !from_untrusted
         })
         .collect();
     fs::write(path, kept.join("\n\n")).expect("write generated Lean file");
+    unqualified
 }
 
 /// The Lean types that have a `Decode` impl in the generated `Funs.lean`.
@@ -218,12 +233,21 @@ fn main() {
 
     // 3. Link against the verified `Untrusted` library.
     drop_untrusted_decls(&out.join("Types.lean"));
-    drop_untrusted_decls(&out.join("Funs.lean"));
+    let reexports = drop_untrusted_decls(&out.join("Funs.lean"));
     for t in ["TypesExternal_Template.lean", "FunsExternal_Template.lean"] {
         let _ = fs::remove_file(out.join(t));
     }
     fs::write(out.join("TypesExternal.lean"), "import Untrusted.Types\n").unwrap();
-    fs::write(out.join("FunsExternal.lean"), "import Untrusted.Funs\n").unwrap();
+    let mut funs_external = String::from("import Untrusted.Funs\n");
+    if !reexports.is_empty() {
+        writeln!(
+            funs_external,
+            "\nnamespace {namespace}\nexport untrusted ({})\nend {namespace}",
+            reexports.join(" ")
+        )
+        .unwrap();
+    }
+    fs::write(out.join("FunsExternal.lean"), funs_external).unwrap();
     if args.extract_only {
         return;
     }

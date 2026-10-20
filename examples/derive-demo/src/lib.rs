@@ -23,6 +23,14 @@ pub struct Packet {
 #[derive(Decode, Debug, PartialEq)]
 pub struct Pair(pub BigEndian<u16>, pub LittleEndian<u16>);
 
+/// Fixed-size byte arrays as fields: copied out as is.
+#[derive(Decode, Debug, PartialEq)]
+pub struct Keyed {
+    pub id: LittleEndian<u32>,
+    pub key: [u8; 32],
+    pub tag: [u8; 16],
+}
+
 /// No fields: consumes nothing.
 #[derive(Decode, Debug, PartialEq)]
 pub struct Marker;
@@ -53,6 +61,22 @@ mod tests {
         assert_eq!(
             Untrusted::new(&[0][..]).read_all::<Marker>(),
             Err(ValidationError::TrailingData)
+        );
+        let mut bytes = [0u8; 52];
+        bytes[0] = 7;
+        bytes[4..36].fill(0xaa);
+        bytes[36..].fill(0xbb);
+        assert_eq!(
+            Untrusted::new(&bytes[..]).read_all::<Keyed>(),
+            Ok(Keyed {
+                id: LittleEndian(7),
+                key: [0xaa; 32],
+                tag: [0xbb; 16]
+            })
+        );
+        assert_eq!(
+            Untrusted::new(&bytes[..51]).read_all::<Keyed>(),
+            Err(ValidationError::EndOfInput)
         );
     }
 }
