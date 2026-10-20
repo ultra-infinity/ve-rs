@@ -14,3 +14,4 @@ libcrux-curve25519 = "=0.0.9"
 
 [dev-dependencies]
 untrusted = { path = "../untrusted" }
+net = { path = "../net" }

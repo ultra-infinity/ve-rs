@@ -1198,6 +1198,37 @@ def message.CookieReply.encode
   let (_, s9) ← message.put_bytes s7 pos2 s8
   ok (to_slice_mut_back3 s9)
 
+/-- [wireguard::message::put_u64]:
+    Source: 'crates/wireguard/src/message.rs', lines 200:0-203:1 -/
+def message.put_u64
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U64) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let i ← v % 4294967296#u64
+  let i1 ← lift (UScalar.cast .U32 i)
+  let (pos1, out1) ← message.put_u32 out pos i1
+  let i2 ← v / 4294967296#u64
+  let i3 ← lift (UScalar.cast .U32 i2)
+  message.put_u32 out1 pos1 i3
+
+/-- [wireguard::message::{wireguard::message::TransportHeader}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 207:4-213:5
+    Visibility: public -/
+def message.TransportHeader.encode
+  (self : message.TransportHeader) : Result (Array Std.U8 16#usize) := do
+  let out := Array.repeat 16#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_TRANSPORT
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.receiver
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let i1 := self.counter
+  let (_, s5) ← message.put_u64 s4 pos1 i1
+  ok (to_slice_mut_back2 s5)
+
 /-- [wireguard::noise::CONSTRUCTION]
     Source: 'crates/wireguard/src/noise.rs', lines 24:0-24:77
     Visibility: public -/
@@ -1635,5 +1666,201 @@ def replay.Replay.Insts.CoreDefaultDefault : core.default.Default replay.Replay
   := {
   default := replay.Replay.Insts.CoreDefaultDefault.default
 }
+
+/-- [wireguard::transport::padded_len]:
+    Source: 'crates/wireguard/src/transport.rs', lines 25:0-33:1
+    Visibility: public -/
+def transport.padded_len (len : Std.Usize) : Result Std.Usize := do
+  let i ← len % 16#usize
+  if i = 0#usize
+  then ok len
+  else let i1 ← len / 16#usize
+       let i2 ← i1 * 16#usize
+       i2 + 16#usize
+
+/-- [wireguard::transport::encrypt]: loop 0:
+    Source: 'crates/wireguard/src/transport.rs', lines 52:4-55:5
+    Visibility: public -/
+@[rust_loop]
+def transport.encrypt_loop0
+  (packet : Slice Std.U8) (work : Slice Std.U8) (p : Std.Usize) (i : Std.Usize)
+  :
+  Result (Slice Std.U8)
+  := do
+  if i < p
+  then
+    let i1 := Slice.len packet
+    let i2 ← if i < i1
+               then Slice.index_usize packet i
+               else ok 0#u8
+    let s ← Slice.update work i i2
+    let i3 ← i + 1#usize
+    transport.encrypt_loop0 packet s p i3
+  else ok work
+partial_fixpoint
+
+/-- [wireguard::transport::encrypt]: loop 1:
+    Source: 'crates/wireguard/src/transport.rs', lines 62:4-65:5
+    Visibility: public -/
+@[rust_loop]
+def transport.encrypt_loop1
+  (out : Slice Std.U8) (header : Array Std.U8 16#usize) (j : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  if j < message.TRANSPORT_HEADER_LEN
+  then
+    let i ← Array.index_usize header j
+    let s ← Slice.update out j i
+    let j1 ← j + 1#usize
+    transport.encrypt_loop1 s header j1
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::transport::encrypt]:
+    Source: 'crates/wireguard/src/transport.rs', lines 38:0-69:1
+    Visibility: public -/
+def transport.encrypt
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (receiver : Std.U32) (counter : Std.U64)
+  (packet : Slice Std.U8) (work : Slice Std.U8) (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8) × (Slice Std.U8))
+  := do
+  let i := Slice.len packet
+  let p ← transport.padded_len i
+  let i1 := Slice.len work
+  if i1 < p
+  then ok (none, work, out)
+  else
+    let i2 := Slice.len out
+    let i3 ← message.TRANSPORT_HEADER_LEN + p
+    let i4 ← i3 + crypto.AEAD_TAG_LEN
+    if i2 < i4
+    then ok (none, work, out)
+    else
+      let work1 ← transport.encrypt_loop0 packet work p 0#usize
+      let header ←
+        message.TransportHeader.encode
+          { receiver := receiver, counter := counter }
+      let out1 ← transport.encrypt_loop1 out header 0#usize
+      let i5 ← message.TRANSPORT_HEADER_LEN + p
+      let n ← i5 + crypto.AEAD_TAG_LEN
+      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let s1 ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) work1
+          { «end» := p }
+      let (s2, index_mut_back) ←
+        core.slice.index.Slice.index_mut
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) out1
+          { start := message.TRANSPORT_HEADER_LEN, «end» := n }
+      let s3 ← cryptoCryptoInst.aead_seal c key counter s s1 s2
+      let out2 := index_mut_back s3
+      ok (some n, work1, out2)
+
+/-- [wireguard::transport::inner]:
+    Source: 'crates/wireguard/src/transport.rs', lines 84:0-113:1
+    Visibility: public -/
+def transport.inner
+  (packet : Slice Std.U8) : Result (Option transport.Inner) := do
+  let b ← core.slice.Slice.is_empty packet
+  if b
+  then ok none
+  else
+    let i ← Slice.index_usize packet 0#usize
+    let version ← i / 16#u8
+    if version = 4#u8
+    then
+      let u ← untrusted.Untrusted.new packet
+      let r ←
+        untrusted.Untrusted.validate
+          net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
+          u
+      match r with
+      | core.result.Result.Ok ip =>
+        let i1 := ip.header.src
+        let i2 ← lift (UScalar.cast .U128 i1)
+        let i3 := ip.header.dst
+        let i4 ← lift (UScalar.cast .U128 i3)
+        let i5 := ip.header.total_len
+        let i6 ← lift (UScalar.cast .Usize i5)
+        ok (some { v6 := false, src := i2, dst := i4, len := i6 })
+      | core.result.Result.Err _ => ok none
+    else
+      if version = 6#u8
+      then
+        let u ← untrusted.Untrusted.new packet
+        let r ←
+          untrusted.Untrusted.validate
+            net.ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
+            u
+        match r with
+        | core.result.Result.Ok ip =>
+          let i1 := ip.header.src
+          let i2 := ip.header.dst
+          let i3 := ip.header.payload_len
+          let i4 ← lift (UScalar.cast .Usize i3)
+          let i5 ← 40#usize + i4
+          ok (some { v6 := true, src := i1, dst := i2, len := i5 })
+        | core.result.Result.Err _ => ok none
+      else ok none
+
+/-- [wireguard::transport::receive]:
+    Source: 'crates/wireguard/src/transport.rs', lines 131:0-164:1
+    Visibility: public -/
+def transport.receive
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (window : replay.Replay)
+  (table : allowed_ips.AllowedIps) (peer : Std.U16) (counter : Std.U64)
+  (body : Slice Std.U8) (out : Slice Std.U8) :
+  Result (transport.Received × replay.Replay × (Slice Std.U8))
+  := do
+  let i := Slice.len body
+  if i < crypto.AEAD_TAG_LEN
+  then ok (transport.Received.Drop, window, out)
+  else
+    let i1 := Slice.len body
+    let n ← i1 - crypto.AEAD_TAG_LEN
+    let i2 := Slice.len out
+    if i2 < n
+    then ok (transport.Received.Drop, window, out)
+    else
+      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let (s1, index_mut_back) ←
+        core.slice.index.Slice.index_mut
+          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out
+          { «end» := n }
+      let (b, s2) ← cryptoCryptoInst.aead_open c key counter s body s1
+      if b
+      then
+        let (b1, window1) ← replay.Replay.check_and_update window counter
+        if b1
+        then
+          if n = 0#usize
+          then
+            let out1 := index_mut_back s2
+            ok (transport.Received.Keepalive, window1, out1)
+          else
+            let out1 := index_mut_back s2
+            let s3 ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out1
+                { «end» := n }
+            let o ← transport.inner s3
+            match o with
+            | none => ok (transport.Received.Drop, window1, out1)
+            | some p =>
+              let o1 ← allowed_ips.AllowedIps.lookup table p.v6 p.src
+              match o1 with
+              | none => ok (transport.Received.Drop, window1, out1)
+              | some q =>
+                if q = peer
+                then ok (transport.Received.Packet p.len, window1, out1)
+                else ok (transport.Received.Drop, window1, out1)
+        else
+          let out1 := index_mut_back s2
+          ok (transport.Received.Drop, window1, out1)
+      else
+        let out1 := index_mut_back s2
+        ok (transport.Received.Drop, window, out1)
 
 end wireguard

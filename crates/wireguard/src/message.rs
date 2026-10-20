@@ -195,6 +195,24 @@ impl CookieReply {
     }
 }
 
+/// Writes `v`, least significant byte first, at `out[pos..pos + 8]`, which must
+/// exist. Returns `pos + 8`.
+fn put_u64(out: &mut [u8], pos: usize, v: u64) -> usize {
+    let pos = put_u32(out, pos, (v % 4_294_967_296) as u32);
+    put_u32(out, pos, (v / 4_294_967_296) as u32)
+}
+
+impl TransportHeader {
+    /// The first 16 bytes of a transport message: its type, then this header.
+    pub fn encode(&self) -> [u8; TRANSPORT_HEADER_LEN] {
+        let mut out = [0u8; TRANSPORT_HEADER_LEN];
+        let pos = put_u32(&mut out, 0, TYPE_TRANSPORT);
+        let pos = put_u32(&mut out, pos, self.receiver.0);
+        put_u64(&mut out, pos, self.counter.0);
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

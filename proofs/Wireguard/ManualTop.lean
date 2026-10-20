@@ -7,3 +7,4 @@ import Wireguard.NoiseTop
 import Wireguard.CookieTop
 import Wireguard.ReplayTop
 import Wireguard.AllowedIpsTop
+import Wireguard.TransportTop

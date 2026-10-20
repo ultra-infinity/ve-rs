@@ -141,4 +141,22 @@ structure replay.Replay where
   top : Std.U64
   bitmap : Array Std.U64 128#usize
 
+/-- [wireguard::transport::Inner]
+    Source: 'crates/wireguard/src/transport.rs', lines 74:0-80:1
+    Visibility: public -/
+structure transport.Inner where
+  v6 : Bool
+  src : Std.U128
+  dst : Std.U128
+  len : Std.Usize
+
+/-- [wireguard::transport::Received]
+    Source: 'crates/wireguard/src/transport.rs', lines 117:0-125:1
+    Visibility: public -/
+@[discriminant isize]
+inductive transport.Received where
+| Drop : transport.Received
+| Keepalive : transport.Received
+| Packet : Std.Usize → transport.Received
+
 end wireguard
