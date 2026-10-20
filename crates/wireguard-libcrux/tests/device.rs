@@ -52,7 +52,8 @@ impl Node {
         let s = self.seed;
         // TAI64N: seconds, then nanoseconds, big-endian.
         let mut timestamp = [0u8; 12];
-        timestamp[..8].copy_from_slice(&(0x4000_0000_0000_0000u64 + self.time / SECOND).to_be_bytes());
+        timestamp[..8]
+            .copy_from_slice(&(0x4000_0000_0000_0000u64 + self.time / SECOND).to_be_bytes());
         timestamp[8..].copy_from_slice(&((self.time % SECOND) as u32).to_be_bytes());
         Env {
             now: self.time,
@@ -68,7 +69,9 @@ impl Node {
         let env = self.env();
         let mut work = vec![0u8; 2048];
         let mut out = vec![0u8; 2048];
-        let a = self.dev.handle_packet(&Libcrux, &env, packet, &mut work, &mut out);
+        let a = self
+            .dev
+            .handle_packet(&Libcrux, &env, packet, &mut work, &mut out);
         (a, out)
     }
 
@@ -180,7 +183,10 @@ fn drops_replays_and_spoofed_sources() {
     let (act, msg) = a.send_packet(&p);
     let n = sent(act, &b.at);
     let from = a.at;
-    assert_eq!(b.receive(&from, &msg[..n], false).0, Action::Deliver(p.len()));
+    assert_eq!(
+        b.receive(&from, &msg[..n], false).0,
+        Action::Deliver(p.len())
+    );
     assert_eq!(b.receive(&from, &msg[..n], false).0, Action::None);
     // Alice may send to 10.0.0.2, but Bob only accepts 10.0.0.1 from her.
     a.dev.allow(0, false, v4([10, 0, 0, 0]), 24);

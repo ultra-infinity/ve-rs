@@ -665,6 +665,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "wg-userspace"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "net",
+ "untrusted",
+ "wireguard",
+ "wireguard-libcrux",
+]
+
+[[package]]
 name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

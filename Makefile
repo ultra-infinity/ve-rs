@@ -5,7 +5,7 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard vm-test aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard vm-test wg-vm-test aeneas-pin clean
 
 all: extract verify verify-demo verify-net verify-wireguard
 
@@ -42,10 +42,11 @@ lean-deps:
 verify-demo:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p derive-demo --lean-dir $(PROOFS)
 
-# Formally verify the `net` crate (its hand-written specs are in
-# $(PROOFS)/Net/Manual*.lean).
+# Formally verify the `net` crate: every item, decoders and encoders (its
+# hand-written specs are in $(PROOFS)/Net/Manual*.lean).
+NET_FLAGS := --extract-all
 verify-net:
-	cargo run -q -p cargo-untrusted -- untrusted verify -p net --lean-dir $(PROOFS)
+	cargo run -q -p cargo-untrusted -- untrusted verify -p net --lean-dir $(PROOFS) $(NET_FLAGS)
 
 # Formally verify the `wireguard` crate: every item, not only its `Decode` impls,
 # linked against the verified `net` model (hand-written specs in
@@ -59,6 +60,9 @@ verify-wireguard:
 # report end up in `result/`.
 vm-test:
 	nix build .#net-vm-test -L
+
+wg-vm-test:
+	nix build .#wg-vm-test -L
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

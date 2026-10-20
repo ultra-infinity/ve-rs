@@ -23,6 +23,11 @@ noncomputable section
 
 namespace net
 
+/-- [net::arp::ETHER_TYPE_ARP]
+    Source: 'crates/net/src/arp.rs', lines 17:0-17:39
+    Visibility: public -/
+@[global_simps, irreducible] def arp.ETHER_TYPE_ARP : Std.U16 := 2054#u16
+
 /-- [net::arp::PACKET_LEN]
     Source: 'crates/net/src/arp.rs', lines 19:0-19:33
     Visibility: public -/
@@ -1672,10 +1677,28 @@ def icmp.Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError :
     icmp.Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
+/-- [net::ipv4::ETHER_TYPE_IPV4]
+    Source: 'crates/net/src/ipv4.rs', lines 20:0-20:40
+    Visibility: public -/
+@[global_simps, irreducible] def ipv4.ETHER_TYPE_IPV4 : Std.U16 := 2048#u16
+
 /-- [net::ipv4::PROTO_UDP]
     Source: 'crates/net/src/ipv4.rs', lines 26:0-26:29
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.PROTO_UDP : Std.U8 := 17#u8
+
+/-- [net::ipv4::{net::ipv4::Fragment}::is_fragment]:
+    Source: 'crates/net/src/ipv4.rs', lines 73:4-75:5
+    Visibility: public -/
+def ipv4.Fragment.is_fragment (self : ipv4.Fragment) : Result Bool := do
+  if self.more_fragments
+  then ok true
+  else ok (self.offset != 0#u16)
+
+/-- [net::ipv6::ETHER_TYPE_IPV6]
+    Source: 'crates/net/src/ipv6.rs', lines 17:0-17:40
+    Visibility: public -/
+@[global_simps, irreducible] def ipv6.ETHER_TYPE_IPV6 : Std.U16 := 34525#u16
 
 /-- [net::ipv6::NEXT_UDP]
     Source: 'crates/net/src/ipv6.rs', lines 21:0-21:28
@@ -1967,5 +1990,314 @@ def udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError :
   validate :=
     udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
+
+/-- [net::udp::TTL]
+    Source: 'crates/net/src/udp.rs', lines 153:0-153:23
+    Visibility: public -/
+@[global_simps, irreducible] def udp.TTL : Std.U8 := 64#u8
+
+/-- [net::udp::MAX_PACKET_LEN]
+    Source: 'crates/net/src/udp.rs', lines 155:0-155:40
+    Visibility: public -/
+@[global_simps, irreducible] def udp.MAX_PACKET_LEN : Std.Usize := 65535#usize
+
+/-- [net::udp::be32]:
+    Source: 'crates/net/src/udp.rs', lines 158:0-165:1 -/
+def udp.be32 (v : Std.U32) : Result (Array Std.U8 4#usize) := do
+  let i ← v / 16777216#u32
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← v / 65536#u32
+  let i3 ← i2 % 256#u32
+  let i4 ← lift (UScalar.cast .U8 i3)
+  let i5 ← v / 256#u32
+  let i6 ← i5 % 256#u32
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← v % 256#u32
+  let i9 ← lift (UScalar.cast .U8 i8)
+  ok (Array.make 4#usize [ i1, i4, i7, i9 ])
+
+/-- [net::udp::be128]:
+    Source: 'crates/net/src/udp.rs', lines 168:0-177:1 -/
+def udp.be128 (v : Std.U128) : Result (Array Std.U8 16#usize) := do
+  let i ← v / 79228162514264337593543950336#u128
+  let i1 ← lift (UScalar.cast .U32 i)
+  let a ← udp.be32 i1
+  let i2 ← v / 18446744073709551616#u128
+  let i3 ← i2 % 4294967296#u128
+  let i4 ← lift (UScalar.cast .U32 i3)
+  let b ← udp.be32 i4
+  let i5 ← v / 4294967296#u128
+  let i6 ← i5 % 4294967296#u128
+  let i7 ← lift (UScalar.cast .U32 i6)
+  let c ← udp.be32 i7
+  let i8 ← v % 4294967296#u128
+  let i9 ← lift (UScalar.cast .U32 i8)
+  let d ← udp.be32 i9
+  let i10 ← Array.index_usize a 0#usize
+  let i11 ← Array.index_usize a 1#usize
+  let i12 ← Array.index_usize a 2#usize
+  let i13 ← Array.index_usize a 3#usize
+  let i14 ← Array.index_usize b 0#usize
+  let i15 ← Array.index_usize b 1#usize
+  let i16 ← Array.index_usize b 2#usize
+  let i17 ← Array.index_usize b 3#usize
+  let i18 ← Array.index_usize c 0#usize
+  let i19 ← Array.index_usize c 1#usize
+  let i20 ← Array.index_usize c 2#usize
+  let i21 ← Array.index_usize c 3#usize
+  let i22 ← Array.index_usize d 0#usize
+  let i23 ← Array.index_usize d 1#usize
+  let i24 ← Array.index_usize d 2#usize
+  let i25 ← Array.index_usize d 3#usize
+  ok
+    (Array.make 16#usize [
+      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
+      i24, i25
+      ])
+
+/-- [net::udp::ipv4_header]:
+    Source: 'crates/net/src/udp.rs', lines 181:0-206:1 -/
+def udp.ipv4_header
+  (src : Std.U32) (dst : Std.U32) (total : Std.U16) (checksum : Std.U16) :
+  Result (Array Std.U8 20#usize)
+  := do
+  let s ← udp.be32 src
+  let d ← udp.be32 dst
+  let i ← total / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← total % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← checksum / 256#u16
+  let i5 ← lift (UScalar.cast .U8 i4)
+  let i6 ← checksum % 256#u16
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← Array.index_usize s 0#usize
+  let i9 ← Array.index_usize s 1#usize
+  let i10 ← Array.index_usize s 2#usize
+  let i11 ← Array.index_usize s 3#usize
+  let i12 ← Array.index_usize d 0#usize
+  let i13 ← Array.index_usize d 1#usize
+  let i14 ← Array.index_usize d 2#usize
+  let i15 ← Array.index_usize d 3#usize
+  ok
+    (Array.make 20#usize [
+      69#u8, 0#u8, i1, i3, 0#u8, 0#u8, 64#u8, 0#u8, udp.TTL, ipv4.PROTO_UDP,
+      i5, i7, i8, i9, i10, i11, i12, i13, i14, i15
+      ])
+
+/-- [net::udp::ipv6_header]:
+    Source: 'crates/net/src/udp.rs', lines 210:0-255:1 -/
+def udp.ipv6_header
+  (src : Std.U128) (dst : Std.U128) (len : Std.U16) :
+  Result (Array Std.U8 40#usize)
+  := do
+  let s ← udp.be128 src
+  let d ← udp.be128 dst
+  let i ← len / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← len % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← Array.index_usize s 0#usize
+  let i5 ← Array.index_usize s 1#usize
+  let i6 ← Array.index_usize s 2#usize
+  let i7 ← Array.index_usize s 3#usize
+  let i8 ← Array.index_usize s 4#usize
+  let i9 ← Array.index_usize s 5#usize
+  let i10 ← Array.index_usize s 6#usize
+  let i11 ← Array.index_usize s 7#usize
+  let i12 ← Array.index_usize s 8#usize
+  let i13 ← Array.index_usize s 9#usize
+  let i14 ← Array.index_usize s 10#usize
+  let i15 ← Array.index_usize s 11#usize
+  let i16 ← Array.index_usize s 12#usize
+  let i17 ← Array.index_usize s 13#usize
+  let i18 ← Array.index_usize s 14#usize
+  let i19 ← Array.index_usize s 15#usize
+  let i20 ← Array.index_usize d 0#usize
+  let i21 ← Array.index_usize d 1#usize
+  let i22 ← Array.index_usize d 2#usize
+  let i23 ← Array.index_usize d 3#usize
+  let i24 ← Array.index_usize d 4#usize
+  let i25 ← Array.index_usize d 5#usize
+  let i26 ← Array.index_usize d 6#usize
+  let i27 ← Array.index_usize d 7#usize
+  let i28 ← Array.index_usize d 8#usize
+  let i29 ← Array.index_usize d 9#usize
+  let i30 ← Array.index_usize d 10#usize
+  let i31 ← Array.index_usize d 11#usize
+  let i32 ← Array.index_usize d 12#usize
+  let i33 ← Array.index_usize d 13#usize
+  let i34 ← Array.index_usize d 14#usize
+  let i35 ← Array.index_usize d 15#usize
+  ok
+    (Array.make 40#usize [
+      96#u8, 0#u8, 0#u8, 0#u8, i1, i3, ipv6.NEXT_UDP, udp.TTL, i4, i5, i6, i7,
+      i8, i9, i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22,
+      i23, i24, i25, i26, i27, i28, i29, i30, i31, i32, i33, i34, i35
+      ])
+
+/-- [net::udp::udp_header]:
+    Source: 'crates/net/src/udp.rs', lines 258:0-269:1 -/
+def udp.udp_header
+  (src_port : Std.U16) (dst_port : Std.U16) (len : Std.U16)
+  (checksum : Std.U16) :
+  Result (Array Std.U8 8#usize)
+  := do
+  let i ← src_port / 256#u16
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← src_port % 256#u16
+  let i3 ← lift (UScalar.cast .U8 i2)
+  let i4 ← dst_port / 256#u16
+  let i5 ← lift (UScalar.cast .U8 i4)
+  let i6 ← dst_port % 256#u16
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← len / 256#u16
+  let i9 ← lift (UScalar.cast .U8 i8)
+  let i10 ← len % 256#u16
+  let i11 ← lift (UScalar.cast .U8 i10)
+  let i12 ← checksum / 256#u16
+  let i13 ← lift (UScalar.cast .U8 i12)
+  let i14 ← checksum % 256#u16
+  let i15 ← lift (UScalar.cast .U8 i14)
+  ok (Array.make 8#usize [ i1, i3, i5, i7, i9, i11, i13, i15 ])
+
+/-- [net::udp::put_bytes]: loop 0:
+    Source: 'crates/net/src/udp.rs', lines 274:4-277:5 -/
+@[rust_loop]
+def udp.put_bytes_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let i3 ← pos + i
+    let s ← Slice.update out i3 i2
+    let i4 ← i + 1#usize
+    udp.put_bytes_loop s pos src i4
+  else ok out
+partial_fixpoint
+
+/-- [net::udp::put_bytes]:
+    Source: 'crates/net/src/udp.rs', lines 272:0-278:1 -/
+@[reducible]
+def udp.put_bytes
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
+  Result (Slice Std.U8)
+  := do
+  udp.put_bytes_loop out pos src 0#usize
+
+/-- [net::udp::udp_checksum]:
+    Source: 'crates/net/src/udp.rs', lines 283:0-289:1 -/
+def udp.udp_checksum (s : Std.U16) : Result Std.U16 := do
+  if s = 65535#u16
+  then ok 65535#u16
+  else 65535#u16 - s
+
+/-- [net::udp::encode_ipv4]:
+    Source: 'crates/net/src/udp.rs', lines 298:0-330:1
+    Visibility: public -/
+def udp.encode_ipv4
+  (src : ipv4.Ipv4Addr) (dst : ipv4.Ipv4Addr) (src_port : Std.U16)
+  (dst_port : Std.U16) (data : Slice Std.U8) (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8))
+  := do
+  let i := Slice.len data
+  let i1 ← udp.MAX_PACKET_LEN - 28#usize
+  if i > i1
+  then ok (none, out)
+  else
+    let i2 := Slice.len data
+    let n ← 28#usize + i2
+    let i3 := Slice.len out
+    if i3 < n
+    then ok (none, out)
+    else
+      let total ← lift (UScalar.cast .U16 n)
+      let i4 ← n - 20#usize
+      let len ← lift (UScalar.cast .U16 i4)
+      let zero ← udp.ipv4_header src dst total 0#u16
+      let s ← lift (Array.to_slice zero)
+      let i5 ← inet.sum 0#u16 s
+      let i6 ← 65535#u16 - i5
+      let header ← udp.ipv4_header src dst total i6
+      let udp0 ← udp.udp_header src_port dst_port len 0#u16
+      let s1 ←
+        core.array.Array.index (core.ops.index.IndexSlice
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) header
+          { start := 12#usize, «end» := 20#usize }
+      let acc ← inet.sum 0#u16 s1
+      let s2 ←
+        lift (Array.to_slice (Array.make 2#usize [ 0#u8, ipv4.PROTO_UDP ]))
+      let acc1 ← inet.sum acc s2
+      let s3 ←
+        core.array.Array.index (core.ops.index.IndexSlice
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) udp0
+          { start := 4#usize, «end» := 6#usize }
+      let acc2 ← inet.sum acc1 s3
+      let s4 ← lift (Array.to_slice udp0)
+      let acc3 ← inet.sum acc2 s4
+      let s5 ← inet.sum acc3 data
+      let i7 ← udp.udp_checksum s5
+      let datagram_header ← udp.udp_header src_port dst_port len i7
+      let s6 ← lift (Array.to_slice header)
+      let out1 ← udp.put_bytes out 0#usize s6
+      let s7 ← lift (Array.to_slice datagram_header)
+      let out2 ← udp.put_bytes out1 20#usize s7
+      let out3 ← udp.put_bytes out2 28#usize data
+      ok (some n, out3)
+
+/-- [net::udp::encode_ipv6]:
+    Source: 'crates/net/src/udp.rs', lines 339:0-370:1
+    Visibility: public -/
+def udp.encode_ipv6
+  (src : ipv6.Ipv6Addr) (dst : ipv6.Ipv6Addr) (src_port : Std.U16)
+  (dst_port : Std.U16) (data : Slice Std.U8) (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8))
+  := do
+  let i := Slice.len data
+  let i1 ← udp.MAX_PACKET_LEN - 8#usize
+  if i > i1
+  then ok (none, out)
+  else
+    let i2 := Slice.len data
+    let n ← 48#usize + i2
+    let i3 := Slice.len out
+    if i3 < n
+    then ok (none, out)
+    else
+      let i4 ← n - 40#usize
+      let len ← lift (UScalar.cast .U16 i4)
+      let header ← udp.ipv6_header src dst len
+      let udp0 ← udp.udp_header src_port dst_port len 0#u16
+      let s ←
+        core.array.Array.index (core.ops.index.IndexSlice
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) header
+          { start := 8#usize, «end» := 40#usize }
+      let acc ← inet.sum 0#u16 s
+      let a := Array.repeat 2#usize 0#u8
+      let s1 ← lift (Array.to_slice a)
+      let acc1 ← inet.sum acc s1
+      let s2 ←
+        core.array.Array.index (core.ops.index.IndexSlice
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8)) udp0
+          { start := 4#usize, «end» := 6#usize }
+      let acc2 ← inet.sum acc1 s2
+      let s3 ←
+        lift (Array.to_slice
+          (Array.make 4#usize [ 0#u8, 0#u8, 0#u8, ipv6.NEXT_UDP ]))
+      let acc3 ← inet.sum acc2 s3
+      let s4 ← lift (Array.to_slice udp0)
+      let acc4 ← inet.sum acc3 s4
+      let s5 ← inet.sum acc4 data
+      let i5 ← udp.udp_checksum s5
+      let datagram_header ← udp.udp_header src_port dst_port len i5
+      let s6 ← lift (Array.to_slice header)
+      let out1 ← udp.put_bytes out 0#usize s6
+      let s7 ← lift (Array.to_slice datagram_header)
+      let out2 ← udp.put_bytes out1 40#usize s7
+      let out3 ← udp.put_bytes out2 48#usize data
+      ok (some n, out3)
 
 end net

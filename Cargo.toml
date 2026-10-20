@@ -7,6 +7,7 @@ members = [
   "crates/net",
   "crates/wireguard",
   "crates/wireguard-libcrux",
+  "crates/wg-userspace",
   "examples/derive-demo",
   "examples/net-pcap",
 ]
@@ -15,3 +16,10 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+
+# `wg-userspace` is a `no_std` binary: it has no unwinding runtime.
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

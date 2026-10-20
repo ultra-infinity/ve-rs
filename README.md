@@ -139,8 +139,14 @@ definition is checked in Lean's kernel against a known value:
 - the Internet checksum (RFC 1071): the one's-complement sum, checked against a
   worked IPv4 header that sums to `0xFFFF`.
 
+UDP datagrams can also be built: `udp::encode_ipv4` and `udp::encode_ipv6`
+write a whole IP packet (header, UDP header, data, checksums) into a buffer.
+They are proved to round-trip: `Ipv4Udp` / `Ipv6Udp` accept what they write and
+decode it back to the same addresses, ports and data
+(`proofs/Net/UdpEncode.lean`).
+
 Not covered: reassembling fragments, IPv6 extension headers, interpreting IPv4
-options, ICMP message types or NDP, and encoding.
+options, ICMP message types or NDP, and encoding anything but UDP.
 
 It also shows how hand-written and derived proofs combine:
 - field decoders that check values have hand-written specs:
@@ -154,6 +160,54 @@ It also shows how hand-written and derived proofs combine:
   `ArpPacket` are derived and proved automatically on top of them;
 - each `validate` has a hand-written spec in `proofs/Net/*Top.lean` that uses
   the derived ones and the spec of the layer below.
+
+## Example: WireGuard (`crates/wireguard`)
+
+`wireguard` is a sans-IO WireGuard implementation (`no_std`, no allocation),
+built on `untrusted` and `net`, and verified as a whole: every function of the
+crate is extracted to Lean and has a proved spec (`make verify-wireguard`,
+`proofs/Wireguard/`). The proofs cover:
+
+- **Messages:** the four message formats decode exactly as the WireGuard paper
+  lays them out, and every encoder round-trips through its decoder.
+- **Handshake:** Noise IKpsk2 computes exactly the paper's messages and
+  keys, transcribed in `NoiseSpec.lean`. An agreement theorem shows that an
+  honest run gives both sides the same transport keys.
+- **Cookies:** `mac1`/`mac2` and cookie replies.
+- **Replay window:** a counter is accepted exactly when it is fresh, and never
+  twice.
+- **Cryptokey routing:** a lookup returns the peer of the longest matching
+  prefix.
+- **Transport:** a packet is delivered exactly when it is authentic, its
+  counter is fresh, and it is an IP packet (per `net`'s decoders) whose source
+  routes back to the sending peer.
+- **Device:** every entry point (`handle_packet`, `handle_datagram`, `tick`)
+  keeps the device's invariant and never fails. Data goes out only under a
+  keypair that may still send (younger than `REJECT_AFTER_TIME`, counter
+  below `REJECT_AFTER_MESSAGES`), and its counter then goes up by one.
+  Initiations to a peer are at least `REKEY_TIMEOUT` apart, and the local
+  indices of live sessions are distinct.
+
+The cryptographic primitives (X25519, BLAKE2s, ChaCha20-Poly1305,
+XChaCha20-Poly1305) come in through a `Crypto` trait. The proofs only assume
+the laws stated in `proofs/Wireguard/Crypto.lean`, as hypotheses, never as
+axioms. `crates/wireguard-libcrux` implements the trait with the formally
+verified [libcrux](https://github.com/cryspen/libcrux), and is tested against
+the RFC test vectors; that it satisfies the laws is the trust assumption.
+
+`crates/wg-userspace` is a small, unverified `no_std` runner around the
+device. Its UDP is `net`'s, not the kernel's:
+
+- incoming IP packets come from a packet socket and are validated by
+  `net::udp`;
+- outgoing datagrams are built by the verified encoders and sent through raw
+  IP sockets;
+- a TUN device carries the tunnel's packets.
+
+`make wg-vm-test` runs it in two VMs against the Linux kernel's WireGuard. Each
+side initiates a handshake; IPv4 and IPv6 pings and TCP transfers go both ways;
+a spoofed source is dropped; and every captured WireGuard datagram is accepted
+by `net-pcap`. Then it runs both sides with `wg-userspace`.
 
 ## Pros
 
@@ -262,7 +316,10 @@ make test                 # Rust tests
 make extract verify       # translate the crate to Lean, check proofs, audit
 make verify-demo          # verify the example user crate
 make verify-net           # verify the `net` crate (Ethernet up to UDP)
+make verify-wireguard     # verify the `wireguard` crate
 nix flake check           # extraction up to date, Aeneas pin consistent
+make vm-test              # real traffic through `net` in two VMs (needs KVM)
+make wg-vm-test           # wg-userspace against the kernel's WireGuard (needs KVM)
 ```
 
 To verify the `Decode` impls in your own crate:
@@ -283,7 +340,12 @@ exits with an error if anything is unproved.
 | `crates/untrusted` | The library. |
 | `crates/untrusted-derive` | `#[derive(Decode)]` (untrusted generator). |
 | `crates/cargo-untrusted` | `cargo untrusted verify` (untrusted orchestrator). |
-| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP, built on `untrusted`. |
+| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP, and UDP encoding, built on `untrusted`. |
+| `crates/wireguard` | A verified, sans-IO WireGuard core, built on `untrusted` and `net`. |
+| `crates/wireguard-libcrux` | Its cryptographic primitives, from libcrux (not extracted; tested against RFC vectors). |
+| `crates/wg-userspace` | A `no_std` WireGuard interface (TUN, raw sockets) around the core; unverified. |
+| `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |
+| `proofs/Net/`, `proofs/Wireguard/` | The Lean models and proofs of `net` and `wireguard`. |
 | `examples/derive-demo` | An example user crate, verified by `make verify-demo`. |
 | `proofs/Untrusted/{Types,Funs}.lean` | The Lean model, generated by `make extract`. |
 | `proofs/Untrusted/Spec.lean` | Specification vocabulary (`beNat`, ranges, …). |

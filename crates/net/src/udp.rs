@@ -148,6 +148,227 @@ impl<'a> Validate<&'a [u8]> for Ipv6Udp<'a> {
     }
 }
 
+/// The time to live (IPv4) or hop limit (IPv6) of the packets the encoders
+/// write.
+pub const TTL: u8 = 64;
+/// The largest IP packet.
+pub const MAX_PACKET_LEN: usize = 65535;
+
+/// The bytes of `v`, big-endian.
+fn be32(v: u32) -> [u8; 4] {
+    [
+        (v / 16_777_216) as u8,
+        (v / 65536 % 256) as u8,
+        (v / 256 % 256) as u8,
+        (v % 256) as u8,
+    ]
+}
+
+/// The bytes of `v`, big-endian.
+fn be128(v: u128) -> [u8; 16] {
+    let a = be32((v / 79_228_162_514_264_337_593_543_950_336) as u32);
+    let b = be32((v / 18_446_744_073_709_551_616 % 4_294_967_296) as u32);
+    let c = be32((v / 4_294_967_296 % 4_294_967_296) as u32);
+    let d = be32((v % 4_294_967_296) as u32);
+    [
+        a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3], d[0], d[1], d[2],
+        d[3],
+    ]
+}
+
+/// The IPv4 header of a UDP packet of `total` bytes from `src` to `dst`,
+/// with `checksum`: no options, not fragmented, don't-fragment set.
+fn ipv4_header(src: u32, dst: u32, total: u16, checksum: u16) -> [u8; 20] {
+    let s = be32(src);
+    let d = be32(dst);
+    [
+        0x45,
+        0,
+        (total / 256) as u8,
+        (total % 256) as u8,
+        0,
+        0,
+        0x40,
+        0,
+        TTL,
+        PROTO_UDP,
+        (checksum / 256) as u8,
+        (checksum % 256) as u8,
+        s[0],
+        s[1],
+        s[2],
+        s[3],
+        d[0],
+        d[1],
+        d[2],
+        d[3],
+    ]
+}
+
+/// The IPv6 header of a packet from `src` to `dst` carrying a UDP datagram
+/// of `len` bytes: traffic class and flow label 0, no extension headers.
+fn ipv6_header(src: u128, dst: u128, len: u16) -> [u8; 40] {
+    let s = be128(src);
+    let d = be128(dst);
+    [
+        0x60,
+        0,
+        0,
+        0,
+        (len / 256) as u8,
+        (len % 256) as u8,
+        NEXT_UDP,
+        TTL,
+        s[0],
+        s[1],
+        s[2],
+        s[3],
+        s[4],
+        s[5],
+        s[6],
+        s[7],
+        s[8],
+        s[9],
+        s[10],
+        s[11],
+        s[12],
+        s[13],
+        s[14],
+        s[15],
+        d[0],
+        d[1],
+        d[2],
+        d[3],
+        d[4],
+        d[5],
+        d[6],
+        d[7],
+        d[8],
+        d[9],
+        d[10],
+        d[11],
+        d[12],
+        d[13],
+        d[14],
+        d[15],
+    ]
+}
+
+/// A UDP header.
+fn udp_header(src_port: u16, dst_port: u16, len: u16, checksum: u16) -> [u8; 8] {
+    [
+        (src_port / 256) as u8,
+        (src_port % 256) as u8,
+        (dst_port / 256) as u8,
+        (dst_port % 256) as u8,
+        (len / 256) as u8,
+        (len % 256) as u8,
+        (checksum / 256) as u8,
+        (checksum % 256) as u8,
+    ]
+}
+
+/// Copies `src` to `out[pos..pos + src.len()]`, which must exist.
+fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) {
+    let mut i = 0;
+    while i < src.len() {
+        out[pos + i] = src[i];
+        i += 1;
+    }
+}
+
+/// The checksum to write for a sum `s` taken with the checksum field zero:
+/// what makes the sum `0xFFFF`. For UDP, a computed 0 is sent as `0xFFFF`
+/// (its one's-complement equal), since 0 means "no checksum".
+fn udp_checksum(s: u16) -> u16 {
+    if s == 0xFFFF {
+        0xFFFF
+    } else {
+        0xFFFF - s
+    }
+}
+
+/// Writes to the start of `out` an IPv4 packet (no options, not fragmented,
+/// don't-fragment set) carrying a UDP datagram from `src:src_port` to
+/// `dst:dst_port` with `data`, both checksums computed. Returns its length,
+/// or `None` if `out` is too short or the packet would be too long.
+///
+/// `proofs/Net/UdpEncode.lean` proves that [`Ipv4Udp`] accepts the result
+/// and decodes it back to these addresses, ports and data.
+pub fn encode_ipv4(
+    src: ipv4::Ipv4Addr,
+    dst: ipv4::Ipv4Addr,
+    src_port: u16,
+    dst_port: u16,
+    data: &[u8],
+    out: &mut [u8],
+) -> Option<usize> {
+    if data.len() > MAX_PACKET_LEN - 28 {
+        return None;
+    }
+    let n = 28 + data.len();
+    if out.len() < n {
+        return None;
+    }
+    let total = n as u16;
+    let len = (n - 20) as u16;
+    // Each checksum is computed with its field 0, as `Ipv4Udp` checks it.
+    let zero = ipv4_header(src.0, dst.0, total, 0);
+    let header = ipv4_header(src.0, dst.0, total, 0xFFFF - inet::sum(0, &zero));
+    let udp0 = udp_header(src_port, dst_port, len, 0);
+    let acc = inet::sum(0, &header[12..20]);
+    let acc = inet::sum(acc, &[0, PROTO_UDP]);
+    let acc = inet::sum(acc, &udp0[4..6]);
+    let acc = inet::sum(acc, &udp0);
+    let s = inet::sum(acc, data);
+    // Not named `udp`: that would shadow the `udp` namespace in Lean.
+    let datagram_header = udp_header(src_port, dst_port, len, udp_checksum(s));
+    put_bytes(out, 0, &header);
+    put_bytes(out, 20, &datagram_header);
+    put_bytes(out, 28, data);
+    Some(n)
+}
+
+/// Writes to the start of `out` an IPv6 packet (no extension headers)
+/// carrying a UDP datagram from `src:src_port` to `dst:dst_port` with `data`,
+/// its checksum computed. Returns its length, or `None` if `out` is too short
+/// or the datagram would be too long.
+///
+/// `proofs/Net/UdpEncode.lean` proves that [`Ipv6Udp`] accepts the result
+/// and decodes it back to these addresses, ports and data.
+pub fn encode_ipv6(
+    src: ipv6::Ipv6Addr,
+    dst: ipv6::Ipv6Addr,
+    src_port: u16,
+    dst_port: u16,
+    data: &[u8],
+    out: &mut [u8],
+) -> Option<usize> {
+    if data.len() > MAX_PACKET_LEN - 8 {
+        return None;
+    }
+    let n = 48 + data.len();
+    if out.len() < n {
+        return None;
+    }
+    let len = (n - 40) as u16;
+    let header = ipv6_header(src.0, dst.0, len);
+    // The checksum is computed with its field 0, as `Ipv6Udp` checks it.
+    let udp0 = udp_header(src_port, dst_port, len, 0);
+    let acc = inet::sum(0, &header[8..40]);
+    let acc = inet::sum(acc, &[0, 0]);
+    let acc = inet::sum(acc, &udp0[4..6]);
+    let acc = inet::sum(acc, &[0, 0, 0, NEXT_UDP]);
+    let acc = inet::sum(acc, &udp0);
+    let s = inet::sum(acc, data);
+    // Not named `udp`: that would shadow the `udp` namespace in Lean.
+    let datagram_header = udp_header(src_port, dst_port, len, udp_checksum(s));
+    put_bytes(out, 0, &header);
+    put_bytes(out, 40, &datagram_header);
+    put_bytes(out, 48, data);
+    Some(n)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -204,7 +425,10 @@ pub(crate) mod tests {
         // Corrupted data.
         let mut b = buf;
         b[n - 1] ^= 1;
-        assert_eq!(validate(&b[..n]).err(), Some(ValidationError::ChecksumMismatch));
+        assert_eq!(
+            validate(&b[..n]).err(),
+            Some(ValidationError::ChecksumMismatch)
+        );
         // Corrupted address: part of the pseudo-header, not of the IP checksum
         // once that is fixed up.
         let mut b = buf;
@@ -212,7 +436,10 @@ pub(crate) mod tests {
         b[10..12].fill(0);
         let c = !inet::sum(0, &b[..20]);
         b[10..12].copy_from_slice(&c.to_be_bytes());
-        assert_eq!(validate(&b[..n]).err(), Some(ValidationError::ChecksumMismatch));
+        assert_eq!(
+            validate(&b[..n]).err(),
+            Some(ValidationError::ChecksumMismatch)
+        );
         // Length field disagreeing with the IP payload (checksum disabled).
         let n2 = datagram(&mut buf, 10, false, 0);
         let mut b = buf;
@@ -226,10 +453,16 @@ pub(crate) mod tests {
         );
         // Shorter than a UDP header.
         let n3 = packet(&mut buf, PROTO_UDP, 0, 7, 0);
-        assert_eq!(validate(&buf[..n3]).err(), Some(ValidationError::EndOfInput));
+        assert_eq!(
+            validate(&buf[..n3]).err(),
+            Some(ValidationError::EndOfInput)
+        );
         // Another protocol.
         let n4 = packet(&mut buf, PROTO_ICMP, 0, 16, 0);
-        assert_eq!(validate(&buf[..n4]).err(), Some(ValidationError::OutOfRange));
+        assert_eq!(
+            validate(&buf[..n4]).err(),
+            Some(ValidationError::OutOfRange)
+        );
     }
 
     /// An IPv6 packet carrying a UDP datagram with `data_len` bytes of data
@@ -277,12 +510,18 @@ pub(crate) mod tests {
         for i in [n - 1, 8] {
             let mut b = buf;
             b[i] ^= 1;
-            assert_eq!(validate6(&b[..n]).err(), Some(ValidationError::ChecksumMismatch));
+            assert_eq!(
+                validate6(&b[..n]).err(),
+                Some(ValidationError::ChecksumMismatch)
+            );
         }
         // No checksum: not allowed over IPv6.
         let mut b = buf;
         b[46..48].fill(0);
-        assert_eq!(validate6(&b[..n]).err(), Some(ValidationError::ChecksumMismatch));
+        assert_eq!(
+            validate6(&b[..n]).err(),
+            Some(ValidationError::ChecksumMismatch)
+        );
         // Length field disagreeing with the IPv6 payload.
         let mut b = buf;
         b[45] = 17;
@@ -299,7 +538,10 @@ pub(crate) mod tests {
         assert_eq!(validate6(&b[..n]).err(), Some(ValidationError::OutOfRange));
         // Shorter than a UDP header.
         let n2 = ipv6::tests::packet(&mut buf, NEXT_UDP, 7, 0);
-        assert_eq!(validate6(&buf[..n2]).err(), Some(ValidationError::EndOfInput));
+        assert_eq!(
+            validate6(&buf[..n2]).err(),
+            Some(ValidationError::EndOfInput)
+        );
     }
 
     #[test]
@@ -315,5 +557,78 @@ pub(crate) mod tests {
             b[10..12].copy_from_slice(&c.to_be_bytes());
             assert_eq!(validate(&b[..n]).err(), Some(ValidationError::OutOfRange));
         }
+    }
+}
+
+#[cfg(test)]
+mod encode_tests {
+    use super::*;
+
+    /// The bytes themselves, accepted as they are.
+    struct Raw<'a>(&'a [u8]);
+
+    impl<'a> Validate<&'a [u8]> for Raw<'a> {
+        type Err = ValidationError;
+        fn validate(input: &'a [u8]) -> Result<Self, ValidationError> {
+            Ok(Raw(input))
+        }
+    }
+
+    #[test]
+    fn encoded_datagrams_decode_back() {
+        let mut out = [0u8; 2048];
+        for len in [0usize, 1, 2, 17, 1400] {
+            let data: [u8; 1400] = core::array::from_fn(|i| (i * 7 + len) as u8);
+            let data = &data[..len];
+            let n = encode_ipv4(
+                ipv4::Ipv4Addr(0xC0A8_0001),
+                ipv4::Ipv4Addr(0x0A00_0002),
+                51820,
+                4242,
+                data,
+                &mut out,
+            )
+            .unwrap();
+            assert_eq!(n, 28 + len);
+            let u = Untrusted::new(&out[..n])
+                .validate::<Ipv4Udp>()
+                .ok()
+                .unwrap();
+            assert_eq!(u.ip.header.src, ipv4::Ipv4Addr(0xC0A8_0001));
+            assert_eq!(u.ip.header.dst, ipv4::Ipv4Addr(0x0A00_0002));
+            assert_eq!((u.header.src_port.0, u.header.dst_port.0), (51820, 4242));
+            assert_ne!(u.header.checksum.0, 0);
+            assert_eq!(u.payload.validate::<Raw>().unwrap().0, data);
+
+            let n = encode_ipv6(
+                ipv6::Ipv6Addr(0xfd00 << 112 | 1),
+                ipv6::Ipv6Addr(0xfd00 << 112 | 2),
+                51820,
+                4242,
+                data,
+                &mut out,
+            )
+            .unwrap();
+            assert_eq!(n, 48 + len);
+            let u = Untrusted::new(&out[..n])
+                .validate::<Ipv6Udp>()
+                .ok()
+                .unwrap();
+            assert_eq!(u.ip.header.src, ipv6::Ipv6Addr(0xfd00 << 112 | 1));
+            assert_eq!(u.ip.header.dst, ipv6::Ipv6Addr(0xfd00 << 112 | 2));
+            assert_eq!((u.header.src_port.0, u.header.dst_port.0), (51820, 4242));
+            assert_eq!(u.payload.validate::<Raw>().unwrap().0, data);
+        }
+        assert_eq!(
+            encode_ipv4(
+                ipv4::Ipv4Addr(1),
+                ipv4::Ipv4Addr(2),
+                1,
+                2,
+                &[0; 10],
+                &mut out[..37]
+            ),
+            None
+        );
     }
 }

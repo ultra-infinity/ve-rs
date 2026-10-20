@@ -87,7 +87,7 @@
                 echo 'ERROR: the derive-demo model is stale. Run `make verify-demo`.'
                 exit 1
               }
-              cargo run -q -p cargo-untrusted -- untrusted verify -p net \
+              cargo run -q -p cargo-untrusted -- untrusted verify -p net --extract-all \
                 --lean-dir proofs --extract-only
               diff -ru proofs-committed/Net proofs/Net || {
                 echo 'ERROR: the net model is stale. Run `make verify-net`.'
@@ -125,6 +125,26 @@
             ];
             doCheck = false;
           };
+          # `wg-userspace`: a WireGuard interface around the verified device.
+          wg-userspace = pkgs.rustPlatform.buildRustPackage {
+            pname = "wg-userspace";
+            version = "0.1.0";
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./crates
+                ./examples
+              ];
+            };
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "-p"
+              "wg-userspace"
+            ];
+            doCheck = false;
+          };
         }
 
         # Two VMs on a virtual LAN: the client sends ARP, ICMP and UDP over
@@ -154,6 +174,36 @@
                 };
               };
             testScript = builtins.readFile ./examples/net-pcap/vm-test.py;
+          };
+
+          # Two VMs: `a` runs wg-userspace, `b` the kernel's WireGuard, then
+          # wg-userspace too; see crates/wg-userspace/vm-test.py. Run with
+          # `make wg-vm-test` (needs KVM).
+          wg-vm-test = pkgs.testers.runNixOSTest {
+            name = "wg-vm-test";
+            nodes =
+              let
+                node = {
+                  networking.firewall.enable = false;
+                  boot.kernelModules = [
+                    "wireguard"
+                    "tun"
+                  ];
+                  environment.systemPackages = [
+                    pkgs.ethtool
+                    pkgs.socat
+                    pkgs.tcpdump
+                    pkgs.wireguard-tools
+                    self.packages.${system}.wg-userspace
+                    self.packages.${system}.net-pcap
+                  ];
+                };
+              in
+              {
+                a = node;
+                b = node;
+              };
+            testScript = builtins.readFile ./crates/wg-userspace/vm-test.py;
           };
         };
 
