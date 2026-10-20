@@ -542,7 +542,7 @@ theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
       match r.1 with
       | none => (msg.length < 12 + q.question_len.val ∨ out.length < 12 + q.question_len.val) ∧
           r.2 = out
-      | some n => n.val = 12 + q.question_len.val ∧ r.2.length = out.length ∧
+      | some n => n.val = 12 + q.question_len.val ∧ n.val ≤ out.length ∧ r.2.length = out.length ∧
           (r.2.val.take n.val).map (·.val) = answerN msg.val q ∧
           r.2.val.drop n.val = out.val.drop n.val ⦄ := by
   unfold nxdomain
@@ -554,7 +554,7 @@ theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
   step*
   have h12 : 12 ≤ n.val := by scalar_tac
   have hql : n.val - 12 = q.question_len.val := by scalar_tac
-  refine ⟨by scalar_tac, by rw [out2_post, out1_post1], ?_, ?_⟩
+  refine ⟨by scalar_tac, by scalar_tac, by rw [out2_post, out1_post1], ?_, ?_⟩
   · have hA : ∀ h, (Array.make 12#usize [i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8,
         0#u8] h).val = [i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8] :=
       fun _ => rfl

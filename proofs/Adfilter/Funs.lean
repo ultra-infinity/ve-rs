@@ -398,8 +398,67 @@ def dns.DnsHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   decode := dns.DnsHeader.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [adfilter::name::lower]:
+    Source: 'crates/adfilter/src/name.rs', lines 22:0-28:1
+    Visibility: public -/
+def name.lower (b : Std.U8) : Result Std.U8 := do
+  if b >= 65#u8
+  then if b <= 90#u8
+       then b + 32#u8
+       else ok b
+  else ok b
+
+/-- [adfilter::name::MAX_NAME_LEN]
+    Source: 'crates/adfilter/src/name.rs', lines 9:0-9:36
+    Visibility: public -/
+@[global_simps, irreducible] def name.MAX_NAME_LEN : Std.Usize := 253#usize
+
+/-- [adfilter::name::{adfilter::name::Name}::from_text]: loop 0:
+    Source: 'crates/adfilter/src/name.rs', lines 43:8-46:9
+    Visibility: public -/
+@[rust_loop]
+def name.Name.from_text_loop
+  (text : Slice Std.U8) (n : Std.Usize) (bytes : Array Std.U8 253#usize)
+  (i : Std.Usize) :
+  Result (Array Std.U8 253#usize)
+  := do
+  if i < n
+  then
+    let i1 ← Slice.index_usize text i
+    let i2 ← name.lower i1
+    let a ← Array.update bytes i i2
+    let i3 ← i + 1#usize
+    name.Name.from_text_loop text n a i3
+  else ok bytes
+partial_fixpoint
+
+/-- [adfilter::name::{adfilter::name::Name}::from_text]:
+    Source: 'crates/adfilter/src/name.rs', lines 33:4-48:5
+    Visibility: public -/
+def name.Name.from_text (text : Slice Std.U8) : Result (Option name.Name) := do
+  let n := Slice.len text
+  let n1 ←
+    if n > 0#usize
+    then
+      do
+      let i ← n - 1#usize
+      let i1 ← Slice.index_usize text i
+      if i1 = 46#u8
+      then ok i
+      else ok n
+    else ok n
+  if n1 = 0#usize
+  then ok none
+  else
+    if n1 > name.MAX_NAME_LEN
+    then ok none
+    else
+      let bytes := Array.repeat 253#usize 0#u8
+      let bytes1 ← name.Name.from_text_loop text n1 bytes 0#usize
+      ok (some { bytes := bytes1, len := n1 })
+
 /-- [adfilter::dns::copy_label]: loop 0:
-    Source: 'crates/adfilter/src/dns.rs', lines 58:4-61:5 -/
+    Source: 'crates/adfilter/src/dns.rs', lines 74:4-77:5 -/
 @[rust_loop]
 def dns.copy_label_loop
   (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
@@ -418,7 +477,7 @@ def dns.copy_label_loop
 partial_fixpoint
 
 /-- [adfilter::dns::copy_label]:
-    Source: 'crates/adfilter/src/dns.rs', lines 56:0-62:1 -/
+    Source: 'crates/adfilter/src/dns.rs', lines 72:0-78:1 -/
 @[reducible]
 def dns.copy_label
   (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
@@ -427,13 +486,8 @@ def dns.copy_label
   := do
   dns.copy_label_loop text «at» msg «from» len 0#usize
 
-/-- [adfilter::name::MAX_NAME_LEN]
-    Source: 'crates/adfilter/src/name.rs', lines 9:0-9:36
-    Visibility: public -/
-@[global_simps, irreducible] def name.MAX_NAME_LEN : Std.Usize := 253#usize
-
 /-- [adfilter::dns::read_name]: loop 0:
-    Source: 'crates/adfilter/src/dns.rs', lines 72:4-92:5 -/
+    Source: 'crates/adfilter/src/dns.rs', lines 88:4-108:5 -/
 @[rust_loop]
 def dns.read_name_loop
   (msg : Slice Std.U8) (text : Array Std.U8 253#usize) (pos : Std.Usize)
@@ -488,7 +542,7 @@ def dns.read_name_loop
 partial_fixpoint
 
 /-- [adfilter::dns::read_name]:
-    Source: 'crates/adfilter/src/dns.rs', lines 67:0-98:1 -/
+    Source: 'crates/adfilter/src/dns.rs', lines 83:0-114:1 -/
 def dns.read_name
   (msg : Slice Std.U8) (text : Array Std.U8 253#usize) :
   Result ((Option (Std.Usize × Std.Usize)) × (Array Std.U8 253#usize))
@@ -501,62 +555,8 @@ def dns.read_name
        then ok (none, text1)
        else ok (some (n, pos), text1)
 
-/-- [adfilter::name::lower]:
-    Source: 'crates/adfilter/src/name.rs', lines 22:0-28:1
-    Visibility: public -/
-def name.lower (b : Std.U8) : Result Std.U8 := do
-  if b >= 65#u8
-  then if b <= 90#u8
-       then b + 32#u8
-       else ok b
-  else ok b
-
-/-- [adfilter::name::{adfilter::name::Name}::from_text]: loop 0:
-    Source: 'crates/adfilter/src/name.rs', lines 43:8-46:9
-    Visibility: public -/
-@[rust_loop]
-def name.Name.from_text_loop
-  (text : Slice Std.U8) (n : Std.Usize) (bytes : Array Std.U8 253#usize)
-  (i : Std.Usize) :
-  Result (Array Std.U8 253#usize)
-  := do
-  if i < n
-  then
-    let i1 ← Slice.index_usize text i
-    let i2 ← name.lower i1
-    let a ← Array.update bytes i i2
-    let i3 ← i + 1#usize
-    name.Name.from_text_loop text n a i3
-  else ok bytes
-partial_fixpoint
-
-/-- [adfilter::name::{adfilter::name::Name}::from_text]:
-    Source: 'crates/adfilter/src/name.rs', lines 33:4-48:5
-    Visibility: public -/
-def name.Name.from_text (text : Slice Std.U8) : Result (Option name.Name) := do
-  let n := Slice.len text
-  let n1 ←
-    if n > 0#usize
-    then
-      do
-      let i ← n - 1#usize
-      let i1 ← Slice.index_usize text i
-      if i1 = 46#u8
-      then ok i
-      else ok n
-    else ok n
-  if n1 = 0#usize
-  then ok none
-  else
-    if n1 > name.MAX_NAME_LEN
-    then ok none
-    else
-      let bytes := Array.repeat 253#usize 0#u8
-      let bytes1 ← name.Name.from_text_loop text n1 bytes 0#usize
-      ok (some { bytes := bytes1, len := n1 })
-
 /-- [adfilter::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::dns::DnsQuery}::validate]:
-    Source: 'crates/adfilter/src/dns.rs', lines 103:4-134:5
+    Source: 'crates/adfilter/src/dns.rs', lines 119:4-150:5
     Visibility: public -/
 def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
   (msg : Slice Std.U8) :
@@ -649,8 +649,35 @@ def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
         dns.DnsQuery (core.convert.FromSame untrusted.ValidationError) residual
 
+/-- [adfilter::dns::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for adfilter::dns::Query<'a>}::validate]:
+    Source: 'crates/adfilter/src/dns.rs', lines 65:4-68:5
+    Visibility: public -/
+def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (msg : Slice Std.U8) :
+  Result (core.result.Result dns.Query untrusted.ValidationError)
+  := do
+  let r ←
+    dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
+      msg
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ok (core.result.Result.Ok { msg, query := val })
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      dns.Query (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [adfilter::dns::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for adfilter::dns::Query<'a>}]
+    Source: 'crates/adfilter/src/dns.rs', lines 62:0-69:1 -/
+@[reducible]
+def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate dns.Query (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
 /-- Trait implementation: [adfilter::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::dns::DnsQuery}]
-    Source: 'crates/adfilter/src/dns.rs', lines 100:0-135:1 -/
+    Source: 'crates/adfilter/src/dns.rs', lines 116:0-151:1 -/
 @[reducible]
 def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
   untrusted.Validate dns.DnsQuery (Slice Std.U8) untrusted.ValidationError := {
@@ -659,7 +686,7 @@ def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
 }
 
 /-- [adfilter::dns::nxdomain]: loop 0:
-    Source: 'crates/adfilter/src/dns.rs', lines 163:4-166:5
+    Source: 'crates/adfilter/src/dns.rs', lines 179:4-182:5
     Visibility: public -/
 @[rust_loop]
 def dns.nxdomain_loop0
@@ -676,7 +703,7 @@ def dns.nxdomain_loop0
 partial_fixpoint
 
 /-- [adfilter::dns::nxdomain]: loop 1:
-    Source: 'crates/adfilter/src/dns.rs', lines 167:4-170:5
+    Source: 'crates/adfilter/src/dns.rs', lines 183:4-186:5
     Visibility: public -/
 @[rust_loop]
 def dns.nxdomain_loop1
@@ -693,7 +720,7 @@ def dns.nxdomain_loop1
 partial_fixpoint
 
 /-- [adfilter::dns::nxdomain]:
-    Source: 'crates/adfilter/src/dns.rs', lines 140:0-172:1
+    Source: 'crates/adfilter/src/dns.rs', lines 156:0-188:1
     Visibility: public -/
 def dns.nxdomain
   (msg : Slice Std.U8) (q : dns.DnsQuery) (out : Slice Std.U8) :
@@ -727,6 +754,11 @@ def dns.nxdomain
       let out2 ← dns.nxdomain_loop1 msg out1 n i11
       ok (some n, out2)
 
+/-- [adfilter::filter::MAX_ANSWER_LEN]
+    Source: 'crates/adfilter/src/filter.rs', lines 23:0-23:38
+    Visibility: public -/
+@[global_simps, irreducible] def filter.MAX_ANSWER_LEN : Std.Usize := 512#usize
+
 /-- [adfilter::name::{adfilter::name::Name}::as_bytes]:
     Source: 'crates/adfilter/src/name.rs', lines 51:4-53:5
     Visibility: public -/
@@ -735,46 +767,88 @@ def name.Name.as_bytes (self : name.Name) : Result (Slice Std.U8) := do
     (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8)) self.bytes
     { «end» := self.len }
 
-/-- [adfilter::tls::PORT]
-    Source: 'crates/adfilter/src/tls.rs', lines 23:0-23:26
-    Visibility: public -/
-@[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
+/-- [adfilter::filter::dns_answer]:
+    Source: 'crates/adfilter/src/filter.rs', lines 39:0-52:1 -/
+def filter.dns_answer
+  (msg : untrusted.Untrusted (Slice Std.U8)) (list : blocklist.Blocklist)
+  (answer : Array Std.U8 512#usize) :
+  Result ((Option (Option Std.Usize)) × (Array Std.U8 512#usize))
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError msg
+  match r with
+  | core.result.Result.Ok q =>
+    let s ← name.Name.as_bytes q.query.name
+    let b ← blocklist.Blocklist.blocked list s
+    if b
+    then
+      let (s1, to_slice_mut_back) ← lift (Array.to_slice_mut answer)
+      let (o, s2) ← dns.nxdomain q.msg q.query s1
+      let answer1 := to_slice_mut_back s2
+      ok (some o, answer1)
+    else ok (none, answer)
+  | core.result.Result.Err _ => ok (none, answer)
 
-/-- [adfilter::tls::CONTENT_HANDSHAKE]
-    Source: 'crates/adfilter/src/tls.rs', lines 25:0-25:37
-    Visibility: public -/
-@[global_simps, irreducible] def tls.CONTENT_HANDSHAKE : Std.U8 := 22#u8
+/-- [adfilter::filter::udp_ipv4]:
+    Source: 'crates/adfilter/src/filter.rs', lines 55:0-73:1 -/
+def filter.udp_ipv4
+  (u : net.udp.Ipv4Udp) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  Result (filter.Verdict × (Slice Std.U8))
+  := do
+  let i := u.header.dst_port
+  if i != dns.PORT
+  then ok (filter.Verdict.Pass, out)
+  else
+    let client_port := u.header.src_port
+    let answer := Array.repeat 512#usize 0#u8
+    let (o, answer1) ← filter.dns_answer u.payload list answer
+    match o with
+    | none => ok (filter.Verdict.Pass, out)
+    | some o1 =>
+      match o1 with
+      | none => ok (filter.Verdict.Drop, out)
+      | some n =>
+        let s ←
+          core.array.Array.index (core.ops.index.IndexSlice
+            (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8)) answer1
+            { «end» := n }
+        let (o2, out1) ←
+          net.udp.encode_ipv4 u.ip.header.dst u.ip.header.src dns.PORT
+            client_port s out
+        match o2 with
+        | none => ok (filter.Verdict.Drop, out1)
+        | some m => ok (filter.Verdict.Reply m, out1)
 
-/-- [adfilter::tls::CLIENT_HELLO]
-    Source: 'crates/adfilter/src/tls.rs', lines 27:0-27:31
-    Visibility: public -/
-@[global_simps, irreducible] def tls.CLIENT_HELLO : Std.U8 := 1#u8
-
-/-- [adfilter::tls::EXT_SERVER_NAME]
-    Source: 'crates/adfilter/src/tls.rs', lines 29:0-29:37
-    Visibility: public -/
-@[global_simps, irreducible] def tls.EXT_SERVER_NAME : Std.Usize := 0#usize
-
-/-- [adfilter::tls::HOST_NAME]
-    Source: 'crates/adfilter/src/tls.rs', lines 31:0-31:28
-    Visibility: public -/
-@[global_simps, irreducible] def tls.HOST_NAME : Std.U8 := 0#u8
-
-/-- [adfilter::tls::RECORD_HEADER_LEN]
-    Source: 'crates/adfilter/src/tls.rs', lines 33:0-33:39
-    Visibility: public -/
-@[global_simps, irreducible] def tls.RECORD_HEADER_LEN : Std.Usize := 5#usize
-
-/-- [adfilter::tls::HANDSHAKE_HEADER_LEN]
-    Source: 'crates/adfilter/src/tls.rs', lines 35:0-35:42
-    Visibility: public -/
-@[global_simps, irreducible]
-def tls.HANDSHAKE_HEADER_LEN : Std.Usize := 4#usize
-
-/-- [adfilter::tls::VERSION_RANDOM_LEN]
-    Source: 'crates/adfilter/src/tls.rs', lines 37:0-37:41
-    Visibility: public -/
-@[global_simps, irreducible] def tls.VERSION_RANDOM_LEN : Std.Usize := 34#usize
+/-- [adfilter::filter::udp_ipv6]:
+    Source: 'crates/adfilter/src/filter.rs', lines 76:0-94:1 -/
+def filter.udp_ipv6
+  (u : net.udp.Ipv6Udp) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  Result (filter.Verdict × (Slice Std.U8))
+  := do
+  let i := u.header.dst_port
+  if i != dns.PORT
+  then ok (filter.Verdict.Pass, out)
+  else
+    let client_port := u.header.src_port
+    let answer := Array.repeat 512#usize 0#u8
+    let (o, answer1) ← filter.dns_answer u.payload list answer
+    match o with
+    | none => ok (filter.Verdict.Pass, out)
+    | some o1 =>
+      match o1 with
+      | none => ok (filter.Verdict.Drop, out)
+      | some n =>
+        let s ←
+          core.array.Array.index (core.ops.index.IndexSlice
+            (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8)) answer1
+            { «end» := n }
+        let (o2, out1) ←
+          net.udp.encode_ipv6 u.ip.header.dst u.ip.header.src dns.PORT
+            client_port s out
+        match o2 with
+        | none => ok (filter.Verdict.Drop, out1)
+        | some m => ok (filter.Verdict.Reply m, out1)
 
 /-- [adfilter::tls::be16]:
     Source: 'crates/adfilter/src/tls.rs', lines 46:0-48:1 -/
@@ -787,42 +861,48 @@ def tls.be16 (b : Slice Std.U8) («at» : Std.Usize) : Result Std.Usize := do
   let i5 ← lift (UScalar.cast .Usize i4)
   i2 + i5
 
-/-- [adfilter::tls::skip_vector8]:
-    Source: 'crates/adfilter/src/tls.rs', lines 52:0-62:1 -/
-def tls.skip_vector8
-  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  if pos >= «end»
-  then ok none
-  else
-    let i ← Slice.index_usize b pos
-    let n ← lift (UScalar.cast .Usize i)
-    let i1 ← «end» - pos
-    let i2 ← i1 - 1#usize
-    if n > i2
-    then ok none
-    else let i3 ← pos + 1#usize
-         let i4 ← i3 + n
-         ok (some i4)
+/-- [adfilter::tls::HOST_NAME]
+    Source: 'crates/adfilter/src/tls.rs', lines 31:0-31:28
+    Visibility: public -/
+@[global_simps, irreducible] def tls.HOST_NAME : Std.U8 := 0#u8
 
-/-- [adfilter::tls::skip_vector16]:
-    Source: 'crates/adfilter/src/tls.rs', lines 66:0-76:1 -/
-def tls.skip_vector16
-  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
-  Result (Option Std.Usize)
+/-- [adfilter::tls::host_name]:
+    Source: 'crates/adfilter/src/tls.rs', lines 119:0-134:1 -/
+def tls.host_name
+  (b : Slice Std.U8) («at» : Std.Usize) (len : Std.Usize) :
+  Result (Option name.Name)
   := do
-  let i ← «end» - pos
-  if i < 2#usize
+  if len < 5#usize
   then ok none
   else
-    let n ← tls.be16 b pos
-    let i1 ← i - 2#usize
-    if n > i1
+    let i ← tls.be16 b «at»
+    let i1 ← len - 2#usize
+    if i != i1
     then ok none
-    else let i2 ← pos + 2#usize
-         let i3 ← i2 + n
-         ok (some i3)
+    else
+      let i2 ← «at» + 2#usize
+      let i3 ← Slice.index_usize b i2
+      if i3 != tls.HOST_NAME
+      then ok none
+      else
+        let i4 ← «at» + 3#usize
+        let n ← tls.be16 b i4
+        let i5 ← len - 5#usize
+        if n > i5
+        then ok none
+        else
+          let i6 ← «at» + 5#usize
+          let i7 ← i6 + n
+          let s ←
+            core.slice.index.Slice.index
+              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) b
+              { start := i6, «end» := i7 }
+          name.Name.from_text s
+
+/-- [adfilter::tls::EXT_SERVER_NAME]
+    Source: 'crates/adfilter/src/tls.rs', lines 29:0-29:37
+    Visibility: public -/
+@[global_simps, irreducible] def tls.EXT_SERVER_NAME : Std.Usize := 0#usize
 
 /-- [adfilter::tls::find_server_name]: loop 0:
     Source: 'crates/adfilter/src/tls.rs', lines 90:4-109:5 -/
@@ -875,38 +955,68 @@ def tls.find_server_name
   then ok none
   else ok (some (found, «at», len))
 
-/-- [adfilter::tls::host_name]:
-    Source: 'crates/adfilter/src/tls.rs', lines 119:0-134:1 -/
-def tls.host_name
-  (b : Slice Std.U8) («at» : Std.Usize) (len : Std.Usize) :
-  Result (Option name.Name)
+/-- [adfilter::tls::skip_vector16]:
+    Source: 'crates/adfilter/src/tls.rs', lines 66:0-76:1 -/
+def tls.skip_vector16
+  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
+  Result (Option Std.Usize)
   := do
-  if len < 5#usize
+  let i ← «end» - pos
+  if i < 2#usize
   then ok none
   else
-    let i ← tls.be16 b «at»
-    let i1 ← len - 2#usize
-    if i != i1
+    let n ← tls.be16 b pos
+    let i1 ← i - 2#usize
+    if n > i1
     then ok none
-    else
-      let i2 ← «at» + 2#usize
-      let i3 ← Slice.index_usize b i2
-      if i3 != tls.HOST_NAME
-      then ok none
-      else
-        let i4 ← «at» + 3#usize
-        let n ← tls.be16 b i4
-        let i5 ← len - 5#usize
-        if n > i5
-        then ok none
-        else
-          let i6 ← «at» + 5#usize
-          let i7 ← i6 + n
-          let s ←
-            core.slice.index.Slice.index
-              (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) b
-              { start := i6, «end» := i7 }
-          name.Name.from_text s
+    else let i2 ← pos + 2#usize
+         let i3 ← i2 + n
+         ok (some i3)
+
+/-- [adfilter::tls::skip_vector8]:
+    Source: 'crates/adfilter/src/tls.rs', lines 52:0-62:1 -/
+def tls.skip_vector8
+  (b : Slice Std.U8) (pos : Std.Usize) («end» : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  if pos >= «end»
+  then ok none
+  else
+    let i ← Slice.index_usize b pos
+    let n ← lift (UScalar.cast .Usize i)
+    let i1 ← «end» - pos
+    let i2 ← i1 - 1#usize
+    if n > i2
+    then ok none
+    else let i3 ← pos + 1#usize
+         let i4 ← i3 + n
+         ok (some i4)
+
+/-- [adfilter::tls::VERSION_RANDOM_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 37:0-37:41
+    Visibility: public -/
+@[global_simps, irreducible] def tls.VERSION_RANDOM_LEN : Std.Usize := 34#usize
+
+/-- [adfilter::tls::HANDSHAKE_HEADER_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 35:0-35:42
+    Visibility: public -/
+@[global_simps, irreducible]
+def tls.HANDSHAKE_HEADER_LEN : Std.Usize := 4#usize
+
+/-- [adfilter::tls::RECORD_HEADER_LEN]
+    Source: 'crates/adfilter/src/tls.rs', lines 33:0-33:39
+    Visibility: public -/
+@[global_simps, irreducible] def tls.RECORD_HEADER_LEN : Std.Usize := 5#usize
+
+/-- [adfilter::tls::CLIENT_HELLO]
+    Source: 'crates/adfilter/src/tls.rs', lines 27:0-27:31
+    Visibility: public -/
+@[global_simps, irreducible] def tls.CLIENT_HELLO : Std.U8 := 1#u8
+
+/-- [adfilter::tls::CONTENT_HANDSHAKE]
+    Source: 'crates/adfilter/src/tls.rs', lines 25:0-25:37
+    Visibility: public -/
+@[global_simps, irreducible] def tls.CONTENT_HANDSHAKE : Std.U8 := 22#u8
 
 /-- [adfilter::tls::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::tls::ClientHello}::validate]:
     Source: 'crates/adfilter/src/tls.rs', lines 139:4-209:5
@@ -1034,5 +1144,93 @@ def tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError :
   validate :=
     tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
 }
+
+/-- [adfilter::filter::hello_blocked]:
+    Source: 'crates/adfilter/src/filter.rs', lines 97:0-105:1 -/
+def filter.hello_blocked
+  (stream : untrusted.Untrusted (Slice Std.U8)) (list : blocklist.Blocklist) :
+  Result Bool
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError
+      stream
+  match r with
+  | core.result.Result.Ok c =>
+    match c.server_name with
+    | none => ok false
+    | some n =>
+      let s ← name.Name.as_bytes n
+      blocklist.Blocklist.blocked list s
+  | core.result.Result.Err _ => ok false
+
+/-- [adfilter::tls::PORT]
+    Source: 'crates/adfilter/src/tls.rs', lines 23:0-23:26
+    Visibility: public -/
+@[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
+
+/-- [adfilter::filter::tcp_verdict]:
+    Source: 'crates/adfilter/src/filter.rs', lines 108:0-117:1 -/
+def filter.tcp_verdict
+  (dst_port : Std.U16) (data : untrusted.Untrusted (Slice Std.U8))
+  (list : blocklist.Blocklist) :
+  Result filter.Verdict
+  := do
+  if dst_port != tls.PORT
+  then ok filter.Verdict.Pass
+  else
+    let b ← filter.hello_blocked data list
+    if b
+    then ok filter.Verdict.Drop
+    else ok filter.Verdict.Pass
+
+/-- [adfilter::filter::classify]:
+    Source: 'crates/adfilter/src/filter.rs', lines 121:0-135:1
+    Visibility: public -/
+def filter.classify
+  (packet : Slice Std.U8) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  Result (filter.Verdict × (Slice Std.U8))
+  := do
+  let u ← untrusted.Untrusted.new packet
+  let r ←
+    untrusted.Untrusted.validate
+      net.udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  match r with
+  | core.result.Result.Ok iu => filter.udp_ipv4 iu list out
+  | core.result.Result.Err _ =>
+    let r1 ←
+      untrusted.Untrusted.validate
+        net.udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError u
+    match r1 with
+    | core.result.Result.Ok iu => filter.udp_ipv6 iu list out
+    | core.result.Result.Err _ =>
+      let r2 ←
+        untrusted.Untrusted.validate
+          net.tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError
+          u
+      match r2 with
+      | core.result.Result.Ok it =>
+        let i := it.header.dst_port
+        let v ← filter.tcp_verdict i it.payload list
+        ok (v, out)
+      | core.result.Result.Err _ =>
+        let r3 ←
+          untrusted.Untrusted.validate
+            net.tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError
+            u
+        match r3 with
+        | core.result.Result.Ok it =>
+          let i := it.header.dst_port
+          let v ← filter.tcp_verdict i it.payload list
+          ok (v, out)
+        | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
+
+/-- [adfilter::filter::classify_stream]:
+    Source: 'crates/adfilter/src/filter.rs', lines 140:0-142:1
+    Visibility: public -/
+def filter.classify_stream
+  (stream : Slice Std.U8) (list : blocklist.Blocklist) : Result Bool := do
+  let u ← untrusted.Untrusted.new stream
+  filter.hello_blocked u list
 
 end adfilter

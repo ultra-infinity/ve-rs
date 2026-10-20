@@ -4,3 +4,4 @@ import Adfilter.NameTop
 import Adfilter.BlocklistTop
 import Adfilter.DnsTop
 import Adfilter.TlsTop
+import Adfilter.FilterTop

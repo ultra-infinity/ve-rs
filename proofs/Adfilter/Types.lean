@@ -54,6 +54,22 @@ structure dns.DnsQuery where
   qclass : Std.U16
   question_len : Std.Usize
 
+/-- [adfilter::dns::Query]
+    Source: 'crates/adfilter/src/dns.rs', lines 57:0-60:1
+    Visibility: public -/
+structure dns.Query where
+  msg : Slice Std.U8
+  query : dns.DnsQuery
+
+/-- [adfilter::filter::Verdict]
+    Source: 'crates/adfilter/src/filter.rs', lines 27:0-34:1
+    Visibility: public -/
+@[discriminant isize]
+inductive filter.Verdict where
+| Pass : filter.Verdict
+| Drop : filter.Verdict
+| Reply : Std.Usize → filter.Verdict
+
 /-- [adfilter::tls::ClientHello]
     Source: 'crates/adfilter/src/tls.rs', lines 41:0-43:1
     Visibility: public -/

@@ -52,6 +52,22 @@ pub struct DnsQuery {
     pub question_len: usize,
 }
 
+/// A [`DnsQuery`] with the message it was decoded from, which [`nxdomain`]
+/// copies the question from.
+pub struct Query<'a> {
+    pub msg: &'a [u8],
+    pub query: DnsQuery,
+}
+
+impl<'a> Validate<&'a [u8]> for Query<'a> {
+    type Err = ValidationError;
+
+    fn validate(msg: &'a [u8]) -> Result<Self, ValidationError> {
+        let query = DnsQuery::validate(msg)?;
+        Ok(Query { msg, query })
+    }
+}
+
 /// Copies `msg[from..from + len]` to `text[at..at + len]`, which must exist.
 fn copy_label(text: &mut [u8; MAX_NAME_LEN], at: usize, msg: &[u8], from: usize, len: usize) {
     let mut j = 0;
