@@ -7,6 +7,7 @@
 
 #![no_std]
 
+pub mod cookie;
 pub mod crypto;
 pub mod inner;
 pub mod message;

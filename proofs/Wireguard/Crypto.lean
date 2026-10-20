@@ -25,7 +25,7 @@ structure Primitives where
   /-- BLAKE2s-256. -/
   hash : List U8 → Key
   /-- Keyed BLAKE2s with a 16-byte output. -/
-  mac : Key → List U8 → (Array U8 16#usize)
+  mac : List U8 → List U8 → (Array U8 16#usize)
   /-- ChaCha20-Poly1305 encryption: key, counter, associated data, plaintext. -/
   aead : Key → Nat → List U8 → List U8 → List U8
   /-- XChaCha20-Poly1305 encryption: key, nonce, associated data, plaintext. -/
@@ -50,7 +50,8 @@ class Laws {C : Type} (inst : Crypto C) (c : C) (P : outParam Primitives) : Prop
     inst.x25519 c k p out = ok (decide ((P.dh k p).val ≠ List.replicate 32 0#u8), P.dh k p)
   x25519_public : ∀ k out, inst.x25519_public c k out = ok (P.pub k)
   hash : ∀ a b out, inst.hash c a b out = ok (P.hash (a.val ++ b.val))
-  mac : ∀ k m out, inst.mac c k m out = ok (P.mac k m.val)
+  mac : ∀ (k m : Slice U8) out, 1 ≤ k.length → k.length ≤ 32 →
+    inst.mac c k m out = ok (P.mac k.val m.val)
   aead_seal : ∀ k (n : U64) ad m (out : Slice U8), out.length = m.length + 16 →
     ∃ out', inst.aead_seal c k n ad m out = ok out' ∧ out'.val = P.aead k n.val ad.val m.val
   aead_open : ∀ k (n : U64) ad ct (out : Slice U8), out.length + 16 = ct.length →
@@ -222,9 +223,10 @@ theorem Laws.x25519_public_step (k out : Key) :
   rw [Laws.x25519_public]; simp
 
 @[step]
-theorem Laws.mac_step (k : Key) (m : Slice U8) (out : Array U8 16#usize) :
-    inst.mac c k m out ⦃ (r : Array U8 16#usize) => r = P.mac k m.val ⦄ := by
-  rw [Laws.mac]; simp
+theorem Laws.mac_step (k m : Slice U8) (out : Array U8 16#usize) (h1 : 1 ≤ k.length)
+    (h2 : k.length ≤ 32) :
+    inst.mac c k m out ⦃ (r : Array U8 16#usize) => r = P.mac k.val m.val ⦄ := by
+  rw [Laws.mac k m out h1 h2]; simp
 
 @[step]
 theorem Laws.ct_eq_step (a b : Array U8 16#usize) :

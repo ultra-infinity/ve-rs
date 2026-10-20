@@ -23,15 +23,246 @@ noncomputable section
 
 namespace wireguard
 
-/-- [wireguard::crypto::KEY_LEN]
-    Source: 'crates/wireguard/src/crypto.rs', lines 11:0-11:30
+/-- [wireguard::cookie::LABEL_MAC1]
+    Source: 'crates/wireguard/src/cookie.rs', lines 22:0-22:45
     Visibility: public -/
-@[global_simps, irreducible] def crypto.KEY_LEN : Std.Usize := 32#usize
+@[global_simps, irreducible]
+def cookie.LABEL_MAC1 : Array Std.U8 8#usize :=
+  Array.make 8#usize [
+    109#u8, 97#u8, 99#u8, 49#u8, 45#u8, 45#u8, 45#u8, 45#u8
+    ]
+
+/-- [wireguard::cookie::LABEL_COOKIE]
+    Source: 'crates/wireguard/src/cookie.rs', lines 24:0-24:47
+    Visibility: public -/
+@[global_simps, irreducible]
+def cookie.LABEL_COOKIE : Array Std.U8 8#usize :=
+  Array.make 8#usize [
+    99#u8, 111#u8, 111#u8, 107#u8, 105#u8, 101#u8, 45#u8, 45#u8
+    ]
+
+/-- [wireguard::cookie::COOKIE_LEN]
+    Source: 'crates/wireguard/src/cookie.rs', lines 26:0-26:33
+    Visibility: public -/
+@[global_simps, irreducible] def cookie.COOKIE_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::cookie::MACS_LEN]
+    Source: 'crates/wireguard/src/cookie.rs', lines 29:0-29:31
+    Visibility: public -/
+@[global_simps, irreducible] def cookie.MACS_LEN : Std.Usize := 32#usize
+
+/-- [wireguard::cookie::mac1_key]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 32:0-36:1
+    Visibility: public -/
+def cookie.mac1_key
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (static_public : Array Std.U8 32#usize) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let out := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice cookie.LABEL_MAC1)
+  let s1 ← lift (Array.to_slice static_public)
+  cryptoCryptoInst.hash c s s1 out
+
+/-- [wireguard::cookie::cookie_key]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 39:0-43:1
+    Visibility: public -/
+def cookie.cookie_key
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (static_public : Array Std.U8 32#usize) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let out := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice cookie.LABEL_COOKIE)
+  let s1 ← lift (Array.to_slice static_public)
+  cryptoCryptoInst.hash c s s1 out
 
 /-- [wireguard::crypto::MAC_LEN]
     Source: 'crates/wireguard/src/crypto.rs', lines 13:0-13:30
     Visibility: public -/
 @[global_simps, irreducible] def crypto.MAC_LEN : Std.Usize := 16#usize
+
+/-- [wireguard::cookie::mac_at]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 46:0-54:1 -/
+def cookie.mac_at
+  (msg : Slice Std.U8) (pos : Std.Usize) : Result (Array Std.U8 16#usize) := do
+  let i ← pos + crypto.MAC_LEN
+  let s ←
+    core.slice.index.Slice.index (core.slice.index.SliceIndexRangeUsizeSlice
+      Std.U8) msg { start := pos, «end» := i }
+  let u ← untrusted.Untrusted.new s
+  let r ←
+    untrusted.reader.UntrustedShared0SliceU8.read_all
+      (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) u
+  match r with
+  | core.result.Result.Ok m => ok m
+  | core.result.Result.Err _ => ok (Array.repeat 16#usize 0#u8)
+
+/-- [wireguard::message::put_bytes]: loop 0:
+    Source: 'crates/wireguard/src/message.rs', lines 149:4-152:5 -/
+@[rust_loop]
+def message.put_bytes_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let i3 ← pos + i
+    let s ← Slice.update out i3 i2
+    let i4 ← i + 1#usize
+    message.put_bytes_loop s pos src i4
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::message::put_bytes]:
+    Source: 'crates/wireguard/src/message.rs', lines 147:0-154:1 -/
+def message.put_bytes
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let out1 ← message.put_bytes_loop out pos src 0#usize
+  let i := Slice.len src
+  let i1 ← pos + i
+  ok (i1, out1)
+
+/-- [wireguard::cookie::add_macs]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 61:0-77:1
+    Visibility: public -/
+def cookie.add_macs
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (msg : Slice Std.U8) (mac1_key : Array Std.U8 32#usize)
+  (tau : Option (Array Std.U8 16#usize)) :
+  Result ((Array Std.U8 16#usize) × (Slice Std.U8))
+  := do
+  let n := Slice.len msg
+  let mac1 := Array.repeat 16#usize 0#u8
+  let s ← lift (Array.to_slice mac1_key)
+  let i ← n - cookie.MACS_LEN
+  let s1 ←
+    core.slice.index.Slice.index (core.slice.index.SliceIndexRangeToUsizeSlice
+      Std.U8) msg { «end» := i }
+  let mac11 ← cryptoCryptoInst.mac c s s1 mac1
+  let s2 ← lift (Array.to_slice mac11)
+  let (_, msg1) ← message.put_bytes msg i s2
+  let mac2 := Array.repeat 16#usize 0#u8
+  let mac21 ←
+    match tau with
+    | none => ok mac2
+    | some tau1 =>
+      do
+      let s3 ← lift (Array.to_slice tau1)
+      let i1 ← n - crypto.MAC_LEN
+      let s4 ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) msg1
+          { «end» := i1 }
+      cryptoCryptoInst.mac c s3 s4 mac2
+  let i1 ← n - crypto.MAC_LEN
+  let s3 ← lift (Array.to_slice mac21)
+  let (_, msg2) ← message.put_bytes msg1 i1 s3
+  ok (mac11, msg2)
+
+/-- [wireguard::cookie::check_mac1]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 81:0-89:1
+    Visibility: public -/
+def cookie.check_mac1
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (msg : Slice Std.U8) (mac1_key : Array Std.U8 32#usize) :
+  Result Bool
+  := do
+  let n := Slice.len msg
+  if n < cookie.MACS_LEN
+  then ok false
+  else
+    let expected := Array.repeat 16#usize 0#u8
+    let s ← lift (Array.to_slice mac1_key)
+    let i ← n - cookie.MACS_LEN
+    let s1 ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) msg
+        { «end» := i }
+    let expected1 ← cryptoCryptoInst.mac c s s1 expected
+    let a ← cookie.mac_at msg i
+    cryptoCryptoInst.ct_eq c expected1 a
+
+/-- [wireguard::cookie::check_mac2]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 93:0-101:1
+    Visibility: public -/
+def cookie.check_mac2
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (msg : Slice Std.U8) (tau : Array Std.U8 16#usize) :
+  Result Bool
+  := do
+  let n := Slice.len msg
+  if n < cookie.MACS_LEN
+  then ok false
+  else
+    let expected := Array.repeat 16#usize 0#u8
+    let s ← lift (Array.to_slice tau)
+    let i ← n - crypto.MAC_LEN
+    let s1 ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) msg
+        { «end» := i }
+    let expected1 ← cryptoCryptoInst.mac c s s1 expected
+    let a ← cookie.mac_at msg i
+    cryptoCryptoInst.ct_eq c expected1 a
+
+/-- [wireguard::cookie::make_cookie]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 105:0-109:1
+    Visibility: public -/
+def cookie.make_cookie
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (secret : Array Std.U8 32#usize) (address : Slice Std.U8) :
+  Result (Array Std.U8 16#usize)
+  := do
+  let out := Array.repeat 16#usize 0#u8
+  let s ← lift (Array.to_slice secret)
+  cryptoCryptoInst.mac c s address out
+
+/-- [wireguard::cookie::create_cookie_reply]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 113:0-128:1
+    Visibility: public -/
+def cookie.create_cookie_reply
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (cookie_key : Array Std.U8 32#usize) (receiver : Std.U32)
+  (nonce : Array Std.U8 24#usize) (tau : Array Std.U8 16#usize)
+  (mac1 : Array Std.U8 16#usize) :
+  Result message.CookieReply
+  := do
+  let encrypted_cookie := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice mac1)
+  let s1 ← lift (Array.to_slice tau)
+  let (s2, to_slice_mut_back) ← lift (Array.to_slice_mut encrypted_cookie)
+  let s3 ← cryptoCryptoInst.xaead_seal c cookie_key nonce s s1 s2
+  let encrypted_cookie1 := to_slice_mut_back s3
+  ok { receiver := receiver, nonce, encrypted_cookie := encrypted_cookie1 }
+
+/-- [wireguard::cookie::consume_cookie_reply]:
+    Source: 'crates/wireguard/src/cookie.rs', lines 132:0-149:1
+    Visibility: public -/
+def cookie.consume_cookie_reply
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (cookie_key : Array Std.U8 32#usize) (msg : message.CookieReply)
+  (mac1 : Array Std.U8 16#usize) :
+  Result (Option (Array Std.U8 16#usize))
+  := do
+  let tau := Array.repeat 16#usize 0#u8
+  let s ← lift (Array.to_slice mac1)
+  let s1 ← lift (Array.to_slice msg.encrypted_cookie)
+  let (s2, to_slice_mut_back) ← lift (Array.to_slice_mut tau)
+  let (b, s3) ← cryptoCryptoInst.xaead_open c cookie_key msg.nonce s s1 s2
+  if b
+  then let tau1 := to_slice_mut_back s3
+       ok (some tau1)
+  else ok none
+
+/-- [wireguard::crypto::KEY_LEN]
+    Source: 'crates/wireguard/src/crypto.rs', lines 11:0-11:30
+    Visibility: public -/
+@[global_simps, irreducible] def crypto.KEY_LEN : Std.Usize := 32#usize
 
 /-- [wireguard::crypto::XNONCE_LEN]
     Source: 'crates/wireguard/src/crypto.rs', lines 15:0-15:33
@@ -49,7 +280,7 @@ namespace wireguard
 @[global_simps, irreducible] def crypto.BLOCK_LEN : Std.Usize := 64#usize
 
 /-- [wireguard::crypto::hmac]: loop 0:
-    Source: 'crates/wireguard/src/crypto.rs', lines 91:4-94:5
+    Source: 'crates/wireguard/src/crypto.rs', lines 93:4-96:5
     Visibility: public -/
 @[rust_loop]
 def crypto.hmac_loop0
@@ -71,7 +302,7 @@ def crypto.hmac_loop0
 partial_fixpoint
 
 /-- [wireguard::crypto::hmac]: loop 1:
-    Source: 'crates/wireguard/src/crypto.rs', lines 99:4-102:5
+    Source: 'crates/wireguard/src/crypto.rs', lines 101:4-104:5
     Visibility: public -/
 @[rust_loop]
 def crypto.hmac_loop1
@@ -90,7 +321,7 @@ def crypto.hmac_loop1
 partial_fixpoint
 
 /-- [wireguard::crypto::hmac]:
-    Source: 'crates/wireguard/src/crypto.rs', lines 87:0-106:1
+    Source: 'crates/wireguard/src/crypto.rs', lines 89:0-108:1
     Visibility: public -/
 def crypto.hmac
   {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
@@ -109,7 +340,7 @@ def crypto.hmac
   CryptoInst.hash c s1 s2 out
 
 /-- [wireguard::crypto::append_byte]: loop 0:
-    Source: 'crates/wireguard/src/crypto.rs', lines 112:4-115:5 -/
+    Source: 'crates/wireguard/src/crypto.rs', lines 114:4-117:5 -/
 @[rust_loop]
 def crypto.append_byte_loop
   (t : Array Std.U8 32#usize) (out : Array Std.U8 33#usize) (i : Std.Usize) :
@@ -125,7 +356,7 @@ def crypto.append_byte_loop
 partial_fixpoint
 
 /-- [wireguard::crypto::append_byte]:
-    Source: 'crates/wireguard/src/crypto.rs', lines 109:0-117:1 -/
+    Source: 'crates/wireguard/src/crypto.rs', lines 111:0-119:1 -/
 def crypto.append_byte
   (t : Array Std.U8 32#usize) (b : Std.U8) :
   Result (Array Std.U8 33#usize)
@@ -134,7 +365,7 @@ def crypto.append_byte
   crypto.append_byte_loop t out 0#usize
 
 /-- [wireguard::crypto::kdf1]:
-    Source: 'crates/wireguard/src/crypto.rs', lines 120:0-123:1
+    Source: 'crates/wireguard/src/crypto.rs', lines 122:0-125:1
     Visibility: public -/
 def crypto.kdf1
   {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
@@ -146,7 +377,7 @@ def crypto.kdf1
   crypto.hmac CryptoInst c t0 s
 
 /-- [wireguard::crypto::kdf2]:
-    Source: 'crates/wireguard/src/crypto.rs', lines 126:0-131:1
+    Source: 'crates/wireguard/src/crypto.rs', lines 128:0-133:1
     Visibility: public -/
 def crypto.kdf2
   {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
@@ -162,7 +393,7 @@ def crypto.kdf2
   ok (t1, t2)
 
 /-- [wireguard::crypto::kdf3]:
-    Source: 'crates/wireguard/src/crypto.rs', lines 134:0-144:1
+    Source: 'crates/wireguard/src/crypto.rs', lines 136:0-146:1
     Visibility: public -/
 def crypto.kdf3
   {C : Type _} (CryptoInst : crypto.Crypto C) (c : C)
@@ -662,35 +893,6 @@ def message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError :
   validate :=
     message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
-
-/-- [wireguard::message::put_bytes]: loop 0:
-    Source: 'crates/wireguard/src/message.rs', lines 149:4-152:5 -/
-@[rust_loop]
-def message.put_bytes_loop
-  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
-  Result (Slice Std.U8)
-  := do
-  let i1 := Slice.len src
-  if i < i1
-  then
-    let i2 ← Slice.index_usize src i
-    let i3 ← pos + i
-    let s ← Slice.update out i3 i2
-    let i4 ← i + 1#usize
-    message.put_bytes_loop s pos src i4
-  else ok out
-partial_fixpoint
-
-/-- [wireguard::message::put_bytes]:
-    Source: 'crates/wireguard/src/message.rs', lines 147:0-154:1 -/
-def message.put_bytes
-  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
-  Result (Std.Usize × (Slice Std.U8))
-  := do
-  let out1 ← message.put_bytes_loop out pos src 0#usize
-  let i := Slice.len src
-  let i1 ← pos + i
-  ok (i1, out1)
 
 /-- [wireguard::message::put_u32]:
     Source: 'crates/wireguard/src/message.rs', lines 135:0-143:1 -/

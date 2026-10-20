@@ -144,7 +144,7 @@ fn put_u32(out: &mut [u8], pos: usize, v: u32) -> usize {
 
 /// Writes `src` at `out[pos..pos + src.len()]`, which must exist. Returns
 /// `pos + src.len()`.
-fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) -> usize {
+pub(crate) fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) -> usize {
     let mut i = 0;
     while i < src.len() {
         out[pos + i] = src[i];

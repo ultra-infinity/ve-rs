@@ -35,8 +35,10 @@ pub trait Crypto {
     fn x25519_public(&self, private: &[u8; KEY_LEN], out: &mut [u8; KEY_LEN]);
     /// BLAKE2s-256 of `a ‖ b`.
     fn hash(&self, a: &[u8], b: &[u8], out: &mut [u8; KEY_LEN]);
-    /// Keyed BLAKE2s with a 16-byte output: `MAC(key, input)`.
-    fn mac(&self, key: &[u8; KEY_LEN], input: &[u8], out: &mut [u8; MAC_LEN]);
+    /// Keyed BLAKE2s with a 16-byte output: `MAC(key, input)`. The key is 1 to
+    /// 32 bytes: a 32-byte key for `mac1` and cookies, a 16-byte cookie for
+    /// `mac2`.
+    fn mac(&self, key: &[u8], input: &[u8], out: &mut [u8; MAC_LEN]);
     /// ChaCha20-Poly1305 encryption of `plaintext` with associated data `ad`,
     /// under the nonce made of 4 zero bytes then `counter`, little-endian.
     /// `out` must be exactly `plaintext.len() + 16` bytes: the ciphertext,

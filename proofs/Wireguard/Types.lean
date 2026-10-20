@@ -20,7 +20,7 @@ set_option maxRecDepth 2048
 namespace wireguard
 
 /-- Trait declaration: [wireguard::crypto::Crypto]
-    Source: 'crates/wireguard/src/crypto.rs', lines 25:0-84:1
+    Source: 'crates/wireguard/src/crypto.rs', lines 25:0-86:1
     Visibility: public -/
 structure crypto.Crypto (Self : Type _) where
   x25519 : Self → Array Std.U8 32#usize → Array Std.U8 32#usize → Array
@@ -29,8 +29,8 @@ structure crypto.Crypto (Self : Type _) where
     Result (Array Std.U8 32#usize)
   hash : Self → Slice Std.U8 → Slice Std.U8 → Array Std.U8 32#usize →
     Result (Array Std.U8 32#usize)
-  mac : Self → Array Std.U8 32#usize → Slice Std.U8 → Array Std.U8
-    16#usize → Result (Array Std.U8 16#usize)
+  mac : Self → Slice Std.U8 → Slice Std.U8 → Array Std.U8 16#usize →
+    Result (Array Std.U8 16#usize)
   aead_seal : Self → Array Std.U8 32#usize → Std.U64 → Slice Std.U8 →
     Slice Std.U8 → Slice Std.U8 → Result (Slice Std.U8)
   aead_open : Self → Array Std.U8 32#usize → Std.U64 → Slice Std.U8 →
@@ -42,6 +42,14 @@ structure crypto.Crypto (Self : Type _) where
     Std.U8))
   ct_eq : Self → Array Std.U8 16#usize → Array Std.U8 16#usize → Result
     Bool
+
+/-- [wireguard::message::CookieReply]
+    Source: 'crates/wireguard/src/message.rs', lines 71:0-75:1
+    Visibility: public -/
+structure message.CookieReply where
+  receiver : untrusted.bytes.LittleEndian Std.U32
+  nonce : Array Std.U8 24#usize
+  encrypted_cookie : Array Std.U8 32#usize
 
 /-- [wireguard::message::Initiation]
     Source: 'crates/wireguard/src/message.rs', lines 49:0-56:1
@@ -64,14 +72,6 @@ structure message.Response where
   encrypted_nothing : Array Std.U8 16#usize
   mac1 : Array Std.U8 16#usize
   mac2 : Array Std.U8 16#usize
-
-/-- [wireguard::message::CookieReply]
-    Source: 'crates/wireguard/src/message.rs', lines 71:0-75:1
-    Visibility: public -/
-structure message.CookieReply where
-  receiver : untrusted.bytes.LittleEndian Std.U32
-  nonce : Array Std.U8 24#usize
-  encrypted_cookie : Array Std.U8 32#usize
 
 /-- [wireguard::message::TransportHeader]
     Source: 'crates/wireguard/src/message.rs', lines 79:0-82:1

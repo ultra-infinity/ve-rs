@@ -54,8 +54,11 @@ impl Crypto for Libcrux {
         h.finalize(out);
     }
 
-    fn mac(&self, key: &[u8; KEY_LEN], input: &[u8], out: &mut [u8; MAC_LEN]) {
-        let mut h = Blake2sBuilder::new_keyed_const(key).build_const_digest_len::<MAC_LEN>();
+    fn mac(&self, key: &[u8], input: &[u8], out: &mut [u8; MAC_LEN]) {
+        // Keys of 1 to 32 bytes are valid, as `Crypto::mac` requires.
+        let mut h = Blake2sBuilder::new_keyed_dynamic(key)
+            .expect("MAC key must be 1 to 32 bytes")
+            .build_const_digest_len::<MAC_LEN>();
         h.update(input).expect("BLAKE2s input too long");
         h.finalize(out);
     }
