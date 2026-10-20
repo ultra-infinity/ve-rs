@@ -10,6 +10,7 @@
 pub mod allowed_ips;
 pub mod cookie;
 pub mod crypto;
+pub mod device;
 pub mod inner;
 pub mod message;
 pub mod noise;

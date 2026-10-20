@@ -8,3 +8,4 @@ import Wireguard.CookieTop
 import Wireguard.ReplayTop
 import Wireguard.AllowedIpsTop
 import Wireguard.TransportTop
+import Wireguard.DeviceTop

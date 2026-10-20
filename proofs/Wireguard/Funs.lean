@@ -607,44 +607,884 @@ def crypto.kdf3
   let t3 ← crypto.hmac CryptoInst c t0 s2
   ok (t1, t2, t3)
 
-/-- [wireguard::inner::ipv4_source]:
-    Source: 'crates/wireguard/src/inner.rs', lines 7:0-12:1
+/-- [wireguard::device::MAX_PEERS]
+    Source: 'crates/wireguard/src/device.rs', lines 44:0-44:32
     Visibility: public -/
-def inner.ipv4_source (packet : Slice Std.U8) : Result (Option Std.U32) := do
-  let u ← untrusted.Untrusted.new packet
-  let r ←
-    untrusted.Untrusted.validate
-      net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
-      u
-  match r with
-  | core.result.Result.Ok ip => let i := ip.header.src
-                                ok (some i)
-  | core.result.Result.Err _ => ok none
+@[global_simps, irreducible] def device.MAX_PEERS : Std.Usize := 16#usize
+
+/-- [wireguard::device::MAX_PACKET_LEN]
+    Source: 'crates/wireguard/src/device.rs', lines 46:0-46:40
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.MAX_PACKET_LEN : Std.Usize := 65535#usize
+
+/-- [wireguard::device::REKEY_AFTER_MESSAGES]
+    Source: 'crates/wireguard/src/device.rs', lines 50:0-50:64
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.REKEY_AFTER_MESSAGES : Std.U64 := 1152921504606846976#u64
+
+/-- [wireguard::device::REKEY_AFTER_TIME]
+    Source: 'crates/wireguard/src/device.rs', lines 53:0-53:50
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.REKEY_AFTER_TIME : Std.U64 := 120000000000#u64
+
+/-- [wireguard::device::REJECT_AFTER_TIME]
+    Source: 'crates/wireguard/src/device.rs', lines 55:0-55:51
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.REJECT_AFTER_TIME : Std.U64 := 180000000000#u64
+
+/-- [wireguard::device::ERASE_AFTER_TIME]
+    Source: 'crates/wireguard/src/device.rs', lines 57:0-57:50
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.ERASE_AFTER_TIME : Std.U64 := 540000000000#u64
+
+/-- [wireguard::device::REKEY_ATTEMPT_TIME]
+    Source: 'crates/wireguard/src/device.rs', lines 59:0-59:51
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.REKEY_ATTEMPT_TIME : Std.U64 := 90000000000#u64
+
+/-- [wireguard::device::REKEY_TIMEOUT]
+    Source: 'crates/wireguard/src/device.rs', lines 61:0-61:45
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.REKEY_TIMEOUT : Std.U64 := 5000000000#u64
+
+/-- [wireguard::device::KEEPALIVE_TIMEOUT]
+    Source: 'crates/wireguard/src/device.rs', lines 63:0-63:50
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.KEEPALIVE_TIMEOUT : Std.U64 := 10000000000#u64
+
+/-- [wireguard::device::COOKIE_SECRET_MAX_AGE]
+    Source: 'crates/wireguard/src/device.rs', lines 65:0-65:55
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.COOKIE_SECRET_MAX_AGE : Std.U64 := 120000000000#u64
+
+/-- [wireguard::device::COOKIE_MAX_AGE]
+    Source: 'crates/wireguard/src/device.rs', lines 68:0-68:48
+    Visibility: public -/
+@[global_simps, irreducible]
+def device.COOKIE_MAX_AGE : Std.U64 := 115000000000#u64
+
+/-- [wireguard::device::{wireguard::device::Endpoint}::cookie_bytes]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 85:8-88:9 -/
+@[rust_loop]
+def device.Endpoint.cookie_bytes_loop
+  (a : Array Std.U8 16#usize) (out : Array Std.U8 19#usize) (i : Std.Usize) :
+  Result (Array Std.U8 19#usize)
+  := do
+  if i < 16#usize
+  then
+    let i1 ← Array.index_usize a i
+    let i2 ← 1#usize + i
+    let a1 ← Array.update out i2 i1
+    let i3 ← i + 1#usize
+    device.Endpoint.cookie_bytes_loop a a1 i3
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Endpoint}::cookie_bytes]:
+    Source: 'crates/wireguard/src/device.rs', lines 81:4-92:5 -/
+def device.Endpoint.cookie_bytes
+  (self : device.Endpoint) : Result (Array Std.U8 19#usize) := do
+  let out := Array.repeat 19#usize 0#u8
+  let i ← if self.v6
+            then ok 6#u8
+            else ok 4#u8
+  let a ← Array.update out 0#usize i
+  let out1 ← device.Endpoint.cookie_bytes_loop self.addr a 0#usize
+  let i1 ← self.port / 256#u16
+  let i2 ← lift (UScalar.cast .U8 i1)
+  let out2 ← Array.update out1 17#usize i2
+  let i3 ← self.port % 256#u16
+  let i4 ← lift (UScalar.cast .U8 i3)
+  Array.update out2 18#usize i4
+
+/-- [wireguard::device::{wireguard::device::Endpoint}::unset]:
+    Source: 'crates/wireguard/src/device.rs', lines 94:4-100:5 -/
+def device.Endpoint.unset : Result device.Endpoint := do
+  let a := Array.repeat 16#usize 0#u8
+  ok { v6 := false, addr := a, port := 0#u16 }
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::new]:
+    Source: 'crates/wireguard/src/replay.rs', lines 34:4-39:5
+    Visibility: public -/
+def replay.Replay.new : Result replay.Replay := do
+  let a := Array.repeat 128#usize 0#u64
+  ok { top := 0#u64, bitmap := a }
+
+/-- [wireguard::device::{wireguard::device::Keypair}::empty]:
+    Source: 'crates/wireguard/src/device.rs', lines 151:4-163:5 -/
+def device.Keypair.empty : Result device.Keypair := do
+  let a := Array.repeat 32#usize 0#u8
+  let a1 := Array.repeat 32#usize 0#u8
+  let r ← replay.Replay.new
+  ok
+    {
+      valid := false,
+      initiator := false,
+      send := a,
+      recv := a1,
+      local_index := 0#u32,
+      remote_index := 0#u32,
+      counter := 0#u64,
+      replay := r,
+      created := 0#u64
+    }
+
+/-- [wireguard::device::{wireguard::device::Peer}::empty]:
+    Source: 'crates/wireguard/src/device.rs', lines 216:4-252:5 -/
+def device.Peer.empty : Result device.Peer := do
+  let a := Array.repeat 32#usize 0#u8
+  let a1 := Array.repeat 32#usize 0#u8
+  let a2 := Array.repeat 32#usize 0#u8
+  let a3 := Array.repeat 32#usize 0#u8
+  let e ← device.Endpoint.unset
+  let a4 := Array.repeat 12#usize 0#u8
+  let a5 := Array.repeat 32#usize 0#u8
+  let a6 := Array.repeat 32#usize 0#u8
+  let a7 := Array.repeat 32#usize 0#u8
+  let a8 := Array.repeat 16#usize 0#u8
+  let a9 := Array.repeat 16#usize 0#u8
+  let k ← device.Keypair.empty
+  ok
+    {
+      «public» := a,
+      psk := a1,
+      mac1_key := a2,
+      cookie_key := a3,
+      endpoint := e,
+      has_endpoint := false,
+      persistent_keepalive := 0#u64,
+      last_timestamp := a4,
+      handshake :=
+        {
+          active := false,
+          local_index := 0#u32,
+          state :=
+            { chain := { key := a5, hash := a6 }, ephemeral_private := a7 }
+        },
+      last_mac1 := a8,
+      cookie := a9,
+      has_cookie := false,
+      cookie_at := 0#u64,
+      current := k,
+      previous := k,
+      next := k,
+      initiation_at := 0#u64,
+      has_initiation := false,
+      attempt_started := 0#u64,
+      rekey_wanted := false,
+      last_sent := 0#u64,
+      last_received := 0#u64,
+      keepalive_due := false
+    }
+
+/-- [wireguard::device::elapsed]:
+    Source: 'crates/wireguard/src/device.rs', lines 277:0-283:1 -/
+def device.elapsed (since : Std.U64) (now : Std.U64) : Result Std.U64 := do
+  if now >= since
+  then now - since
+  else ok 0#u64
+
+/-- [wireguard::device::keys_equal]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 289:4-294:5 -/
+@[rust_loop]
+def device.keys_equal_loop
+  (a : Array Std.U8 32#usize) (b : Array Std.U8 32#usize) (equal : Bool)
+  (i : Std.Usize) :
+  Result Bool
+  := do
+  if i < crypto.KEY_LEN
+  then
+    let i1 ← Array.index_usize a i
+    let i2 ← Array.index_usize b i
+    let equal1 ← if i1 != i2
+                   then ok false
+                   else ok equal
+    let i3 ← i + 1#usize
+    device.keys_equal_loop a b equal1 i3
+  else ok equal
+partial_fixpoint
+
+/-- [wireguard::device::keys_equal]:
+    Source: 'crates/wireguard/src/device.rs', lines 286:0-296:1 -/
+@[reducible]
+def device.keys_equal
+  (a : Array Std.U8 32#usize) (b : Array Std.U8 32#usize) : Result Bool := do
+  device.keys_equal_loop a b true 0#usize
+
+/-- [wireguard::device::can_receive]:
+    Source: 'crates/wireguard/src/device.rs', lines 300:0-302:1 -/
+def device.can_receive
+  (kp : device.Keypair) (now : Std.U64) : Result Bool := do
+  if kp.valid
+  then
+    if kp.created <= now
+    then let i ← now - kp.created
+         ok (i < device.REJECT_AFTER_TIME)
+    else ok false
+  else ok false
+
+/-- [wireguard::replay::REJECT_AFTER_MESSAGES]
+    Source: 'crates/wireguard/src/replay.rs', lines 17:0-17:66
+    Visibility: public -/
+@[global_simps, irreducible]
+def replay.REJECT_AFTER_MESSAGES : Std.U64 := 18446744073709543423#u64
+
+/-- [wireguard::device::can_send]:
+    Source: 'crates/wireguard/src/device.rs', lines 306:0-308:1 -/
+def device.can_send (kp : device.Keypair) (now : Std.U64) : Result Bool := do
+  let b ← device.can_receive kp now
+  if b
+  then ok (kp.counter < replay.REJECT_AFTER_MESSAGES)
+  else ok false
+
+/-- [wireguard::device::session_slot]:
+    Source: 'crates/wireguard/src/device.rs', lines 312:0-322:1 -/
+def device.session_slot
+  (p : device.Peer) (index : Std.U32) : Result Std.U8 := do
+  if p.current.valid
+  then
+    if p.current.local_index = index
+    then ok 0#u8
+    else
+      if p.previous.valid
+      then
+        if p.previous.local_index = index
+        then ok 1#u8
+        else
+          if p.next.valid
+          then if p.next.local_index = index
+               then ok 2#u8
+               else ok 3#u8
+          else ok 3#u8
+      else
+        if p.next.valid
+        then if p.next.local_index = index
+             then ok 2#u8
+             else ok 3#u8
+        else ok 3#u8
+  else
+    if p.previous.valid
+    then
+      if p.previous.local_index = index
+      then ok 1#u8
+      else
+        if p.next.valid
+        then if p.next.local_index = index
+             then ok 2#u8
+             else ok 3#u8
+        else ok 3#u8
+    else
+      if p.next.valid
+      then if p.next.local_index = index
+           then ok 2#u8
+           else ok 3#u8
+      else ok 3#u8
+
+/-- [wireguard::device::keypair]:
+    Source: 'crates/wireguard/src/device.rs', lines 325:0-333:1 -/
+def device.keypair
+  (p : device.Peer) (slot : Std.U8) : Result device.Keypair := do
+  if slot = 0#u8
+  then ok p.current
+  else if slot = 1#u8
+       then ok p.previous
+       else ok p.next
+
+/-- [wireguard::device::set_keypair]:
+    Source: 'crates/wireguard/src/device.rs', lines 336:0-344:1 -/
+def device.set_keypair
+  (p : device.Peer) (slot : Std.U8) (kp : device.Keypair) :
+  Result device.Peer
+  := do
+  if slot = 0#u8
+  then ok { p with current := kp }
+  else
+    if slot = 1#u8
+    then ok { p with previous := kp }
+    else ok { p with next := kp }
+
+/-- [wireguard::device::uses_index]:
+    Source: 'crates/wireguard/src/device.rs', lines 348:0-350:1 -/
+def device.uses_index (p : device.Peer) (index : Std.U32) : Result Bool := do
+  let i ← device.session_slot p index
+  if i != 3#u8
+  then ok true
+  else
+    if p.handshake.active
+    then ok (p.handshake.local_index = index)
+    else ok false
+
+/-- [wireguard::device::expired]:
+    Source: 'crates/wireguard/src/device.rs', lines 353:0-355:1 -/
+def device.expired (kp : device.Keypair) (now : Std.U64) : Result Bool := do
+  if kp.valid
+  then
+    let i ← device.elapsed kp.created now
+    ok (i >= device.ERASE_AFTER_TIME)
+  else ok false
+
+/-- [wireguard::device::rotate]:
+    Source: 'crates/wireguard/src/device.rs', lines 359:0-363:1 -/
+def device.rotate (p : device.Peer) : Result device.Peer := do
+  let k ← device.Keypair.empty
+  ok { p with current := p.next, previous := p.current, next := k }
+
+/-- [wireguard::device::erase_old]:
+    Source: 'crates/wireguard/src/device.rs', lines 366:0-376:1 -/
+def device.erase_old
+  (p : device.Peer) (now : Std.U64) : Result device.Peer := do
+  let b ← device.expired p.current now
+  let k ← if b
+            then device.Keypair.empty
+            else ok p.current
+  let b1 ← device.expired p.previous now
+  let k1 ← if b1
+             then device.Keypair.empty
+             else ok p.previous
+  let b2 ← device.expired p.next now
+  if b2
+  then
+    let k2 ← device.Keypair.empty
+    ok { p with current := k, previous := k1, next := k2 }
+  else ok { p with current := k, previous := k1 }
+
+/-- [wireguard::device::initiation_too_soon]:
+    Source: 'crates/wireguard/src/device.rs', lines 379:0-381:1 -/
+def device.initiation_too_soon
+  (p : device.Peer) (now : Std.U64) : Result Bool := do
+  if p.has_initiation
+  then
+    let i ← device.elapsed p.initiation_at now
+    ok (i < device.REKEY_TIMEOUT)
+  else ok false
+
+/-- [wireguard::device::wants_rekey]:
+    Source: 'crates/wireguard/src/device.rs', lines 386:0-389:1 -/
+def device.wants_rekey
+  (kp : device.Keypair) (now : Std.U64) : Result Bool := do
+  if kp.counter >= device.REKEY_AFTER_MESSAGES
+  then ok true
+  else
+    if kp.initiator
+    then
+      let i ← device.elapsed kp.created now
+      ok (i >= device.REKEY_AFTER_TIME)
+    else ok false
+
+/-- [wireguard::device::handshake_timer]:
+    Source: 'crates/wireguard/src/device.rs', lines 395:0-408:1 -/
+def device.handshake_timer
+  (p : device.Peer) (now : Std.U64) : Result (Bool × device.Peer) := do
+  if p.handshake.active
+  then
+    let i ← device.elapsed p.initiation_at now
+    if i < device.REKEY_TIMEOUT
+    then ok (false, p)
+    else
+      let i1 ← device.elapsed p.attempt_started now
+      if i1 >= device.REKEY_ATTEMPT_TIME
+      then
+        ok (false,
+          {
+            p
+              with
+              handshake := { p.handshake with active := false },
+              rekey_wanted := false
+          })
+      else ok (true, p)
+  else ok (p.rekey_wanted, p)
+
+/-- [wireguard::device::keepalive_timer]:
+    Source: 'crates/wireguard/src/device.rs', lines 414:0-422:1 -/
+def device.keepalive_timer
+  (p : device.Peer) (now : Std.U64) : Result (Bool × device.Peer) := do
+  if p.keepalive_due
+  then
+    let i ← device.elapsed p.last_received now
+    if i >= device.KEEPALIVE_TIMEOUT
+    then
+      let b ← device.can_send p.current now
+      if b
+      then ok (true, { p with keepalive_due := false })
+      else
+        if p.persistent_keepalive > 0#u64
+        then
+          let i1 ← device.elapsed p.last_sent now
+          ok (i1 >= p.persistent_keepalive, { p with keepalive_due := false })
+        else ok (false, { p with keepalive_due := false })
+    else
+      if p.persistent_keepalive > 0#u64
+      then
+        let i1 ← device.elapsed p.last_sent now
+        ok (i1 >= p.persistent_keepalive, p)
+      else ok (false, p)
+  else
+    if p.persistent_keepalive > 0#u64
+    then
+      let i ← device.elapsed p.last_sent now
+      ok (i >= p.persistent_keepalive, p)
+    else ok (false, p)
+
+/-- [wireguard::device::timers]:
+    Source: 'crates/wireguard/src/device.rs', lines 426:0-435:1 -/
+def device.timers
+  (p : device.Peer) (now : Std.U64) : Result (Std.U8 × device.Peer) := do
+  let p1 ← device.erase_old p now
+  let (b, p2) ← device.handshake_timer p1 now
+  if b
+  then ok (1#u8, p2)
+  else
+    let (b1, p3) ← device.keepalive_timer p2 now
+    if b1
+    then ok (2#u8, p3)
+    else ok (0#u8, p3)
+
+/-- [wireguard::device::copy_out]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 443:4-446:5 -/
+@[rust_loop]
+def device.copy_out_loop
+  (out : Slice Std.U8) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let s ← Slice.update out i i2
+    let i3 ← i + 1#usize
+    device.copy_out_loop s src i3
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::device::copy_out]:
+    Source: 'crates/wireguard/src/device.rs', lines 438:0-448:1 -/
+def device.copy_out
+  (out : Slice Std.U8) (src : Slice Std.U8) :
+  Result (Bool × (Slice Std.U8))
+  := do
+  let i := Slice.len out
+  let i1 := Slice.len src
+  if i < i1
+  then ok (false, out)
+  else let out1 ← device.copy_out_loop out src 0#usize
+       ok (true, out1)
+
+/-- [wireguard::device::{wireguard::device::Device}::new]:
+    Source: 'crates/wireguard/src/device.rs', lines 456:4-472:5
+    Visibility: public -/
+def device.Device.new
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  («private» : Array Std.U8 32#usize) :
+  Result device.Device
+  := do
+  let «public» := Array.repeat 32#usize 0#u8
+  let public1 ← cryptoCryptoInst.x25519_public c «private» «public»
+  let a ← cookie.mac1_key cryptoCryptoInst c public1
+  let a1 ← cookie.cookie_key cryptoCryptoInst c public1
+  let p ← device.Peer.empty
+  let a2 := Array.repeat 16#usize p
+  let ai ← allowed_ips.AllowedIps.new
+  let a3 := Array.repeat 32#usize 0#u8
+  ok
+    {
+      «private»,
+      «public» := public1,
+      mac1_key := a,
+      cookie_key := a1,
+      peers := a2,
+      peer_count := 0#usize,
+      allowed_ips := ai,
+      cookie_secret := a3,
+      has_cookie_secret := false,
+      cookie_secret_at := 0#u64,
+      now := 0#u64
+    }
+
+/-- [wireguard::device::{wireguard::device::Device}::find_peer]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 531:8-533:9 -/
+@[rust_loop]
+def device.Device.find_peer_loop
+  (self : device.Device) («public» : Array Std.U8 32#usize) (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < self.peer_count
+  then
+    let p ← Array.index_usize self.peers i
+    let b ← device.keys_equal p.public «public»
+    if b
+    then ok i
+    else let i1 ← i + 1#usize
+         device.Device.find_peer_loop self «public» i1
+  else ok i
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::find_peer]:
+    Source: 'crates/wireguard/src/device.rs', lines 529:4-535:5 -/
+@[reducible]
+def device.Device.find_peer
+  (self : device.Device) («public» : Array Std.U8 32#usize) :
+  Result Std.Usize
+  := do
+  device.Device.find_peer_loop self «public» 0#usize
+
+/-- [wireguard::device::{wireguard::device::Device}::add_peer]:
+    Source: 'crates/wireguard/src/device.rs', lines 476:4-499:5
+    Visibility: public -/
+def device.Device.add_peer
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) («public» : Array Std.U8 32#usize) (psk : Array Std.U8 32#usize)
+  (persistent_keepalive : Std.U64) :
+  Result ((Option Std.Usize) × device.Device)
+  := do
+  if self.peer_count = device.MAX_PEERS
+  then ok (none, self)
+  else
+    let i ← device.Device.find_peer self «public»
+    if i < self.peer_count
+    then ok (none, self)
+    else
+      let p ← device.Peer.empty
+      let a ← cookie.mac1_key cryptoCryptoInst c «public»
+      let a1 ← cookie.cookie_key cryptoCryptoInst c «public»
+      let a2 ←
+        Array.update self.peers self.peer_count
+          {
+            p
+              with
+              «public»,
+              psk,
+              mac1_key := a,
+              cookie_key := a1,
+              persistent_keepalive
+          }
+      let i1 ← self.peer_count + 1#usize
+      ok (some self.peer_count, { self with peers := a2, peer_count := i1 })
+
+/-- [wireguard::device::{wireguard::device::Device}::set_endpoint]:
+    Source: 'crates/wireguard/src/device.rs', lines 502:4-509:5
+    Visibility: public -/
+def device.Device.set_endpoint
+  (self : device.Device) (peer : Std.Usize) (endpoint : device.Endpoint) :
+  Result device.Device
+  := do
+  if peer < self.peer_count
+  then
+    let p ← Array.index_usize self.peers peer
+    let a ←
+      Array.update self.peers peer { p with endpoint, has_endpoint := true }
+    ok { self with peers := a }
+  else ok self
+
+/-- [wireguard::device::{wireguard::device::Device}::allow]:
+    Source: 'crates/wireguard/src/device.rs', lines 512:4-517:5
+    Visibility: public -/
+def device.Device.allow
+  (self : device.Device) (peer : Std.Usize) (v6 : Bool) (addr : Std.U128)
+  (len : Std.U32) :
+  Result (Bool × device.Device)
+  := do
+  if peer >= self.peer_count
+  then ok (false, self)
+  else
+    let i ← lift (UScalar.cast .U16 peer)
+    let (b, ai) ←
+      allowed_ips.AllowedIps.insert self.allowed_ips v6 addr len i
+    ok (b, { self with allowed_ips := ai })
+
+/-- [wireguard::device::{wireguard::device::Device}::clock]:
+    Source: 'crates/wireguard/src/device.rs', lines 520:4-525:5 -/
+def device.Device.clock
+  (self : device.Device) (now : Std.U64) :
+  Result (Std.U64 × device.Device)
+  := do
+  if now > self.now
+  then ok (now, { self with now })
+  else ok (self.now, self)
+
+/-- [wireguard::device::{wireguard::device::Device}::find_session]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 541:8-543:9 -/
+@[rust_loop]
+def device.Device.find_session_loop
+  (self : device.Device) (index : Std.U32) (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < self.peer_count
+  then
+    let p ← Array.index_usize self.peers i
+    let i1 ← device.session_slot p index
+    if i1 = 3#u8
+    then let i2 ← i + 1#usize
+         device.Device.find_session_loop self index i2
+    else ok i
+  else ok i
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::find_session]:
+    Source: 'crates/wireguard/src/device.rs', lines 539:4-545:5 -/
+@[reducible]
+def device.Device.find_session
+  (self : device.Device) (index : Std.U32) : Result Std.Usize := do
+  device.Device.find_session_loop self index 0#usize
+
+/-- [wireguard::device::{wireguard::device::Device}::find_handshake]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 551:8-555:9 -/
+@[rust_loop]
+def device.Device.find_handshake_loop
+  (self : device.Device) (index : Std.U32) (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < self.peer_count
+  then
+    let p ← Array.index_usize self.peers i
+    if p.handshake.active
+    then
+      if p.handshake.local_index = index
+      then ok i
+      else
+        let i1 ← i + 1#usize
+        device.Device.find_handshake_loop self index i1
+    else let i1 ← i + 1#usize
+         device.Device.find_handshake_loop self index i1
+  else ok i
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::find_handshake]:
+    Source: 'crates/wireguard/src/device.rs', lines 549:4-557:5 -/
+@[reducible]
+def device.Device.find_handshake
+  (self : device.Device) (index : Std.U32) : Result Std.Usize := do
+  device.Device.find_handshake_loop self index 0#usize
+
+/-- [wireguard::device::{wireguard::device::Device}::index_in_use]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 562:8-564:9 -/
+@[rust_loop]
+def device.Device.index_in_use_loop
+  (self : device.Device) (index : Std.U32) (i : Std.Usize) :
+  Result (Std.Usize × Std.Usize)
+  := do
+  if i < self.peer_count
+  then
+    let p ← Array.index_usize self.peers i
+    let b ← device.uses_index p index
+    if b
+    then ok (self.peer_count, i)
+    else let i1 ← i + 1#usize
+         device.Device.index_in_use_loop self index i1
+  else ok (self.peer_count, i)
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::index_in_use]:
+    Source: 'crates/wireguard/src/device.rs', lines 560:4-566:5 -/
+def device.Device.index_in_use
+  (self : device.Device) (index : Std.U32) : Result Bool := do
+  let (i, i1) ← device.Device.index_in_use_loop self index 0#usize
+  ok (i1 < i)
+
+/-- [wireguard::device::{wireguard::device::Device}::has_fresh_cookie]:
+    Source: 'crates/wireguard/src/device.rs', lines 570:4-572:5 -/
+def device.Device.has_fresh_cookie
+  (p : device.Peer) (now : Std.U64) : Result Bool := do
+  if p.has_cookie
+  then let i ← device.elapsed p.cookie_at now
+       ok (i < device.COOKIE_MAX_AGE)
+  else ok false
+
+/-- [wireguard::device::{wireguard::device::Device}::finish_handshake_message]:
+    Source: 'crates/wireguard/src/device.rs', lines 576:4-591:5 -/
+def device.Device.finish_handshake_message
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C) (p : device.Peer)
+  (now : Std.U64) (msg : Slice Std.U8) (out : Slice Std.U8) :
+  Result (Bool × device.Peer × (Slice Std.U8) × (Slice Std.U8))
+  := do
+  let b ← device.Device.has_fresh_cookie p now
+  let (p1, tau) ← if b
+                    then ok (p, some p.cookie)
+                    else ok (p, none)
+  let (mac1, msg1) ← cookie.add_macs cryptoCryptoInst c msg p1.mac1_key tau
+  let (b1, out1) ← device.copy_out out msg1
+  ok (b1, { p1 with last_mac1 := mac1 }, msg1, out1)
+
+/-- [wireguard::noise::IDENTIFIER]
+    Source: 'crates/wireguard/src/noise.rs', lines 26:0-26:72
+    Visibility: public -/
+@[global_simps, irreducible]
+def noise.IDENTIFIER : Array Std.U8 34#usize :=
+  Array.make 34#usize [
+    87#u8, 105#u8, 114#u8, 101#u8, 71#u8, 117#u8, 97#u8, 114#u8, 100#u8, 32#u8,
+    118#u8, 49#u8, 32#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8, 32#u8, 74#u8,
+    97#u8, 115#u8, 111#u8, 110#u8, 64#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8,
+    46#u8, 99#u8, 111#u8, 109#u8
+    ]
+
+/-- [wireguard::noise::CONSTRUCTION]
+    Source: 'crates/wireguard/src/noise.rs', lines 24:0-24:77
+    Visibility: public -/
+@[global_simps, irreducible]
+def noise.CONSTRUCTION : Array Std.U8 37#usize :=
+  Array.make 37#usize [
+    78#u8, 111#u8, 105#u8, 115#u8, 101#u8, 95#u8, 73#u8, 75#u8, 112#u8, 115#u8,
+    107#u8, 50#u8, 95#u8, 50#u8, 53#u8, 53#u8, 49#u8, 57#u8, 95#u8, 67#u8,
+    104#u8, 97#u8, 67#u8, 104#u8, 97#u8, 80#u8, 111#u8, 108#u8, 121#u8, 95#u8,
+    66#u8, 76#u8, 65#u8, 75#u8, 69#u8, 50#u8, 115#u8
+    ]
+
+/-- [wireguard::noise::mix_hash]:
+    Source: 'crates/wireguard/src/noise.rs', lines 53:0-57:1 -/
+def noise.mix_hash
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (h : Array Std.U8 32#usize) (data : Slice Std.U8) :
+  Result (Array Std.U8 32#usize)
+  := do
+  let out := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice h)
+  cryptoCryptoInst.hash c s data out
+
+/-- [wireguard::noise::initial_chain]:
+    Source: 'crates/wireguard/src/noise.rs', lines 61:0-67:1
+    Visibility: public -/
+def noise.initial_chain
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (responder_static : Array Std.U8 32#usize) :
+  Result noise.Chain
+  := do
+  let key := Array.repeat 32#usize 0#u8
+  let s ← lift (Array.to_slice noise.CONSTRUCTION)
+  let s1 ← lift (Array.to_slice (Std.Array.empty Std.U8))
+  let key1 ← cryptoCryptoInst.hash c s s1 key
+  let s2 ← lift (Array.to_slice noise.IDENTIFIER)
+  let hash ← noise.mix_hash cryptoCryptoInst c key1 s2
+  let s3 ← lift (Array.to_slice responder_static)
+  let hash1 ← noise.mix_hash cryptoCryptoInst c hash s3
+  ok { key := key1, hash := hash1 }
+
+/-- [wireguard::noise::create_initiation]:
+    Source: 'crates/wireguard/src/noise.rs', lines 72:0-118:1
+    Visibility: public -/
+def noise.create_initiation
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize)
+  (local_public : Array Std.U8 32#usize)
+  (remote_public : Array Std.U8 32#usize)
+  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
+  (timestamp : Array Std.U8 12#usize) :
+  Result (Option (message.Initiation × noise.InitiatorState))
+  := do
+  let chain ← noise.initial_chain cryptoCryptoInst c remote_public
+  let ephemeral := Array.repeat 32#usize 0#u8
+  let ephemeral1 ←
+    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
+  let s ← lift (Array.to_slice ephemeral1)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice ephemeral1)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ← cryptoCryptoInst.x25519 c ephemeral_private remote_public dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
+    let encrypted_static := Array.repeat 48#usize 0#u8
+    let s3 ← lift (Array.to_slice hash)
+    let s4 ← lift (Array.to_slice local_public)
+    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut encrypted_static)
+    let s6 ← cryptoCryptoInst.aead_seal c k 0#u64 s3 s4 s5
+    let encrypted_static1 := to_slice_mut_back s6
+    let s7 ← lift (Array.to_slice encrypted_static1)
+    let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
+    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private remote_public dh1
+    if b1
+    then
+      let s8 ← lift (Array.to_slice dh2)
+      let (key2, k1) ← crypto.kdf2 cryptoCryptoInst c key1 s8
+      let encrypted_timestamp := Array.repeat 28#usize 0#u8
+      let s9 ← lift (Array.to_slice hash1)
+      let s10 ← lift (Array.to_slice timestamp)
+      let (s11, to_slice_mut_back1) ←
+        lift (Array.to_slice_mut encrypted_timestamp)
+      let s12 ← cryptoCryptoInst.aead_seal c k1 0#u64 s9 s10 s11
+      let encrypted_timestamp1 := to_slice_mut_back1 s12
+      let s13 ← lift (Array.to_slice encrypted_timestamp1)
+      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s13
+      let a := Array.repeat 16#usize 0#u8
+      let a1 := Array.repeat 16#usize 0#u8
+      ok (some
+        ({
+           sender := sender,
+           ephemeral := ephemeral1,
+           encrypted_static := encrypted_static1,
+           encrypted_timestamp := encrypted_timestamp1,
+           mac1 := a,
+           mac2 := a1
+         }, { chain := { key := key2, hash := hash2 }, ephemeral_private }))
+    else ok none
+  else ok none
+
+/-- [wireguard::message::put_u32]:
+    Source: 'crates/wireguard/src/message.rs', lines 135:0-143:1 -/
+def message.put_u32
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U32) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let i ← v % 256#u32
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← v / 256#u32
+  let i3 ← i2 % 256#u32
+  let i4 ← lift (UScalar.cast .U8 i3)
+  let i5 ← v / 65536#u32
+  let i6 ← i5 % 256#u32
+  let i7 ← lift (UScalar.cast .U8 i6)
+  let i8 ← v / 16777216#u32
+  let i9 ← lift (UScalar.cast .U8 i8)
+  let s ← lift (Array.to_slice (Array.make 4#usize [ i1, i4, i7, i9 ]))
+  message.put_bytes out pos s
 
 /-- [wireguard::message::TYPE_INITIATION]
     Source: 'crates/wireguard/src/message.rs', lines 26:0-26:35
     Visibility: public -/
 @[global_simps, irreducible] def message.TYPE_INITIATION : Std.U32 := 1#u32
 
-/-- [wireguard::message::TYPE_RESPONSE]
-    Source: 'crates/wireguard/src/message.rs', lines 28:0-28:33
+/-- [wireguard::message::{wireguard::message::Initiation}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 158:4-168:5
     Visibility: public -/
-@[global_simps, irreducible] def message.TYPE_RESPONSE : Std.U32 := 2#u32
-
-/-- [wireguard::message::TYPE_COOKIE_REPLY]
-    Source: 'crates/wireguard/src/message.rs', lines 30:0-30:37
-    Visibility: public -/
-@[global_simps, irreducible] def message.TYPE_COOKIE_REPLY : Std.U32 := 3#u32
-
-/-- [wireguard::message::TYPE_TRANSPORT]
-    Source: 'crates/wireguard/src/message.rs', lines 32:0-32:34
-    Visibility: public -/
-@[global_simps, irreducible] def message.TYPE_TRANSPORT : Std.U32 := 4#u32
-
-/-- [wireguard::message::TYPE_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 35:0-35:30
-    Visibility: public -/
-@[global_simps, irreducible] def message.TYPE_LEN : Std.Usize := 4#usize
+def message.Initiation.encode
+  (self : message.Initiation) : Result (Array Std.U8 148#usize) := do
+  let out := Array.repeat 148#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_INITIATION
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.sender
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let s5 ← lift (Array.to_slice self.ephemeral)
+  let (pos2, s6) ← message.put_bytes s4 pos1 s5
+  let out3 := to_slice_mut_back2 s6
+  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s8 ← lift (Array.to_slice self.encrypted_static)
+  let (pos3, s9) ← message.put_bytes s7 pos2 s8
+  let out4 := to_slice_mut_back3 s9
+  let (s10, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
+  let s11 ← lift (Array.to_slice self.encrypted_timestamp)
+  let (pos4, s12) ← message.put_bytes s10 pos3 s11
+  let out5 := to_slice_mut_back4 s12
+  let (s13, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
+  let s14 ← lift (Array.to_slice self.mac1)
+  let (pos5, s15) ← message.put_bytes s13 pos4 s14
+  let out6 := to_slice_mut_back5 s15
+  let (s16, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
+  let s17 ← lift (Array.to_slice self.mac2)
+  let (_, s18) ← message.put_bytes s16 pos5 s17
+  ok (to_slice_mut_back6 s18)
 
 /-- [wireguard::message::INITIATION_LEN]
     Source: 'crates/wireguard/src/message.rs', lines 37:0-37:38
@@ -652,16 +1492,107 @@ def inner.ipv4_source (packet : Slice Std.U8) : Result (Option Std.U32) := do
 @[global_simps, irreducible]
 def message.INITIATION_LEN : Std.Usize := 148#usize
 
-/-- [wireguard::message::RESPONSE_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 39:0-39:35
-    Visibility: public -/
-@[global_simps, irreducible] def message.RESPONSE_LEN : Std.Usize := 92#usize
+/-- [wireguard::device::{wireguard::device::Device}::begin_handshake]:
+    Source: 'crates/wireguard/src/device.rs', lines 595:4-644:5 -/
+def device.Device.begin_handshake
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let p ← Array.index_usize self.peers i
+  if p.has_endpoint
+  then
+    let b ← device.initiation_too_soon p now
+    if b
+    then ok (device.Action.None, self, out)
+    else
+      let b1 ← device.Device.index_in_use self env.index
+      if b1
+      then ok (device.Action.None, self, out)
+      else
+        let o ←
+          noise.create_initiation cryptoCryptoInst c self.private self.public
+            p.public env.ephemeral env.index env.timestamp
+        match o with
+        | none => ok (device.Action.None, self, out)
+        | some r =>
+          let (msg, state) := r
+          let bytes ← message.Initiation.encode msg
+          let (s, _) ← lift (Array.to_slice_mut bytes)
+          let (b2, p1, _, out1) ←
+            device.Device.finish_handshake_message cryptoCryptoInst c p now s
+              out
+          if b2
+          then
+            let i1 ←
+              if p1.handshake.active
+              then ok p1.attempt_started
+              else ok now
+            let a ←
+              Array.update self.peers i
+                {
+                  p1
+                    with
+                    handshake :=
+                      { active := true, local_index := env.index, state },
+                    initiation_at := now,
+                    has_initiation := true,
+                    attempt_started := i1,
+                    rekey_wanted := false,
+                    last_sent := now
+                }
+            ok (device.Action.Send p1.endpoint message.INITIATION_LEN,
+              { self with peers := a }, out1)
+          else ok (device.Action.None, self, out1)
+  else ok (device.Action.None, self, out)
 
-/-- [wireguard::message::COOKIE_REPLY_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 41:0-41:39
+/-- [wireguard::transport::padded_len]:
+    Source: 'crates/wireguard/src/transport.rs', lines 25:0-33:1
     Visibility: public -/
-@[global_simps, irreducible]
-def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
+def transport.padded_len (len : Std.Usize) : Result Std.Usize := do
+  let i ← len % 16#usize
+  if i = 0#usize
+  then ok len
+  else let i1 ← len / 16#usize
+       let i2 ← i1 * 16#usize
+       i2 + 16#usize
+
+/-- [wireguard::message::put_u64]:
+    Source: 'crates/wireguard/src/message.rs', lines 200:0-203:1 -/
+def message.put_u64
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U64) :
+  Result (Std.Usize × (Slice Std.U8))
+  := do
+  let i ← v % 4294967296#u64
+  let i1 ← lift (UScalar.cast .U32 i)
+  let (pos1, out1) ← message.put_u32 out pos i1
+  let i2 ← v / 4294967296#u64
+  let i3 ← lift (UScalar.cast .U32 i2)
+  message.put_u32 out1 pos1 i3
+
+/-- [wireguard::message::TYPE_TRANSPORT]
+    Source: 'crates/wireguard/src/message.rs', lines 32:0-32:34
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_TRANSPORT : Std.U32 := 4#u32
+
+/-- [wireguard::message::{wireguard::message::TransportHeader}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 207:4-213:5
+    Visibility: public -/
+def message.TransportHeader.encode
+  (self : message.TransportHeader) : Result (Array Std.U8 16#usize) := do
+  let out := Array.repeat 16#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_TRANSPORT
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.receiver
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let i1 := self.counter
+  let (_, s5) ← message.put_u64 s4 pos1 i1
+  ok (to_slice_mut_back2 s5)
 
 /-- [wireguard::message::TRANSPORT_HEADER_LEN]
     Source: 'crates/wireguard/src/message.rs', lines 43:0-43:43
@@ -669,17 +1600,997 @@ def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
 @[global_simps, irreducible]
 def message.TRANSPORT_HEADER_LEN : Std.Usize := 16#usize
 
-/-- [wireguard::message::TAG_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 45:0-45:30
+/-- [wireguard::transport::encrypt]: loop 0:
+    Source: 'crates/wireguard/src/transport.rs', lines 52:4-55:5
     Visibility: public -/
-@[global_simps, irreducible] def message.TAG_LEN : Std.Usize := 16#usize
+@[rust_loop]
+def transport.encrypt_loop0
+  (packet : Slice Std.U8) (work : Slice Std.U8) (p : Std.Usize) (i : Std.Usize)
+  :
+  Result (Slice Std.U8)
+  := do
+  if i < p
+  then
+    let i1 := Slice.len packet
+    let i2 ← if i < i1
+               then Slice.index_usize packet i
+               else ok 0#u8
+    let s ← Slice.update work i i2
+    let i3 ← i + 1#usize
+    transport.encrypt_loop0 packet s p i3
+  else ok work
+partial_fixpoint
 
-/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15
+/-- [wireguard::transport::encrypt]: loop 1:
+    Source: 'crates/wireguard/src/transport.rs', lines 62:4-65:5
     Visibility: public -/
-def message.Initiation.Insts.UntrustedReaderDecode.decode
+@[rust_loop]
+def transport.encrypt_loop1
+  (out : Slice Std.U8) (header : Array Std.U8 16#usize) (j : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  if j < message.TRANSPORT_HEADER_LEN
+  then
+    let i ← Array.index_usize header j
+    let s ← Slice.update out j i
+    let j1 ← j + 1#usize
+    transport.encrypt_loop1 s header j1
+  else ok out
+partial_fixpoint
+
+/-- [wireguard::transport::encrypt]:
+    Source: 'crates/wireguard/src/transport.rs', lines 38:0-75:1
+    Visibility: public -/
+def transport.encrypt
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (receiver : Std.U32) (counter : Std.U64)
+  (packet : Slice Std.U8) (work : Slice Std.U8) (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8) × (Slice Std.U8))
+  := do
+  let i := Slice.len packet
+  let p ← transport.padded_len i
+  let i1 := Slice.len work
+  if i1 < p
+  then ok (none, work, out)
+  else
+    let i2 := Slice.len out
+    let i3 ← message.TRANSPORT_HEADER_LEN + p
+    let i4 ← i3 + crypto.AEAD_TAG_LEN
+    if i2 < i4
+    then ok (none, work, out)
+    else
+      let work1 ← transport.encrypt_loop0 packet work p 0#usize
+      let header ←
+        message.TransportHeader.encode
+          { receiver := receiver, counter := counter }
+      let out1 ← transport.encrypt_loop1 out header 0#usize
+      let i5 ← message.TRANSPORT_HEADER_LEN + p
+      let n ← i5 + crypto.AEAD_TAG_LEN
+      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let s1 ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) work1
+          { «end» := p }
+      let (s2, index_mut_back) ←
+        core.slice.index.Slice.index_mut
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) out1
+          { start := message.TRANSPORT_HEADER_LEN, «end» := n }
+      let s3 ← cryptoCryptoInst.aead_seal c key counter s s1 s2
+      let out2 := index_mut_back s3
+      ok (some n, work1, out2)
+
+/-- [wireguard::device::{wireguard::device::Device}::send_data]:
+    Source: 'crates/wireguard/src/device.rs', lines 649:4-682:5 -/
+def device.Device.send_data
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
+  (packet : Slice Std.U8) (work : Slice Std.U8) (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8) × (Slice Std.U8))
+  := do
+  let p ← Array.index_usize self.peers i
+  if p.has_endpoint
+  then
+    let b ← device.can_send p.current now
+    if b
+    then
+      let (o, work1, out1) ←
+        transport.encrypt cryptoCryptoInst c p.current.send
+          p.current.remote_index p.current.counter packet work out
+      match o with
+      | none => ok (device.Action.None, self, work1, out1)
+      | some n =>
+        let i1 ← p.current.counter + 1#u64
+        let b1 ← device.wants_rekey { p.current with counter := i1 } now
+        let b2 ← if b1
+                   then ok true
+                   else ok p.rekey_wanted
+        let a ←
+          Array.update self.peers i
+            {
+              p
+                with
+                current := { p.current with counter := i1 },
+                rekey_wanted := b2,
+                last_sent := now,
+                keepalive_due := false
+            }
+        ok (device.Action.Send p.endpoint n, { self with peers := a }, work1,
+          out1)
+    else
+      let (a, self1, out1) ←
+        device.Device.begin_handshake cryptoCryptoInst self c env now i out
+      ok (a, self1, work, out1)
+  else ok (device.Action.None, self, work, out)
+
+/-- [wireguard::device::{wireguard::device::Device}::send_keepalive]:
+    Source: 'crates/wireguard/src/device.rs', lines 685:4-696:5 -/
+def device.Device.send_keepalive
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+  let (s1, _) ← lift (Array.to_slice_mut (Std.Array.empty Std.U8))
+  let (a, self1, _, out1) ←
+    device.Device.send_data cryptoCryptoInst self c env now i s s1 out
+  ok (a, self1, out1)
+
+/-- [wireguard::transport::inner]:
+    Source: 'crates/wireguard/src/transport.rs', lines 90:0-119:1
+    Visibility: public -/
+def transport.inner
+  (packet : Slice Std.U8) : Result (Option transport.Inner) := do
+  let b ← core.slice.Slice.is_empty packet
+  if b
+  then ok none
+  else
+    let i ← Slice.index_usize packet 0#usize
+    let version ← i / 16#u8
+    if version = 4#u8
+    then
+      let u ← untrusted.Untrusted.new packet
+      let r ←
+        untrusted.Untrusted.validate
+          net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
+          u
+      match r with
+      | core.result.Result.Ok ip =>
+        let i1 := ip.header.src
+        let i2 ← lift (UScalar.cast .U128 i1)
+        let i3 := ip.header.dst
+        let i4 ← lift (UScalar.cast .U128 i3)
+        let i5 := ip.header.total_len
+        let i6 ← lift (UScalar.cast .Usize i5)
+        ok (some { v6 := false, src := i2, dst := i4, len := i6 })
+      | core.result.Result.Err _ => ok none
+    else
+      if version = 6#u8
+      then
+        let u ← untrusted.Untrusted.new packet
+        let r ←
+          untrusted.Untrusted.validate
+            net.ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
+            u
+        match r with
+        | core.result.Result.Ok ip =>
+          let i1 := ip.header.src
+          let i2 := ip.header.dst
+          let i3 := ip.header.payload_len
+          let i4 ← lift (UScalar.cast .Usize i3)
+          let i5 ← 40#usize + i4
+          ok (some { v6 := true, src := i1, dst := i2, len := i5 })
+        | core.result.Result.Err _ => ok none
+      else ok none
+
+/-- [wireguard::device::{wireguard::device::Device}::handle_packet]:
+    Source: 'crates/wireguard/src/device.rs', lines 701:4-725:5
+    Visibility: public -/
+def device.Device.handle_packet
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (packet : Slice Std.U8) (work : Slice Std.U8)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8) × (Slice Std.U8))
+  := do
+  let (now, self1) ← device.Device.clock self env.now
+  let i := Slice.len packet
+  if i > device.MAX_PACKET_LEN
+  then ok (device.Action.None, self1, work, out)
+  else
+    let o ← transport.inner packet
+    match o with
+    | none => ok (device.Action.None, self1, work, out)
+    | some ip =>
+      let o1 ← allowed_ips.AllowedIps.lookup self1.allowed_ips ip.v6 ip.dst
+      match o1 with
+      | none => ok (device.Action.None, self1, work, out)
+      | some q =>
+        let i1 ← lift (UScalar.cast .Usize q)
+        if i1 >= self1.peer_count
+        then ok (device.Action.None, self1, work, out)
+        else
+          device.Device.send_data cryptoCryptoInst self1 c env now i1 packet
+            work out
+
+/-- [wireguard::device::{wireguard::device::Device}::secret_stale]:
+    Source: 'crates/wireguard/src/device.rs', lines 729:4-731:5 -/
+def device.Device.secret_stale
+  (self : device.Device) (now : Std.U64) : Result Bool := do
+  if self.has_cookie_secret
+  then
+    let i ← device.elapsed self.cookie_secret_at now
+    ok (i >= device.COOKIE_SECRET_MAX_AGE)
+  else ok true
+
+/-- [wireguard::message::TYPE_COOKIE_REPLY]
+    Source: 'crates/wireguard/src/message.rs', lines 30:0-30:37
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_COOKIE_REPLY : Std.U32 := 3#u32
+
+/-- [wireguard::message::{wireguard::message::CookieReply}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 188:4-195:5
+    Visibility: public -/
+def message.CookieReply.encode
+  (self : message.CookieReply) : Result (Array Std.U8 64#usize) := do
+  let out := Array.repeat 64#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_COOKIE_REPLY
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.receiver
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let s5 ← lift (Array.to_slice self.nonce)
+  let (pos2, s6) ← message.put_bytes s4 pos1 s5
+  let out3 := to_slice_mut_back2 s6
+  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s8 ← lift (Array.to_slice self.encrypted_cookie)
+  let (_, s9) ← message.put_bytes s7 pos2 s8
+  ok (to_slice_mut_back3 s9)
+
+/-- [wireguard::device::{wireguard::device::Device}::admit]:
+    Source: 'crates/wireguard/src/device.rs', lines 737:4-770:5 -/
+def device.Device.admit
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
+  (under_load : Bool) (bytes : Slice Std.U8) (sender : Std.U32)
+  (mac1 : Array Std.U8 16#usize) (out : Slice Std.U8) :
+  Result (Std.U8 × device.Device × (Slice Std.U8))
+  := do
+  let b ← cookie.check_mac1 cryptoCryptoInst c bytes self.mac1_key
+  if b
+  then
+    if under_load
+    then
+      let b1 ← device.Device.secret_stale self now
+      let (a, b2, i, env1) ←
+        if b1
+        then ok (env.secret, true, now, env)
+        else
+          ok (self.cookie_secret, self.has_cookie_secret,
+            self.cookie_secret_at, env)
+      let a1 ← device.Endpoint.cookie_bytes «from»
+      let s ← lift (Array.to_slice a1)
+      let tau ← cookie.make_cookie cryptoCryptoInst c a s
+      let b3 ← cookie.check_mac2 cryptoCryptoInst c bytes tau
+      if b3
+      then
+        ok (0#u8,
+          {
+            self
+              with
+              cookie_secret := a,
+              has_cookie_secret := b2,
+              cookie_secret_at := i
+          }, out)
+      else
+        let reply ←
+          cookie.create_cookie_reply cryptoCryptoInst c self.cookie_key sender
+            env1.nonce tau mac1
+        let a2 ← message.CookieReply.encode reply
+        let s1 ← lift (Array.to_slice a2)
+        let (b4, out1) ← device.copy_out out s1
+        if b4
+        then
+          ok (2#u8,
+            {
+              self
+                with
+                cookie_secret := a,
+                has_cookie_secret := b2,
+                cookie_secret_at := i
+            }, out1)
+        else
+          ok (1#u8,
+            {
+              self
+                with
+                cookie_secret := a,
+                has_cookie_secret := b2,
+                cookie_secret_at := i
+            }, out1)
+    else ok (0#u8, self, out)
+  else ok (1#u8, self, out)
+
+/-- [wireguard::noise::transport_keys]:
+    Source: 'crates/wireguard/src/noise.rs', lines 268:0-270:1
+    Visibility: public -/
+def noise.transport_keys
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (chain : noise.Chain) :
+  Result ((Array Std.U8 32#usize) × (Array Std.U8 32#usize))
+  := do
+  let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+  crypto.kdf2 cryptoCryptoInst c chain.key s
+
+/-- [wireguard::noise::create_response]:
+    Source: 'crates/wireguard/src/noise.rs', lines 192:0-234:1
+    Visibility: public -/
+def noise.create_response
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (chain : noise.Chain) (initiator_ephemeral : Array Std.U8 32#usize)
+  (initiator_static : Array Std.U8 32#usize) (psk : Array Std.U8 32#usize)
+  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
+  (receiver : Std.U32) :
+  Result (Option (message.Response × noise.Chain))
+  := do
+  let ephemeral := Array.repeat 32#usize 0#u8
+  let ephemeral1 ←
+    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
+  let s ← lift (Array.to_slice ephemeral1)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice ephemeral1)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c ephemeral_private initiator_ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
+    let (b1, dh2) ←
+      cryptoCryptoInst.x25519 c ephemeral_private initiator_static dh1
+    if b1
+    then
+      let s3 ← lift (Array.to_slice dh2)
+      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
+      let s4 ← lift (Array.to_slice psk)
+      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
+      let s5 ← lift (Array.to_slice t)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
+      let encrypted_nothing := Array.repeat 16#usize 0#u8
+      let s6 ← lift (Array.to_slice hash1)
+      let s7 ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let (s8, to_slice_mut_back) ←
+        lift (Array.to_slice_mut encrypted_nothing)
+      let s9 ← cryptoCryptoInst.aead_seal c k 0#u64 s6 s7 s8
+      let encrypted_nothing1 := to_slice_mut_back s9
+      let s10 ← lift (Array.to_slice encrypted_nothing1)
+      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s10
+      let a := Array.repeat 16#usize 0#u8
+      let a1 := Array.repeat 16#usize 0#u8
+      ok (some
+        ({
+           sender := sender,
+           receiver := receiver,
+           ephemeral := ephemeral1,
+           encrypted_nothing := encrypted_nothing1,
+           mac1 := a,
+           mac2 := a1
+         }, { key := key3, hash := hash2 }))
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::TIMESTAMP_LEN]
+    Source: 'crates/wireguard/src/noise.rs', lines 28:0-28:36
+    Visibility: public -/
+@[global_simps, irreducible] def noise.TIMESTAMP_LEN : Std.Usize := 12#usize
+
+/-- [wireguard::noise::timestamp_after]: loop 0:
+    Source: 'crates/wireguard/src/noise.rs', lines 180:4-187:1
+    Visibility: public -/
+@[rust_loop]
+def noise.timestamp_after_loop
+  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) (i : Std.Usize) :
+  Result Bool
+  := do
+  if i < noise.TIMESTAMP_LEN
+  then
+    let i1 ← Array.index_usize a i
+    let i2 ← Array.index_usize b i
+    if i1 != i2
+    then ok (i1 > i2)
+    else let i3 ← i + 1#usize
+         noise.timestamp_after_loop a b i3
+  else ok false
+partial_fixpoint
+
+/-- [wireguard::noise::timestamp_after]:
+    Source: 'crates/wireguard/src/noise.rs', lines 178:0-187:1
+    Visibility: public -/
+@[reducible]
+def noise.timestamp_after
+  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) : Result Bool := do
+  noise.timestamp_after_loop a b 0#usize
+
+/-- [wireguard::noise::consume_initiation_timestamp]:
+    Source: 'crates/wireguard/src/noise.rs', lines 151:0-174:1
+    Visibility: public -/
+def noise.consume_initiation_timestamp
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize) (st : noise.InitiationStatic)
+  (msg : message.Initiation) :
+  Result (Option (noise.Chain × (Array Std.U8 12#usize)))
+  := do
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c local_private st.initiator_static dh
+  if b
+  then
+    let s ← lift (Array.to_slice dh1)
+    let (key, k) ← crypto.kdf2 cryptoCryptoInst c st.chain.key s
+    let timestamp := Array.repeat 12#usize 0#u8
+    let s1 ← lift (Array.to_slice st.chain.hash)
+    let s2 ← lift (Array.to_slice msg.encrypted_timestamp)
+    let (s3, to_slice_mut_back) ← lift (Array.to_slice_mut timestamp)
+    let (b1, s4) ← cryptoCryptoInst.aead_open c k 0#u64 s1 s2 s3
+    if b1
+    then
+      let s5 ← lift (Array.to_slice msg.encrypted_timestamp)
+      let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s5
+      let timestamp1 := to_slice_mut_back s4
+      ok (some ({ key, hash }, timestamp1))
+    else ok none
+  else ok none
+
+/-- [wireguard::noise::consume_initiation_static]:
+    Source: 'crates/wireguard/src/noise.rs', lines 123:0-146:1
+    Visibility: public -/
+def noise.consume_initiation_static
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (local_private : Array Std.U8 32#usize)
+  (local_public : Array Std.U8 32#usize) (msg : message.Initiation) :
+  Result (Option noise.InitiationStatic)
+  := do
+  let chain ← noise.initial_chain cryptoCryptoInst c local_public
+  let s ← lift (Array.to_slice msg.ephemeral)
+  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
+  let s1 ← lift (Array.to_slice msg.ephemeral)
+  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
+    let initiator_static := Array.repeat 32#usize 0#u8
+    let s3 ← lift (Array.to_slice hash)
+    let s4 ← lift (Array.to_slice msg.encrypted_static)
+    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut initiator_static)
+    let (b1, s6) ← cryptoCryptoInst.aead_open c k 0#u64 s3 s4 s5
+    if b1
+    then
+      let s7 ← lift (Array.to_slice msg.encrypted_static)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
+      let initiator_static1 := to_slice_mut_back s6
+      ok (some
+        {
+          chain := { key := key1, hash := hash1 },
+          initiator_static := initiator_static1
+        })
+    else ok none
+  else ok none
+
+/-- [wireguard::message::TYPE_RESPONSE]
+    Source: 'crates/wireguard/src/message.rs', lines 28:0-28:33
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_RESPONSE : Std.U32 := 2#u32
+
+/-- [wireguard::message::{wireguard::message::Response}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 173:4-183:5
+    Visibility: public -/
+def message.Response.encode
+  (self : message.Response) : Result (Array Std.U8 92#usize) := do
+  let out := Array.repeat 92#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_RESPONSE
+  let out1 := to_slice_mut_back s1
+  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
+  let i := self.sender
+  let (pos1, s3) ← message.put_u32 s2 pos i
+  let out2 := to_slice_mut_back1 s3
+  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
+  let i1 := self.receiver
+  let (pos2, s5) ← message.put_u32 s4 pos1 i1
+  let out3 := to_slice_mut_back2 s5
+  let (s6, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
+  let s7 ← lift (Array.to_slice self.ephemeral)
+  let (pos3, s8) ← message.put_bytes s6 pos2 s7
+  let out4 := to_slice_mut_back3 s8
+  let (s9, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
+  let s10 ← lift (Array.to_slice self.encrypted_nothing)
+  let (pos4, s11) ← message.put_bytes s9 pos3 s10
+  let out5 := to_slice_mut_back4 s11
+  let (s12, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
+  let s13 ← lift (Array.to_slice self.mac1)
+  let (pos5, s14) ← message.put_bytes s12 pos4 s13
+  let out6 := to_slice_mut_back5 s14
+  let (s15, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
+  let s16 ← lift (Array.to_slice self.mac2)
+  let (_, s17) ← message.put_bytes s15 pos5 s16
+  ok (to_slice_mut_back6 s17)
+
+/-- [wireguard::message::COOKIE_REPLY_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 41:0-41:39
+    Visibility: public -/
+@[global_simps, irreducible]
+def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
+
+/-- [wireguard::message::RESPONSE_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 39:0-39:35
+    Visibility: public -/
+@[global_simps, irreducible] def message.RESPONSE_LEN : Std.Usize := 92#usize
+
+/-- [wireguard::device::{wireguard::device::Device}::on_initiation]:
+    Source: 'crates/wireguard/src/device.rs', lines 775:4-857:5 -/
+def device.Device.on_initiation
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
+  (under_load : Bool) (bytes : Slice Std.U8) (msg : message.Initiation)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let i := msg.sender
+  let (a, self1, out1) ←
+    device.Device.admit cryptoCryptoInst self c env now «from» under_load
+      bytes i msg.mac1 out
+  if a = 2#u8
+  then ok (device.Action.Send «from» message.COOKIE_REPLY_LEN, self1, out1)
+  else
+    if a != 0#u8
+    then ok (device.Action.None, self1, out1)
+    else
+      let o ←
+        noise.consume_initiation_static cryptoCryptoInst c self1.private
+          self1.public msg
+      match o with
+      | none => ok (device.Action.None, self1, out1)
+      | some st =>
+        let i1 ← device.Device.find_peer self1 st.initiator_static
+        if i1 >= self1.peer_count
+        then ok (device.Action.None, self1, out1)
+        else
+          let b ← device.Device.index_in_use self1 env.index
+          if b
+          then ok (device.Action.None, self1, out1)
+          else
+            let p ← Array.index_usize self1.peers i1
+            let o1 ←
+              noise.consume_initiation_timestamp cryptoCryptoInst c
+                self1.private st msg
+            match o1 with
+            | none => ok (device.Action.None, self1, out1)
+            | some r =>
+              let (chain, timestamp) := r
+              let b1 ← noise.timestamp_after timestamp p.last_timestamp
+              if b1
+              then
+                let o2 ←
+                  noise.create_response cryptoCryptoInst c chain msg.ephemeral
+                    st.initiator_static p.psk env.ephemeral env.index i
+                match o2 with
+                | none => ok (device.Action.None, self1, out1)
+                | some r1 =>
+                  let (resp, chain1) := r1
+                  let bytes1 ← message.Response.encode resp
+                  let (s, _) ← lift (Array.to_slice_mut bytes1)
+                  let (b2, p1, _, out2) ←
+                    device.Device.finish_handshake_message cryptoCryptoInst c p
+                      now s out1
+                  if b2
+                  then
+                    let (recv, send) ←
+                      noise.transport_keys cryptoCryptoInst c chain1
+                    let r2 ← replay.Replay.new
+                    let a1 ←
+                      Array.update self1.peers i1
+                        {
+                          p1
+                            with
+                            endpoint := «from»,
+                            has_endpoint := true,
+                            last_timestamp := timestamp,
+                            next :=
+                              {
+                                valid := true,
+                                initiator := false,
+                                send,
+                                recv,
+                                local_index := env.index,
+                                remote_index := i,
+                                counter := 0#u64,
+                                replay := r2,
+                                created := now
+                              },
+                            last_sent := now
+                        }
+                    ok (device.Action.Send «from» message.RESPONSE_LEN,
+                      { self1 with peers := a1 }, out2)
+                  else ok (device.Action.None, self1, out2)
+              else ok (device.Action.None, self1, out1)
+
+/-- [wireguard::noise::consume_response]:
+    Source: 'crates/wireguard/src/noise.rs', lines 238:0-264:1
+    Visibility: public -/
+def noise.consume_response
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (st : noise.InitiatorState) (local_private : Array Std.U8 32#usize)
+  (psk : Array Std.U8 32#usize) (msg : message.Response) :
+  Result (Option noise.Chain)
+  := do
+  let s ← lift (Array.to_slice msg.ephemeral)
+  let key ← crypto.kdf1 cryptoCryptoInst c st.chain.key s
+  let s1 ← lift (Array.to_slice msg.ephemeral)
+  let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s1
+  let dh := Array.repeat 32#usize 0#u8
+  let (b, dh1) ←
+    cryptoCryptoInst.x25519 c st.ephemeral_private msg.ephemeral dh
+  if b
+  then
+    let s2 ← lift (Array.to_slice dh1)
+    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
+    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh1
+    if b1
+    then
+      let s3 ← lift (Array.to_slice dh2)
+      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
+      let s4 ← lift (Array.to_slice psk)
+      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
+      let s5 ← lift (Array.to_slice t)
+      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
+      let s6 ← lift (Array.to_slice hash1)
+      let s7 ← lift (Array.to_slice msg.encrypted_nothing)
+      let (s8, _) ← lift (Array.to_slice_mut (Std.Array.empty Std.U8))
+      let (b2, _) ← cryptoCryptoInst.aead_open c k 0#u64 s6 s7 s8
+      if b2
+      then
+        let s9 ← lift (Array.to_slice msg.encrypted_nothing)
+        let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s9
+        ok (some { key := key3, hash := hash2 })
+      else ok none
+    else ok none
+  else ok none
+
+/-- [wireguard::device::{wireguard::device::Device}::on_response]:
+    Source: 'crates/wireguard/src/device.rs', lines 862:4-919:5 -/
+def device.Device.on_response
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
+  (under_load : Bool) (bytes : Slice Std.U8) (msg : message.Response)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let i := msg.sender
+  let (a, self1, out1) ←
+    device.Device.admit cryptoCryptoInst self c env now «from» under_load
+      bytes i msg.mac1 out
+  if a = 2#u8
+  then ok (device.Action.Send «from» message.COOKIE_REPLY_LEN, self1, out1)
+  else
+    if a != 0#u8
+    then ok (device.Action.None, self1, out1)
+    else
+      let i1 := msg.receiver
+      let i2 ← device.Device.find_handshake self1 i1
+      if i2 >= self1.peer_count
+      then ok (device.Action.None, self1, out1)
+      else
+        let p ← Array.index_usize self1.peers i2
+        let o ←
+          noise.consume_response cryptoCryptoInst c p.handshake.state
+            self1.private p.psk msg
+        match o with
+        | none => ok (device.Action.None, self1, out1)
+        | some chain =>
+          let (send, recv) ← noise.transport_keys cryptoCryptoInst c chain
+          let r ← replay.Replay.new
+          let k ← device.Keypair.empty
+          let a1 ←
+            Array.update self1.peers i2
+              {
+                p
+                  with
+                  endpoint := «from»,
+                  has_endpoint := true,
+                  handshake := { p.handshake with active := false },
+                  current :=
+                    {
+                      valid := true,
+                      initiator := true,
+                      send,
+                      recv,
+                      local_index := p.handshake.local_index,
+                      remote_index := i,
+                      counter := 0#u64,
+                      replay := r,
+                      created := now
+                    },
+                  previous := p.current,
+                  next := k,
+                  rekey_wanted := false
+              }
+          device.Device.send_keepalive cryptoCryptoInst
+            { self1 with peers := a1 } c env now i2 out1
+
+/-- [wireguard::device::{wireguard::device::Device}::on_cookie_reply]:
+    Source: 'crates/wireguard/src/device.rs', lines 922:4-938:5 -/
+def device.Device.on_cookie_reply
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (now : Std.U64) (msg : message.CookieReply) :
+  Result (device.Action × device.Device)
+  := do
+  let i := msg.receiver
+  let i1 ← device.Device.find_handshake self i
+  let i2 ←
+    if i1 >= self.peer_count
+    then device.Device.find_session self i
+    else ok i1
+  if i2 >= self.peer_count
+  then ok (device.Action.None, self)
+  else
+    let p ← Array.index_usize self.peers i2
+    let o ←
+      cookie.consume_cookie_reply cryptoCryptoInst c p.cookie_key msg
+        p.last_mac1
+    match o with
+    | none => ok (device.Action.None, self)
+    | some tau =>
+      let a ←
+        Array.update self.peers i2
+          { p with cookie := tau, has_cookie := true, cookie_at := now }
+      ok (device.Action.None, { self with peers := a })
+
+/-- [wireguard::replay::WORDS]
+    Source: 'crates/wireguard/src/replay.rs', lines 22:0-22:29
+    Visibility: public -/
+@[global_simps, irreducible] def replay.WORDS : Std.Usize := 128#usize
+
+/-- [wireguard::replay::WINDOW]
+    Source: 'crates/wireguard/src/replay.rs', lines 20:0-20:29
+    Visibility: public -/
+@[global_simps, irreducible] def replay.WINDOW : Std.U64 := 8128#u64
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]: loop 0:
+    Source: 'crates/wireguard/src/replay.rs', lines 61:12-64:13
+    Visibility: public -/
+@[rust_loop]
+def replay.Replay.check_and_update_loop
+  (a : Array Std.U64 128#usize) (current : Std.U64) (n : Std.U64) (i : Std.U64)
+  :
+  Result (Array Std.U64 128#usize)
+  := do
+  if i <= n
+  then
+    let i1 ← current + i
+    let i2 ← i1 % 128#u64
+    let i3 ← lift (UScalar.cast .Usize i2)
+    let a1 ← Array.update a i3 0#u64
+    let i4 ← i + 1#u64
+    replay.Replay.check_and_update_loop a1 current n i4
+  else ok a
+partial_fixpoint
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]:
+    Source: 'crates/wireguard/src/replay.rs', lines 42:4-74:5
+    Visibility: public -/
+def replay.Replay.check_and_update
+  (self : replay.Replay) (counter : Std.U64) :
+  Result (Bool × replay.Replay)
+  := do
+  if counter >= replay.REJECT_AFTER_MESSAGES
+  then ok (false, self)
+  else
+    let v ← counter + 1#u64
+    let i ← v + replay.WINDOW
+    if i < self.top
+    then ok (false, self)
+    else
+      if v > self.top
+      then
+        let current ← self.top / 64#u64
+        let index ← v / 64#u64
+        let i1 ← index - current
+        let i2 ← lift (UScalar.cast .U64 replay.WORDS)
+        let n ←
+          if i1 > i2
+          then ok (UScalar.cast .U64 replay.WORDS)
+          else ok i1
+        let a ←
+          replay.Replay.check_and_update_loop self.bitmap current n 1#u64
+        let i3 ← v / 64#u64
+        let i4 ← i3 % 128#u64
+        let w ← lift (UScalar.cast .Usize i4)
+        let i5 ← v % 64#u64
+        let bit ← 1#u64 <<< i5
+        let i6 ← Array.index_usize a w
+        let i7 ← lift (i6 &&& bit)
+        if i7 != 0#u64
+        then ok (false, { top := v, bitmap := a })
+        else
+          let i8 ← lift (i6 ||| bit)
+          let a1 ← Array.update a w i8
+          ok (true, { top := v, bitmap := a1 })
+      else
+        let i1 ← v / 64#u64
+        let i2 ← i1 % 128#u64
+        let w ← lift (UScalar.cast .Usize i2)
+        let i3 ← v % 64#u64
+        let bit ← 1#u64 <<< i3
+        let i4 ← Array.index_usize self.bitmap w
+        let i5 ← lift (i4 &&& bit)
+        if i5 != 0#u64
+        then ok (false, self)
+        else
+          let i6 ← lift (i4 ||| bit)
+          let a ← Array.update self.bitmap w i6
+          ok (true, { self with bitmap := a })
+
+/-- [wireguard::transport::receive]:
+    Source: 'crates/wireguard/src/transport.rs', lines 137:0-170:1
+    Visibility: public -/
+def transport.receive
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
+  (key : Array Std.U8 32#usize) (window : replay.Replay)
+  (table : allowed_ips.AllowedIps) (peer : Std.U16) (counter : Std.U64)
+  (body : Slice Std.U8) (out : Slice Std.U8) :
+  Result (transport.Received × replay.Replay × (Slice Std.U8))
+  := do
+  let i := Slice.len body
+  if i < crypto.AEAD_TAG_LEN
+  then ok (transport.Received.Drop, window, out)
+  else
+    let i1 := Slice.len body
+    let n ← i1 - crypto.AEAD_TAG_LEN
+    let i2 := Slice.len out
+    if i2 < n
+    then ok (transport.Received.Drop, window, out)
+    else
+      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
+      let (s1, index_mut_back) ←
+        core.slice.index.Slice.index_mut
+          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out
+          { «end» := n }
+      let (b, s2) ← cryptoCryptoInst.aead_open c key counter s body s1
+      if b
+      then
+        let (b1, window1) ← replay.Replay.check_and_update window counter
+        if b1
+        then
+          if n = 0#usize
+          then
+            let out1 := index_mut_back s2
+            ok (transport.Received.Keepalive, window1, out1)
+          else
+            let out1 := index_mut_back s2
+            let s3 ←
+              core.slice.index.Slice.index
+                (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out1
+                { «end» := n }
+            let o ← transport.inner s3
+            match o with
+            | none => ok (transport.Received.Drop, window1, out1)
+            | some p =>
+              let o1 ← allowed_ips.AllowedIps.lookup table p.v6 p.src
+              match o1 with
+              | none => ok (transport.Received.Drop, window1, out1)
+              | some q =>
+                if q = peer
+                then ok (transport.Received.Packet p.len, window1, out1)
+                else ok (transport.Received.Drop, window1, out1)
+        else
+          let out1 := index_mut_back s2
+          ok (transport.Received.Drop, window1, out1)
+      else
+        let out1 := index_mut_back s2
+        ok (transport.Received.Drop, window, out1)
+
+/-- [wireguard::device::{wireguard::device::Device}::on_transport]:
+    Source: 'crates/wireguard/src/device.rs', lines 944:4-994:5 -/
+def device.Device.on_transport
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (now : Std.U64) («from» : device.Endpoint) (receiver : Std.U32)
+  (counter : Std.U64) (body : Slice Std.U8) (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let i ← device.Device.find_session self receiver
+  if i >= self.peer_count
+  then ok (device.Action.None, self, out)
+  else
+    let p ← Array.index_usize self.peers i
+    let slot ← device.session_slot p receiver
+    let kp ← device.keypair p slot
+    let b ← device.can_receive kp now
+    if b
+    then
+      let i1 ← lift (UScalar.cast .U16 i)
+      let (r, r1, out1) ←
+        transport.receive cryptoCryptoInst c kp.recv kp.replay self.allowed_ips
+          i1 counter body out
+      let p1 ← device.set_keypair p slot { kp with replay := r1 }
+      match r with
+      | transport.Received.Drop =>
+        let a ← Array.update self.peers i p1
+        ok (device.Action.None, { self with peers := a }, out1)
+      | transport.Received.Keepalive =>
+        let p2 ← if slot = 2#u8
+                   then device.rotate p1
+                   else ok p1
+        let a ←
+          Array.update self.peers i
+            { p2 with endpoint := «from», has_endpoint := true }
+        ok (device.Action.None, { self with peers := a }, out1)
+      | transport.Received.Packet n =>
+        let p2 ←
+          if slot = 2#u8
+          then
+            device.rotate
+              { p1 with last_received := now, keepalive_due := true }
+          else ok { p1 with last_received := now, keepalive_due := true }
+        let a ←
+          Array.update self.peers i
+            { p2 with endpoint := «from», has_endpoint := true }
+        ok (device.Action.Deliver n, { self with peers := a }, out1)
+    else ok (device.Action.None, self, out)
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15
+    Visibility: public -/
+def message.TransportHeader.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
-  Result ((core.result.Result message.Initiation untrusted.ValidationError) ×
+  Result ((core.result.Result message.TransportHeader
+    untrusted.ValidationError) × untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.LittleEndianU64.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      ok (core.result.Result.Ok { receiver := val, counter := val1 }, r4)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          message.TransportHeader (core.convert.FromSame
+          untrusted.ValidationError) residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        message.TransportHeader (core.convert.FromSame
+        untrusted.ValidationError) residual
+    ok (r3, r2)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}]
+    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15 -/
+@[reducible]
+def message.TransportHeader.Insts.UntrustedReaderDecode :
+  untrusted.reader.Decode message.TransportHeader := {
+  decode := message.TransportHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15
+    Visibility: public -/
+def message.CookieReply.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result message.CookieReply untrusted.ValidationError) ×
     untrusted.reader.Reader)
   := do
   let (r1, r2) ←
@@ -690,86 +2601,43 @@ def message.Initiation.Insts.UntrustedReaderDecode.decode
   | core.ops.control_flow.ControlFlow.Continue val =>
     let (r3, r4) ←
       untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
-        32#usize) r2
+        24#usize) r2
     let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
     match cf1 with
     | core.ops.control_flow.ControlFlow.Continue val1 =>
       let (r5, r6) ←
         untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
-          48#usize) r4
+          32#usize) r4
       let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
       match cf2 with
       | core.ops.control_flow.ControlFlow.Continue val2 =>
-        let (r7, r8) ←
-          untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
-            28#usize) r6
-        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
-        match cf3 with
-        | core.ops.control_flow.ControlFlow.Continue val3 =>
-          let (r9, r10) ←
-            untrusted.reader.Reader.decode
-              (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r8
-          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
-          match cf4 with
-          | core.ops.control_flow.ControlFlow.Continue val4 =>
-            let (r11, r12) ←
-              untrusted.reader.Reader.decode
-                (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r10
-            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
-            match cf5 with
-            | core.ops.control_flow.ControlFlow.Continue val5 =>
-              ok (core.result.Result.Ok
-                {
-                  sender := val,
-                  ephemeral := val1,
-                  encrypted_static := val2,
-                  encrypted_timestamp := val3,
-                  mac1 := val4,
-                  mac2 := val5
-                }, r12)
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              let r13 ←
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  message.Initiation (core.convert.FromSame
-                  untrusted.ValidationError) residual
-              ok (r13, r12)
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            let r11 ←
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                message.Initiation (core.convert.FromSame
-                untrusted.ValidationError) residual
-            ok (r11, r10)
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          let r9 ←
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              message.Initiation (core.convert.FromSame
-              untrusted.ValidationError) residual
-          ok (r9, r8)
+        ok (core.result.Result.Ok
+          { receiver := val, nonce := val1, encrypted_cookie := val2 }, r6)
       | core.ops.control_flow.ControlFlow.Break residual =>
         let r7 ←
           core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            message.Initiation (core.convert.FromSame
+            message.CookieReply (core.convert.FromSame
             untrusted.ValidationError) residual
         ok (r7, r6)
     | core.ops.control_flow.ControlFlow.Break residual =>
       let r5 ←
         core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          message.Initiation (core.convert.FromSame untrusted.ValidationError)
+          message.CookieReply (core.convert.FromSame untrusted.ValidationError)
           residual
       ok (r5, r4)
   | core.ops.control_flow.ControlFlow.Break residual =>
     let r3 ←
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        message.Initiation (core.convert.FromSame untrusted.ValidationError)
+        message.CookieReply (core.convert.FromSame untrusted.ValidationError)
         residual
     ok (r3, r2)
 
-/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}]
-    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15 -/
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}]
+    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15 -/
 @[reducible]
-def message.Initiation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
-  message.Initiation := {
-  decode := message.Initiation.Insts.UntrustedReaderDecode.decode
+def message.CookieReply.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  message.CookieReply := {
+  decode := message.CookieReply.Insts.UntrustedReaderDecode.decode
 }
 
 /-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Response}::decode]:
@@ -870,12 +2738,12 @@ def message.Response.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   decode := message.Response.Insts.UntrustedReaderDecode.decode
 }
 
-/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15
+/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}::decode]:
+    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15
     Visibility: public -/
-def message.CookieReply.Insts.UntrustedReaderDecode.decode
+def message.Initiation.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
-  Result ((core.result.Result message.CookieReply untrusted.ValidationError) ×
+  Result ((core.result.Result message.Initiation untrusted.ValidationError) ×
     untrusted.reader.Reader)
   := do
   let (r1, r2) ←
@@ -886,86 +2754,97 @@ def message.CookieReply.Insts.UntrustedReaderDecode.decode
   | core.ops.control_flow.ControlFlow.Continue val =>
     let (r3, r4) ←
       untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
-        24#usize) r2
+        32#usize) r2
     let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
     match cf1 with
     | core.ops.control_flow.ControlFlow.Continue val1 =>
       let (r5, r6) ←
         untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
-          32#usize) r4
+          48#usize) r4
       let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
       match cf2 with
       | core.ops.control_flow.ControlFlow.Continue val2 =>
-        ok (core.result.Result.Ok
-          { receiver := val, nonce := val1, encrypted_cookie := val2 }, r6)
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode (ArrayU8N.Insts.UntrustedReaderDecode
+            28#usize) r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                (ArrayU8N.Insts.UntrustedReaderDecode 16#usize) r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok
+                {
+                  sender := val,
+                  ephemeral := val1,
+                  encrypted_static := val2,
+                  encrypted_timestamp := val3,
+                  mac1 := val4,
+                  mac2 := val5
+                }, r12)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  message.Initiation (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                message.Initiation (core.convert.FromSame
+                untrusted.ValidationError) residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              message.Initiation (core.convert.FromSame
+              untrusted.ValidationError) residual
+          ok (r9, r8)
       | core.ops.control_flow.ControlFlow.Break residual =>
         let r7 ←
           core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            message.CookieReply (core.convert.FromSame
+            message.Initiation (core.convert.FromSame
             untrusted.ValidationError) residual
         ok (r7, r6)
     | core.ops.control_flow.ControlFlow.Break residual =>
       let r5 ←
         core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          message.CookieReply (core.convert.FromSame untrusted.ValidationError)
+          message.Initiation (core.convert.FromSame untrusted.ValidationError)
           residual
       ok (r5, r4)
   | core.ops.control_flow.ControlFlow.Break residual =>
     let r3 ←
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        message.CookieReply (core.convert.FromSame untrusted.ValidationError)
+        message.Initiation (core.convert.FromSame untrusted.ValidationError)
         residual
     ok (r3, r2)
 
-/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}]
-    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15 -/
+/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}]
+    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15 -/
 @[reducible]
-def message.CookieReply.Insts.UntrustedReaderDecode : untrusted.reader.Decode
-  message.CookieReply := {
-  decode := message.CookieReply.Insts.UntrustedReaderDecode.decode
+def message.Initiation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  message.Initiation := {
+  decode := message.Initiation.Insts.UntrustedReaderDecode.decode
 }
 
-/-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15
+/-- [wireguard::message::TAG_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 45:0-45:30
     Visibility: public -/
-def message.TransportHeader.Insts.UntrustedReaderDecode.decode
-  (r : untrusted.reader.Reader) :
-  Result ((core.result.Result message.TransportHeader
-    untrusted.ValidationError) × untrusted.reader.Reader)
-  := do
-  let (r1, r2) ←
-    untrusted.reader.Reader.decode
-      untrusted.bytes.LittleEndianU32.Insts.UntrustedReaderDecode r
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (r3, r4) ←
-      untrusted.reader.Reader.decode
-        untrusted.bytes.LittleEndianU64.Insts.UntrustedReaderDecode r2
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue val1 =>
-      ok (core.result.Result.Ok { receiver := val, counter := val1 }, r4)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r5 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          message.TransportHeader (core.convert.FromSame
-          untrusted.ValidationError) residual
-      ok (r5, r4)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let r3 ←
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        message.TransportHeader (core.convert.FromSame
-        untrusted.ValidationError) residual
-    ok (r3, r2)
+@[global_simps, irreducible] def message.TAG_LEN : Std.Usize := 16#usize
 
-/-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}]
-    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15 -/
-@[reducible]
-def message.TransportHeader.Insts.UntrustedReaderDecode :
-  untrusted.reader.Decode message.TransportHeader := {
-  decode := message.TransportHeader.Insts.UntrustedReaderDecode.decode
-}
+/-- [wireguard::message::TYPE_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 35:0-35:30
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_LEN : Std.Usize := 4#usize
 
 /-- [wireguard::message::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for wireguard::message::Message<'a>}::validate]:
     Source: 'crates/wireguard/src/message.rs', lines 103:4-130:5
@@ -1089,569 +2968,119 @@ def message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError :
     message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
 }
 
-/-- [wireguard::message::put_u32]:
-    Source: 'crates/wireguard/src/message.rs', lines 135:0-143:1 -/
-def message.put_u32
-  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U32) :
-  Result (Std.Usize × (Slice Std.U8))
+/-- [wireguard::device::{wireguard::device::Device}::handle_datagram]:
+    Source: 'crates/wireguard/src/device.rs', lines 999:4-1028:5
+    Visibility: public -/
+def device.Device.handle_datagram
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) («from» : device.Endpoint) (under_load : Bool)
+  (bytes : Slice Std.U8) (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
   := do
-  let i ← v % 256#u32
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← v / 256#u32
-  let i3 ← i2 % 256#u32
-  let i4 ← lift (UScalar.cast .U8 i3)
-  let i5 ← v / 65536#u32
-  let i6 ← i5 % 256#u32
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← v / 16777216#u32
-  let i9 ← lift (UScalar.cast .U8 i8)
-  let s ← lift (Array.to_slice (Array.make 4#usize [ i1, i4, i7, i9 ]))
-  message.put_bytes out pos s
+  let (now, self1) ← device.Device.clock self env.now
+  let u ← untrusted.Untrusted.new bytes
+  let r ←
+    untrusted.Untrusted.validate
+      message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  match r with
+  | core.result.Result.Ok m =>
+    match m with
+    | message.Message.Initiation msg =>
+      device.Device.on_initiation cryptoCryptoInst self1 c env now «from»
+        under_load bytes msg out
+    | message.Message.Response msg =>
+      device.Device.on_response cryptoCryptoInst self1 c env now «from»
+        under_load bytes msg out
+    | message.Message.CookieReply msg =>
+      let (a, self2) ←
+        device.Device.on_cookie_reply cryptoCryptoInst self1 c now msg
+      ok (a, self2, out)
+    | message.Message.Transport t =>
+      let i := t.header.receiver
+      let i1 := t.header.counter
+      let s ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) bytes
+          { start := message.TRANSPORT_HEADER_LEN }
+      device.Device.on_transport cryptoCryptoInst self1 c now «from» i i1 s
+        out
+  | core.result.Result.Err _ => ok (device.Action.None, self1, out)
 
-/-- [wireguard::message::{wireguard::message::Initiation}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 158:4-168:5
-    Visibility: public -/
-def message.Initiation.encode
-  (self : message.Initiation) : Result (Array Std.U8 148#usize) := do
-  let out := Array.repeat 148#usize 0#u8
-  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_INITIATION
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.sender
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let s5 ← lift (Array.to_slice self.ephemeral)
-  let (pos2, s6) ← message.put_bytes s4 pos1 s5
-  let out3 := to_slice_mut_back2 s6
-  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s8 ← lift (Array.to_slice self.encrypted_static)
-  let (pos3, s9) ← message.put_bytes s7 pos2 s8
-  let out4 := to_slice_mut_back3 s9
-  let (s10, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
-  let s11 ← lift (Array.to_slice self.encrypted_timestamp)
-  let (pos4, s12) ← message.put_bytes s10 pos3 s11
-  let out5 := to_slice_mut_back4 s12
-  let (s13, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
-  let s14 ← lift (Array.to_slice self.mac1)
-  let (pos5, s15) ← message.put_bytes s13 pos4 s14
-  let out6 := to_slice_mut_back5 s15
-  let (s16, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
-  let s17 ← lift (Array.to_slice self.mac2)
-  let (_, s18) ← message.put_bytes s16 pos5 s17
-  ok (to_slice_mut_back6 s18)
-
-/-- [wireguard::message::{wireguard::message::Response}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 173:4-183:5
-    Visibility: public -/
-def message.Response.encode
-  (self : message.Response) : Result (Array Std.U8 92#usize) := do
-  let out := Array.repeat 92#usize 0#u8
-  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_RESPONSE
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.sender
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let i1 := self.receiver
-  let (pos2, s5) ← message.put_u32 s4 pos1 i1
-  let out3 := to_slice_mut_back2 s5
-  let (s6, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s7 ← lift (Array.to_slice self.ephemeral)
-  let (pos3, s8) ← message.put_bytes s6 pos2 s7
-  let out4 := to_slice_mut_back3 s8
-  let (s9, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
-  let s10 ← lift (Array.to_slice self.encrypted_nothing)
-  let (pos4, s11) ← message.put_bytes s9 pos3 s10
-  let out5 := to_slice_mut_back4 s11
-  let (s12, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
-  let s13 ← lift (Array.to_slice self.mac1)
-  let (pos5, s14) ← message.put_bytes s12 pos4 s13
-  let out6 := to_slice_mut_back5 s14
-  let (s15, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
-  let s16 ← lift (Array.to_slice self.mac2)
-  let (_, s17) ← message.put_bytes s15 pos5 s16
-  ok (to_slice_mut_back6 s17)
-
-/-- [wireguard::message::{wireguard::message::CookieReply}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 188:4-195:5
-    Visibility: public -/
-def message.CookieReply.encode
-  (self : message.CookieReply) : Result (Array Std.U8 64#usize) := do
-  let out := Array.repeat 64#usize 0#u8
-  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_COOKIE_REPLY
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.receiver
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let s5 ← lift (Array.to_slice self.nonce)
-  let (pos2, s6) ← message.put_bytes s4 pos1 s5
-  let out3 := to_slice_mut_back2 s6
-  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s8 ← lift (Array.to_slice self.encrypted_cookie)
-  let (_, s9) ← message.put_bytes s7 pos2 s8
-  ok (to_slice_mut_back3 s9)
-
-/-- [wireguard::message::put_u64]:
-    Source: 'crates/wireguard/src/message.rs', lines 200:0-203:1 -/
-def message.put_u64
-  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U64) :
-  Result (Std.Usize × (Slice Std.U8))
+/-- [wireguard::device::{wireguard::device::Device}::tick_peer]:
+    Source: 'crates/wireguard/src/device.rs', lines 1031:4-1049:5 -/
+def device.Device.tick_peer
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
   := do
-  let i ← v % 4294967296#u64
-  let i1 ← lift (UScalar.cast .U32 i)
-  let (pos1, out1) ← message.put_u32 out pos i1
-  let i2 ← v / 4294967296#u64
-  let i3 ← lift (UScalar.cast .U32 i2)
-  message.put_u32 out1 pos1 i3
-
-/-- [wireguard::message::{wireguard::message::TransportHeader}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 207:4-213:5
-    Visibility: public -/
-def message.TransportHeader.encode
-  (self : message.TransportHeader) : Result (Array Std.U8 16#usize) := do
-  let out := Array.repeat 16#usize 0#u8
-  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_TRANSPORT
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.receiver
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let i1 := self.counter
-  let (_, s5) ← message.put_u64 s4 pos1 i1
-  ok (to_slice_mut_back2 s5)
-
-/-- [wireguard::noise::CONSTRUCTION]
-    Source: 'crates/wireguard/src/noise.rs', lines 24:0-24:77
-    Visibility: public -/
-@[global_simps, irreducible]
-def noise.CONSTRUCTION : Array Std.U8 37#usize :=
-  Array.make 37#usize [
-    78#u8, 111#u8, 105#u8, 115#u8, 101#u8, 95#u8, 73#u8, 75#u8, 112#u8, 115#u8,
-    107#u8, 50#u8, 95#u8, 50#u8, 53#u8, 53#u8, 49#u8, 57#u8, 95#u8, 67#u8,
-    104#u8, 97#u8, 67#u8, 104#u8, 97#u8, 80#u8, 111#u8, 108#u8, 121#u8, 95#u8,
-    66#u8, 76#u8, 65#u8, 75#u8, 69#u8, 50#u8, 115#u8
-    ]
-
-/-- [wireguard::noise::IDENTIFIER]
-    Source: 'crates/wireguard/src/noise.rs', lines 26:0-26:72
-    Visibility: public -/
-@[global_simps, irreducible]
-def noise.IDENTIFIER : Array Std.U8 34#usize :=
-  Array.make 34#usize [
-    87#u8, 105#u8, 114#u8, 101#u8, 71#u8, 117#u8, 97#u8, 114#u8, 100#u8, 32#u8,
-    118#u8, 49#u8, 32#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8, 32#u8, 74#u8,
-    97#u8, 115#u8, 111#u8, 110#u8, 64#u8, 122#u8, 120#u8, 50#u8, 99#u8, 52#u8,
-    46#u8, 99#u8, 111#u8, 109#u8
-    ]
-
-/-- [wireguard::noise::TIMESTAMP_LEN]
-    Source: 'crates/wireguard/src/noise.rs', lines 28:0-28:36
-    Visibility: public -/
-@[global_simps, irreducible] def noise.TIMESTAMP_LEN : Std.Usize := 12#usize
-
-/-- [wireguard::noise::mix_hash]:
-    Source: 'crates/wireguard/src/noise.rs', lines 53:0-57:1 -/
-def noise.mix_hash
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (h : Array Std.U8 32#usize) (data : Slice Std.U8) :
-  Result (Array Std.U8 32#usize)
-  := do
-  let out := Array.repeat 32#usize 0#u8
-  let s ← lift (Array.to_slice h)
-  cryptoCryptoInst.hash c s data out
-
-/-- [wireguard::noise::initial_chain]:
-    Source: 'crates/wireguard/src/noise.rs', lines 61:0-67:1
-    Visibility: public -/
-def noise.initial_chain
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (responder_static : Array Std.U8 32#usize) :
-  Result noise.Chain
-  := do
-  let key := Array.repeat 32#usize 0#u8
-  let s ← lift (Array.to_slice noise.CONSTRUCTION)
-  let s1 ← lift (Array.to_slice (Std.Array.empty Std.U8))
-  let key1 ← cryptoCryptoInst.hash c s s1 key
-  let s2 ← lift (Array.to_slice noise.IDENTIFIER)
-  let hash ← noise.mix_hash cryptoCryptoInst c key1 s2
-  let s3 ← lift (Array.to_slice responder_static)
-  let hash1 ← noise.mix_hash cryptoCryptoInst c hash s3
-  ok { key := key1, hash := hash1 }
-
-/-- [wireguard::noise::create_initiation]:
-    Source: 'crates/wireguard/src/noise.rs', lines 72:0-118:1
-    Visibility: public -/
-def noise.create_initiation
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (local_private : Array Std.U8 32#usize)
-  (local_public : Array Std.U8 32#usize)
-  (remote_public : Array Std.U8 32#usize)
-  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
-  (timestamp : Array Std.U8 12#usize) :
-  Result (Option (message.Initiation × noise.InitiatorState))
-  := do
-  let chain ← noise.initial_chain cryptoCryptoInst c remote_public
-  let ephemeral := Array.repeat 32#usize 0#u8
-  let ephemeral1 ←
-    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
-  let s ← lift (Array.to_slice ephemeral1)
-  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
-  let s1 ← lift (Array.to_slice ephemeral1)
-  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
-  let dh := Array.repeat 32#usize 0#u8
-  let (b, dh1) ← cryptoCryptoInst.x25519 c ephemeral_private remote_public dh
-  if b
+  let p ← Array.index_usize self.peers i
+  let (t, p1) ← device.timers p now
+  let (_, index_mut_back) ← Array.index_mut_usize self.peers i
+  if t = 1#u8
   then
-    let s2 ← lift (Array.to_slice dh1)
-    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
-    let encrypted_static := Array.repeat 48#usize 0#u8
-    let s3 ← lift (Array.to_slice hash)
-    let s4 ← lift (Array.to_slice local_public)
-    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut encrypted_static)
-    let s6 ← cryptoCryptoInst.aead_seal c k 0#u64 s3 s4 s5
-    let encrypted_static1 := to_slice_mut_back s6
-    let s7 ← lift (Array.to_slice encrypted_static1)
-    let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
-    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private remote_public dh1
-    if b1
-    then
-      let s8 ← lift (Array.to_slice dh2)
-      let (key2, k1) ← crypto.kdf2 cryptoCryptoInst c key1 s8
-      let encrypted_timestamp := Array.repeat 28#usize 0#u8
-      let s9 ← lift (Array.to_slice hash1)
-      let s10 ← lift (Array.to_slice timestamp)
-      let (s11, to_slice_mut_back1) ←
-        lift (Array.to_slice_mut encrypted_timestamp)
-      let s12 ← cryptoCryptoInst.aead_seal c k1 0#u64 s9 s10 s11
-      let encrypted_timestamp1 := to_slice_mut_back1 s12
-      let s13 ← lift (Array.to_slice encrypted_timestamp1)
-      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s13
-      let a := Array.repeat 16#usize 0#u8
-      let a1 := Array.repeat 16#usize 0#u8
-      ok (some
-        ({
-           sender := sender,
-           ephemeral := ephemeral1,
-           encrypted_static := encrypted_static1,
-           encrypted_timestamp := encrypted_timestamp1,
-           mac1 := a,
-           mac2 := a1
-         }, { chain := { key := key2, hash := hash2 }, ephemeral_private }))
-    else ok none
-  else ok none
-
-/-- [wireguard::noise::consume_initiation_static]:
-    Source: 'crates/wireguard/src/noise.rs', lines 123:0-146:1
-    Visibility: public -/
-def noise.consume_initiation_static
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (local_private : Array Std.U8 32#usize)
-  (local_public : Array Std.U8 32#usize) (msg : message.Initiation) :
-  Result (Option noise.InitiationStatic)
-  := do
-  let chain ← noise.initial_chain cryptoCryptoInst c local_public
-  let s ← lift (Array.to_slice msg.ephemeral)
-  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
-  let s1 ← lift (Array.to_slice msg.ephemeral)
-  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
-  let dh := Array.repeat 32#usize 0#u8
-  let (b, dh1) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh
-  if b
-  then
-    let s2 ← lift (Array.to_slice dh1)
-    let (key1, k) ← crypto.kdf2 cryptoCryptoInst c key s2
-    let initiator_static := Array.repeat 32#usize 0#u8
-    let s3 ← lift (Array.to_slice hash)
-    let s4 ← lift (Array.to_slice msg.encrypted_static)
-    let (s5, to_slice_mut_back) ← lift (Array.to_slice_mut initiator_static)
-    let (b1, s6) ← cryptoCryptoInst.aead_open c k 0#u64 s3 s4 s5
-    if b1
-    then
-      let s7 ← lift (Array.to_slice msg.encrypted_static)
-      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s7
-      let initiator_static1 := to_slice_mut_back s6
-      ok (some
-        {
-          chain := { key := key1, hash := hash1 },
-          initiator_static := initiator_static1
-        })
-    else ok none
-  else ok none
-
-/-- [wireguard::noise::consume_initiation_timestamp]:
-    Source: 'crates/wireguard/src/noise.rs', lines 151:0-174:1
-    Visibility: public -/
-def noise.consume_initiation_timestamp
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (local_private : Array Std.U8 32#usize) (st : noise.InitiationStatic)
-  (msg : message.Initiation) :
-  Result (Option (noise.Chain × (Array Std.U8 12#usize)))
-  := do
-  let dh := Array.repeat 32#usize 0#u8
-  let (b, dh1) ←
-    cryptoCryptoInst.x25519 c local_private st.initiator_static dh
-  if b
-  then
-    let s ← lift (Array.to_slice dh1)
-    let (key, k) ← crypto.kdf2 cryptoCryptoInst c st.chain.key s
-    let timestamp := Array.repeat 12#usize 0#u8
-    let s1 ← lift (Array.to_slice st.chain.hash)
-    let s2 ← lift (Array.to_slice msg.encrypted_timestamp)
-    let (s3, to_slice_mut_back) ← lift (Array.to_slice_mut timestamp)
-    let (b1, s4) ← cryptoCryptoInst.aead_open c k 0#u64 s1 s2 s3
-    if b1
-    then
-      let s5 ← lift (Array.to_slice msg.encrypted_timestamp)
-      let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s5
-      let timestamp1 := to_slice_mut_back s4
-      ok (some ({ key, hash }, timestamp1))
-    else ok none
-  else ok none
-
-/-- [wireguard::noise::timestamp_after]: loop 0:
-    Source: 'crates/wireguard/src/noise.rs', lines 180:4-187:1
-    Visibility: public -/
-@[rust_loop]
-def noise.timestamp_after_loop
-  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) (i : Std.Usize) :
-  Result Bool
-  := do
-  if i < noise.TIMESTAMP_LEN
-  then
-    let i1 ← Array.index_usize a i
-    let i2 ← Array.index_usize b i
-    if i1 != i2
-    then ok (i1 > i2)
-    else let i3 ← i + 1#usize
-         noise.timestamp_after_loop a b i3
-  else ok false
-partial_fixpoint
-
-/-- [wireguard::noise::timestamp_after]:
-    Source: 'crates/wireguard/src/noise.rs', lines 178:0-187:1
-    Visibility: public -/
-@[reducible]
-def noise.timestamp_after
-  (a : Array Std.U8 12#usize) (b : Array Std.U8 12#usize) : Result Bool := do
-  noise.timestamp_after_loop a b 0#usize
-
-/-- [wireguard::noise::create_response]:
-    Source: 'crates/wireguard/src/noise.rs', lines 192:0-234:1
-    Visibility: public -/
-def noise.create_response
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (chain : noise.Chain) (initiator_ephemeral : Array Std.U8 32#usize)
-  (initiator_static : Array Std.U8 32#usize) (psk : Array Std.U8 32#usize)
-  (ephemeral_private : Array Std.U8 32#usize) (sender : Std.U32)
-  (receiver : Std.U32) :
-  Result (Option (message.Response × noise.Chain))
-  := do
-  let ephemeral := Array.repeat 32#usize 0#u8
-  let ephemeral1 ←
-    cryptoCryptoInst.x25519_public c ephemeral_private ephemeral
-  let s ← lift (Array.to_slice ephemeral1)
-  let key ← crypto.kdf1 cryptoCryptoInst c chain.key s
-  let s1 ← lift (Array.to_slice ephemeral1)
-  let hash ← noise.mix_hash cryptoCryptoInst c chain.hash s1
-  let dh := Array.repeat 32#usize 0#u8
-  let (b, dh1) ←
-    cryptoCryptoInst.x25519 c ephemeral_private initiator_ephemeral dh
-  if b
-  then
-    let s2 ← lift (Array.to_slice dh1)
-    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
-    let (b1, dh2) ←
-      cryptoCryptoInst.x25519 c ephemeral_private initiator_static dh1
-    if b1
-    then
-      let s3 ← lift (Array.to_slice dh2)
-      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
-      let s4 ← lift (Array.to_slice psk)
-      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
-      let s5 ← lift (Array.to_slice t)
-      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
-      let encrypted_nothing := Array.repeat 16#usize 0#u8
-      let s6 ← lift (Array.to_slice hash1)
-      let s7 ← lift (Array.to_slice (Std.Array.empty Std.U8))
-      let (s8, to_slice_mut_back) ←
-        lift (Array.to_slice_mut encrypted_nothing)
-      let s9 ← cryptoCryptoInst.aead_seal c k 0#u64 s6 s7 s8
-      let encrypted_nothing1 := to_slice_mut_back s9
-      let s10 ← lift (Array.to_slice encrypted_nothing1)
-      let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s10
-      let a := Array.repeat 16#usize 0#u8
-      let a1 := Array.repeat 16#usize 0#u8
-      ok (some
-        ({
-           sender := sender,
-           receiver := receiver,
-           ephemeral := ephemeral1,
-           encrypted_nothing := encrypted_nothing1,
-           mac1 := a,
-           mac2 := a1
-         }, { key := key3, hash := hash2 }))
-    else ok none
-  else ok none
-
-/-- [wireguard::noise::consume_response]:
-    Source: 'crates/wireguard/src/noise.rs', lines 238:0-264:1
-    Visibility: public -/
-def noise.consume_response
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (st : noise.InitiatorState) (local_private : Array Std.U8 32#usize)
-  (psk : Array Std.U8 32#usize) (msg : message.Response) :
-  Result (Option noise.Chain)
-  := do
-  let s ← lift (Array.to_slice msg.ephemeral)
-  let key ← crypto.kdf1 cryptoCryptoInst c st.chain.key s
-  let s1 ← lift (Array.to_slice msg.ephemeral)
-  let hash ← noise.mix_hash cryptoCryptoInst c st.chain.hash s1
-  let dh := Array.repeat 32#usize 0#u8
-  let (b, dh1) ←
-    cryptoCryptoInst.x25519 c st.ephemeral_private msg.ephemeral dh
-  if b
-  then
-    let s2 ← lift (Array.to_slice dh1)
-    let key1 ← crypto.kdf1 cryptoCryptoInst c key s2
-    let (b1, dh2) ← cryptoCryptoInst.x25519 c local_private msg.ephemeral dh1
-    if b1
-    then
-      let s3 ← lift (Array.to_slice dh2)
-      let key2 ← crypto.kdf1 cryptoCryptoInst c key1 s3
-      let s4 ← lift (Array.to_slice psk)
-      let (key3, t, k) ← crypto.kdf3 cryptoCryptoInst c key2 s4
-      let s5 ← lift (Array.to_slice t)
-      let hash1 ← noise.mix_hash cryptoCryptoInst c hash s5
-      let s6 ← lift (Array.to_slice hash1)
-      let s7 ← lift (Array.to_slice msg.encrypted_nothing)
-      let (s8, _) ← lift (Array.to_slice_mut (Std.Array.empty Std.U8))
-      let (b2, _) ← cryptoCryptoInst.aead_open c k 0#u64 s6 s7 s8
-      if b2
-      then
-        let s9 ← lift (Array.to_slice msg.encrypted_nothing)
-        let hash2 ← noise.mix_hash cryptoCryptoInst c hash1 s9
-        ok (some { key := key3, hash := hash2 })
-      else ok none
-    else ok none
-  else ok none
-
-/-- [wireguard::noise::transport_keys]:
-    Source: 'crates/wireguard/src/noise.rs', lines 268:0-270:1
-    Visibility: public -/
-def noise.transport_keys
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (chain : noise.Chain) :
-  Result ((Array Std.U8 32#usize) × (Array Std.U8 32#usize))
-  := do
-  let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
-  crypto.kdf2 cryptoCryptoInst c chain.key s
-
-/-- [wireguard::replay::REJECT_AFTER_MESSAGES]
-    Source: 'crates/wireguard/src/replay.rs', lines 17:0-17:66
-    Visibility: public -/
-@[global_simps, irreducible]
-def replay.REJECT_AFTER_MESSAGES : Std.U64 := 18446744073709543423#u64
-
-/-- [wireguard::replay::WINDOW]
-    Source: 'crates/wireguard/src/replay.rs', lines 20:0-20:29
-    Visibility: public -/
-@[global_simps, irreducible] def replay.WINDOW : Std.U64 := 8128#u64
-
-/-- [wireguard::replay::WORDS]
-    Source: 'crates/wireguard/src/replay.rs', lines 22:0-22:29
-    Visibility: public -/
-@[global_simps, irreducible] def replay.WORDS : Std.Usize := 128#usize
-
-/-- [wireguard::replay::{wireguard::replay::Replay}::new]:
-    Source: 'crates/wireguard/src/replay.rs', lines 34:4-39:5
-    Visibility: public -/
-def replay.Replay.new : Result replay.Replay := do
-  let a := Array.repeat 128#usize 0#u64
-  ok { top := 0#u64, bitmap := a }
-
-/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]: loop 0:
-    Source: 'crates/wireguard/src/replay.rs', lines 61:12-64:13
-    Visibility: public -/
-@[rust_loop]
-def replay.Replay.check_and_update_loop
-  (a : Array Std.U64 128#usize) (current : Std.U64) (n : Std.U64) (i : Std.U64)
-  :
-  Result (Array Std.U64 128#usize)
-  := do
-  if i <= n
-  then
-    let i1 ← current + i
-    let i2 ← i1 % 128#u64
-    let i3 ← lift (UScalar.cast .Usize i2)
-    let a1 ← Array.update a i3 0#u64
-    let i4 ← i + 1#u64
-    replay.Replay.check_and_update_loop a1 current n i4
-  else ok a
-partial_fixpoint
-
-/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]:
-    Source: 'crates/wireguard/src/replay.rs', lines 42:4-74:5
-    Visibility: public -/
-def replay.Replay.check_and_update
-  (self : replay.Replay) (counter : Std.U64) :
-  Result (Bool × replay.Replay)
-  := do
-  if counter >= replay.REJECT_AFTER_MESSAGES
-  then ok (false, self)
+    let a := index_mut_back p1
+    device.Device.begin_handshake cryptoCryptoInst { self with peers := a } c
+      env now i out
   else
-    let v ← counter + 1#u64
-    let i ← v + replay.WINDOW
-    if i < self.top
-    then ok (false, self)
+    if t = 2#u8
+    then
+      let a := index_mut_back p1
+      device.Device.send_keepalive cryptoCryptoInst { self with peers := a } c
+        env now i out
     else
-      if v > self.top
-      then
-        let current ← self.top / 64#u64
-        let index ← v / 64#u64
-        let i1 ← index - current
-        let i2 ← lift (UScalar.cast .U64 replay.WORDS)
-        let n ←
-          if i1 > i2
-          then ok (UScalar.cast .U64 replay.WORDS)
-          else ok i1
-        let a ←
-          replay.Replay.check_and_update_loop self.bitmap current n 1#u64
-        let i3 ← v / 64#u64
-        let i4 ← i3 % 128#u64
-        let w ← lift (UScalar.cast .Usize i4)
-        let i5 ← v % 64#u64
-        let bit ← 1#u64 <<< i5
-        let i6 ← Array.index_usize a w
-        let i7 ← lift (i6 &&& bit)
-        if i7 != 0#u64
-        then ok (false, { top := v, bitmap := a })
-        else
-          let i8 ← lift (i6 ||| bit)
-          let a1 ← Array.update a w i8
-          ok (true, { top := v, bitmap := a1 })
-      else
-        let i1 ← v / 64#u64
-        let i2 ← i1 % 128#u64
-        let w ← lift (UScalar.cast .Usize i2)
-        let i3 ← v % 64#u64
-        let bit ← 1#u64 <<< i3
-        let i4 ← Array.index_usize self.bitmap w
-        let i5 ← lift (i4 &&& bit)
-        if i5 != 0#u64
-        then ok (false, self)
-        else
-          let i6 ← lift (i4 ||| bit)
-          let a ← Array.update self.bitmap w i6
-          ok (true, { self with bitmap := a })
+      let a := index_mut_back p1
+      ok (device.Action.None, { self with peers := a }, out)
+
+/-- [wireguard::device::{wireguard::device::Device}::tick_from]:
+    Source: 'crates/wireguard/src/device.rs', lines 1054:4-1070:5 -/
+def device.Device.tick_from
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
+  (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  if i >= self.peer_count
+  then ok (device.Action.None, self, out)
+  else
+    let (a, self1, out1) ←
+      device.Device.tick_peer cryptoCryptoInst self c env now i out
+    let b ←
+      match a with
+      | device.Action.None => ok true
+      | device.Action.Send _ _ => ok false
+      | device.Action.Deliver _ => ok false
+    if b
+    then
+      let i1 ← i + 1#usize
+      device.Device.tick_from cryptoCryptoInst self1 c env now i1 out1
+    else ok (a, self1, out1)
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::tick]:
+    Source: 'crates/wireguard/src/device.rs', lines 1074:4-1077:5
+    Visibility: public -/
+def device.Device.tick
+  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
+  (c : C) (env : device.Env) (out : Slice Std.U8) :
+  Result (device.Action × device.Device × (Slice Std.U8))
+  := do
+  let (now, self1) ← device.Device.clock self env.now
+  device.Device.tick_from cryptoCryptoInst self1 c env now 0#usize out
+
+/-- [wireguard::inner::ipv4_source]:
+    Source: 'crates/wireguard/src/inner.rs', lines 7:0-12:1
+    Visibility: public -/
+def inner.ipv4_source (packet : Slice Std.U8) : Result (Option Std.U32) := do
+  let u ← untrusted.Untrusted.new packet
+  let r ←
+    untrusted.Untrusted.validate
+      net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
+      u
+  match r with
+  | core.result.Result.Ok ip => let i := ip.header.src
+                                ok (some i)
+  | core.result.Result.Err _ => ok none
 
 /-- [wireguard::replay::{impl core::default::Default for wireguard::replay::Replay}::default]:
     Source: 'crates/wireguard/src/replay.rs', lines 78:4-80:5
@@ -1666,201 +3095,5 @@ def replay.Replay.Insts.CoreDefaultDefault : core.default.Default replay.Replay
   := {
   default := replay.Replay.Insts.CoreDefaultDefault.default
 }
-
-/-- [wireguard::transport::padded_len]:
-    Source: 'crates/wireguard/src/transport.rs', lines 25:0-33:1
-    Visibility: public -/
-def transport.padded_len (len : Std.Usize) : Result Std.Usize := do
-  let i ← len % 16#usize
-  if i = 0#usize
-  then ok len
-  else let i1 ← len / 16#usize
-       let i2 ← i1 * 16#usize
-       i2 + 16#usize
-
-/-- [wireguard::transport::encrypt]: loop 0:
-    Source: 'crates/wireguard/src/transport.rs', lines 52:4-55:5
-    Visibility: public -/
-@[rust_loop]
-def transport.encrypt_loop0
-  (packet : Slice Std.U8) (work : Slice Std.U8) (p : Std.Usize) (i : Std.Usize)
-  :
-  Result (Slice Std.U8)
-  := do
-  if i < p
-  then
-    let i1 := Slice.len packet
-    let i2 ← if i < i1
-               then Slice.index_usize packet i
-               else ok 0#u8
-    let s ← Slice.update work i i2
-    let i3 ← i + 1#usize
-    transport.encrypt_loop0 packet s p i3
-  else ok work
-partial_fixpoint
-
-/-- [wireguard::transport::encrypt]: loop 1:
-    Source: 'crates/wireguard/src/transport.rs', lines 62:4-65:5
-    Visibility: public -/
-@[rust_loop]
-def transport.encrypt_loop1
-  (out : Slice Std.U8) (header : Array Std.U8 16#usize) (j : Std.Usize) :
-  Result (Slice Std.U8)
-  := do
-  if j < message.TRANSPORT_HEADER_LEN
-  then
-    let i ← Array.index_usize header j
-    let s ← Slice.update out j i
-    let j1 ← j + 1#usize
-    transport.encrypt_loop1 s header j1
-  else ok out
-partial_fixpoint
-
-/-- [wireguard::transport::encrypt]:
-    Source: 'crates/wireguard/src/transport.rs', lines 38:0-69:1
-    Visibility: public -/
-def transport.encrypt
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (key : Array Std.U8 32#usize) (receiver : Std.U32) (counter : Std.U64)
-  (packet : Slice Std.U8) (work : Slice Std.U8) (out : Slice Std.U8) :
-  Result ((Option Std.Usize) × (Slice Std.U8) × (Slice Std.U8))
-  := do
-  let i := Slice.len packet
-  let p ← transport.padded_len i
-  let i1 := Slice.len work
-  if i1 < p
-  then ok (none, work, out)
-  else
-    let i2 := Slice.len out
-    let i3 ← message.TRANSPORT_HEADER_LEN + p
-    let i4 ← i3 + crypto.AEAD_TAG_LEN
-    if i2 < i4
-    then ok (none, work, out)
-    else
-      let work1 ← transport.encrypt_loop0 packet work p 0#usize
-      let header ←
-        message.TransportHeader.encode
-          { receiver := receiver, counter := counter }
-      let out1 ← transport.encrypt_loop1 out header 0#usize
-      let i5 ← message.TRANSPORT_HEADER_LEN + p
-      let n ← i5 + crypto.AEAD_TAG_LEN
-      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
-      let s1 ←
-        core.slice.index.Slice.index
-          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) work1
-          { «end» := p }
-      let (s2, index_mut_back) ←
-        core.slice.index.Slice.index_mut
-          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) out1
-          { start := message.TRANSPORT_HEADER_LEN, «end» := n }
-      let s3 ← cryptoCryptoInst.aead_seal c key counter s s1 s2
-      let out2 := index_mut_back s3
-      ok (some n, work1, out2)
-
-/-- [wireguard::transport::inner]:
-    Source: 'crates/wireguard/src/transport.rs', lines 84:0-113:1
-    Visibility: public -/
-def transport.inner
-  (packet : Slice Std.U8) : Result (Option transport.Inner) := do
-  let b ← core.slice.Slice.is_empty packet
-  if b
-  then ok none
-  else
-    let i ← Slice.index_usize packet 0#usize
-    let version ← i / 16#u8
-    if version = 4#u8
-    then
-      let u ← untrusted.Untrusted.new packet
-      let r ←
-        untrusted.Untrusted.validate
-          net.ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
-          u
-      match r with
-      | core.result.Result.Ok ip =>
-        let i1 := ip.header.src
-        let i2 ← lift (UScalar.cast .U128 i1)
-        let i3 := ip.header.dst
-        let i4 ← lift (UScalar.cast .U128 i3)
-        let i5 := ip.header.total_len
-        let i6 ← lift (UScalar.cast .Usize i5)
-        ok (some { v6 := false, src := i2, dst := i4, len := i6 })
-      | core.result.Result.Err _ => ok none
-    else
-      if version = 6#u8
-      then
-        let u ← untrusted.Untrusted.new packet
-        let r ←
-          untrusted.Untrusted.validate
-            net.ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError
-            u
-        match r with
-        | core.result.Result.Ok ip =>
-          let i1 := ip.header.src
-          let i2 := ip.header.dst
-          let i3 := ip.header.payload_len
-          let i4 ← lift (UScalar.cast .Usize i3)
-          let i5 ← 40#usize + i4
-          ok (some { v6 := true, src := i1, dst := i2, len := i5 })
-        | core.result.Result.Err _ => ok none
-      else ok none
-
-/-- [wireguard::transport::receive]:
-    Source: 'crates/wireguard/src/transport.rs', lines 131:0-164:1
-    Visibility: public -/
-def transport.receive
-  {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
-  (key : Array Std.U8 32#usize) (window : replay.Replay)
-  (table : allowed_ips.AllowedIps) (peer : Std.U16) (counter : Std.U64)
-  (body : Slice Std.U8) (out : Slice Std.U8) :
-  Result (transport.Received × replay.Replay × (Slice Std.U8))
-  := do
-  let i := Slice.len body
-  if i < crypto.AEAD_TAG_LEN
-  then ok (transport.Received.Drop, window, out)
-  else
-    let i1 := Slice.len body
-    let n ← i1 - crypto.AEAD_TAG_LEN
-    let i2 := Slice.len out
-    if i2 < n
-    then ok (transport.Received.Drop, window, out)
-    else
-      let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
-      let (s1, index_mut_back) ←
-        core.slice.index.Slice.index_mut
-          (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out
-          { «end» := n }
-      let (b, s2) ← cryptoCryptoInst.aead_open c key counter s body s1
-      if b
-      then
-        let (b1, window1) ← replay.Replay.check_and_update window counter
-        if b1
-        then
-          if n = 0#usize
-          then
-            let out1 := index_mut_back s2
-            ok (transport.Received.Keepalive, window1, out1)
-          else
-            let out1 := index_mut_back s2
-            let s3 ←
-              core.slice.index.Slice.index
-                (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) out1
-                { «end» := n }
-            let o ← transport.inner s3
-            match o with
-            | none => ok (transport.Received.Drop, window1, out1)
-            | some p =>
-              let o1 ← allowed_ips.AllowedIps.lookup table p.v6 p.src
-              match o1 with
-              | none => ok (transport.Received.Drop, window1, out1)
-              | some q =>
-                if q = peer
-                then ok (transport.Received.Packet p.len, window1, out1)
-                else ok (transport.Received.Drop, window1, out1)
-        else
-          let out1 := index_mut_back s2
-          ok (transport.Received.Drop, window1, out1)
-      else
-        let out1 := index_mut_back s2
-        ok (transport.Received.Drop, window, out1)
 
 end wireguard

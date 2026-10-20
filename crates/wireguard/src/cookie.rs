@@ -62,7 +62,7 @@ pub fn add_macs<C: Crypto>(
     c: &C,
     msg: &mut [u8],
     mac1_key: &[u8; KEY_LEN],
-    tau: Option<&[u8; COOKIE_LEN]>,
+    tau: Option<[u8; COOKIE_LEN]>,
 ) -> [u8; MAC_LEN] {
     let n = msg.len();
     let mut mac1 = [0u8; MAC_LEN];
@@ -70,7 +70,7 @@ pub fn add_macs<C: Crypto>(
     put_bytes(msg, n - MACS_LEN, &mac1);
     let mut mac2 = [0u8; MAC_LEN];
     if let Some(tau) = tau {
-        c.mac(tau, &msg[..n - MAC_LEN], &mut mac2);
+        c.mac(&tau, &msg[..n - MAC_LEN], &mut mac2);
     }
     put_bytes(msg, n - MAC_LEN, &mac2);
     mac1

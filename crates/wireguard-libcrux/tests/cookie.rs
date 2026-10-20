@@ -42,7 +42,7 @@ fn macs_check_out() {
     // With a cookie, mac2 covers mac1 too.
     let cookie = [9u8; 16];
     let mut msg = message();
-    add_macs(&c, &mut msg, &key, Some(&cookie));
+    add_macs(&c, &mut msg, &key, Some(cookie));
     assert!(check_mac1(&c, &msg, &key));
     assert!(check_mac2(&c, &msg, &cookie));
     assert!(!check_mac2(&c, &msg, &[8; 16]));

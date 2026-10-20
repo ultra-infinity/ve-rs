@@ -143,7 +143,6 @@ def after : List U8 → List U8 → Bool
 
 /-! ## Agreement -/
 
-namespace wireguard.noise.Spec
 
 open wireguard.crypto
 

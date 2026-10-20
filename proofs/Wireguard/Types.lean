@@ -67,6 +67,121 @@ structure message.CookieReply where
   nonce : Array Std.U8 24#usize
   encrypted_cookie : Array Std.U8 32#usize
 
+/-- [wireguard::device::Endpoint]
+    Source: 'crates/wireguard/src/device.rs', lines 72:0-76:1
+    Visibility: public -/
+structure device.Endpoint where
+  v6 : Bool
+  addr : Array Std.U8 16#usize
+  port : Std.U16
+
+/-- [wireguard::device::Env]
+    Source: 'crates/wireguard/src/device.rs', lines 106:0-119:1
+    Visibility: public -/
+structure device.Env where
+  now : Std.U64
+  timestamp : Array Std.U8 12#usize
+  ephemeral : Array Std.U8 32#usize
+  index : Std.U32
+  nonce : Array Std.U8 24#usize
+  secret : Array Std.U8 32#usize
+
+/-- [wireguard::device::Action]
+    Source: 'crates/wireguard/src/device.rs', lines 123:0-129:1
+    Visibility: public -/
+@[discriminant isize]
+inductive device.Action where
+| None : device.Action
+| Send : device.Endpoint → Std.Usize → device.Action
+| Deliver : Std.Usize → device.Action
+
+/-- [wireguard::replay::Replay]
+    Source: 'crates/wireguard/src/replay.rs', lines 26:0-30:1
+    Visibility: public -/
+structure replay.Replay where
+  top : Std.U64
+  bitmap : Array Std.U64 128#usize
+
+/-- [wireguard::device::Keypair]
+    Source: 'crates/wireguard/src/device.rs', lines 133:0-148:1
+    Visibility: public -/
+structure device.Keypair where
+  valid : Bool
+  initiator : Bool
+  send : Array Std.U8 32#usize
+  recv : Array Std.U8 32#usize
+  local_index : Std.U32
+  remote_index : Std.U32
+  counter : Std.U64
+  replay : replay.Replay
+  created : Std.U64
+
+/-- [wireguard::noise::Chain]
+    Source: 'crates/wireguard/src/noise.rs', lines 32:0-35:1
+    Visibility: public -/
+structure noise.Chain where
+  key : Array Std.U8 32#usize
+  hash : Array Std.U8 32#usize
+
+/-- [wireguard::noise::InitiatorState]
+    Source: 'crates/wireguard/src/noise.rs', lines 39:0-42:1
+    Visibility: public -/
+structure noise.InitiatorState where
+  chain : noise.Chain
+  ephemeral_private : Array Std.U8 32#usize
+
+/-- [wireguard::device::Handshake]
+    Source: 'crates/wireguard/src/device.rs', lines 168:0-172:1
+    Visibility: public -/
+structure device.Handshake where
+  active : Bool
+  local_index : Std.U32
+  state : noise.InitiatorState
+
+/-- [wireguard::device::Peer]
+    Source: 'crates/wireguard/src/device.rs', lines 176:0-213:1
+    Visibility: public -/
+structure device.Peer where
+  «public» : Array Std.U8 32#usize
+  psk : Array Std.U8 32#usize
+  mac1_key : Array Std.U8 32#usize
+  cookie_key : Array Std.U8 32#usize
+  endpoint : device.Endpoint
+  has_endpoint : Bool
+  persistent_keepalive : Std.U64
+  last_timestamp : Array Std.U8 12#usize
+  handshake : device.Handshake
+  last_mac1 : Array Std.U8 16#usize
+  cookie : Array Std.U8 16#usize
+  has_cookie : Bool
+  cookie_at : Std.U64
+  current : device.Keypair
+  previous : device.Keypair
+  next : device.Keypair
+  initiation_at : Std.U64
+  has_initiation : Bool
+  attempt_started : Std.U64
+  rekey_wanted : Bool
+  last_sent : Std.U64
+  last_received : Std.U64
+  keepalive_due : Bool
+
+/-- [wireguard::device::Device]
+    Source: 'crates/wireguard/src/device.rs', lines 257:0-272:1
+    Visibility: public -/
+structure device.Device where
+  «private» : Array Std.U8 32#usize
+  «public» : Array Std.U8 32#usize
+  mac1_key : Array Std.U8 32#usize
+  cookie_key : Array Std.U8 32#usize
+  peers : Array device.Peer 16#usize
+  peer_count : Std.Usize
+  allowed_ips : allowed_ips.AllowedIps
+  cookie_secret : Array Std.U8 32#usize
+  has_cookie_secret : Bool
+  cookie_secret_at : Std.U64
+  now : Std.U64
+
 /-- [wireguard::message::Initiation]
     Source: 'crates/wireguard/src/message.rs', lines 49:0-56:1
     Visibility: public -/
@@ -77,6 +192,22 @@ structure message.Initiation where
   encrypted_timestamp : Array Std.U8 28#usize
   mac1 : Array Std.U8 16#usize
   mac2 : Array Std.U8 16#usize
+
+/-- [wireguard::message::TransportHeader]
+    Source: 'crates/wireguard/src/message.rs', lines 79:0-82:1
+    Visibility: public -/
+structure message.TransportHeader where
+  receiver : untrusted.bytes.LittleEndian Std.U32
+  counter : untrusted.bytes.LittleEndian Std.U64
+
+/-- [wireguard::transport::Inner]
+    Source: 'crates/wireguard/src/transport.rs', lines 80:0-86:1
+    Visibility: public -/
+structure transport.Inner where
+  v6 : Bool
+  src : Std.U128
+  dst : Std.U128
+  len : Std.Usize
 
 /-- [wireguard::message::Response]
     Source: 'crates/wireguard/src/message.rs', lines 60:0-67:1
@@ -89,12 +220,21 @@ structure message.Response where
   mac1 : Array Std.U8 16#usize
   mac2 : Array Std.U8 16#usize
 
-/-- [wireguard::message::TransportHeader]
-    Source: 'crates/wireguard/src/message.rs', lines 79:0-82:1
+/-- [wireguard::noise::InitiationStatic]
+    Source: 'crates/wireguard/src/noise.rs', lines 47:0-50:1
     Visibility: public -/
-structure message.TransportHeader where
-  receiver : untrusted.bytes.LittleEndian Std.U32
-  counter : untrusted.bytes.LittleEndian Std.U64
+structure noise.InitiationStatic where
+  chain : noise.Chain
+  initiator_static : Array Std.U8 32#usize
+
+/-- [wireguard::transport::Received]
+    Source: 'crates/wireguard/src/transport.rs', lines 123:0-131:1
+    Visibility: public -/
+@[discriminant isize]
+inductive transport.Received where
+| Drop : transport.Received
+| Keepalive : transport.Received
+| Packet : Std.Usize → transport.Received
 
 /-- [wireguard::message::Transport]
     Source: 'crates/wireguard/src/message.rs', lines 86:0-90:1
@@ -112,51 +252,5 @@ inductive message.Message where
 | Response : message.Response → message.Message
 | CookieReply : message.CookieReply → message.Message
 | Transport : message.Transport → message.Message
-
-/-- [wireguard::noise::Chain]
-    Source: 'crates/wireguard/src/noise.rs', lines 32:0-35:1
-    Visibility: public -/
-structure noise.Chain where
-  key : Array Std.U8 32#usize
-  hash : Array Std.U8 32#usize
-
-/-- [wireguard::noise::InitiatorState]
-    Source: 'crates/wireguard/src/noise.rs', lines 39:0-42:1
-    Visibility: public -/
-structure noise.InitiatorState where
-  chain : noise.Chain
-  ephemeral_private : Array Std.U8 32#usize
-
-/-- [wireguard::noise::InitiationStatic]
-    Source: 'crates/wireguard/src/noise.rs', lines 47:0-50:1
-    Visibility: public -/
-structure noise.InitiationStatic where
-  chain : noise.Chain
-  initiator_static : Array Std.U8 32#usize
-
-/-- [wireguard::replay::Replay]
-    Source: 'crates/wireguard/src/replay.rs', lines 26:0-30:1
-    Visibility: public -/
-structure replay.Replay where
-  top : Std.U64
-  bitmap : Array Std.U64 128#usize
-
-/-- [wireguard::transport::Inner]
-    Source: 'crates/wireguard/src/transport.rs', lines 74:0-80:1
-    Visibility: public -/
-structure transport.Inner where
-  v6 : Bool
-  src : Std.U128
-  dst : Std.U128
-  len : Std.Usize
-
-/-- [wireguard::transport::Received]
-    Source: 'crates/wireguard/src/transport.rs', lines 117:0-125:1
-    Visibility: public -/
-@[discriminant isize]
-inductive transport.Received where
-| Drop : transport.Received
-| Keepalive : transport.Received
-| Packet : Std.Usize → transport.Received
 
 end wireguard

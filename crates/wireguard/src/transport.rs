@@ -64,7 +64,13 @@ pub fn encrypt<C: Crypto>(
         j += 1;
     }
     let n = TRANSPORT_HEADER_LEN + p + AEAD_TAG_LEN;
-    c.aead_seal(key, counter, &[], &work[..p], &mut out[TRANSPORT_HEADER_LEN..n]);
+    c.aead_seal(
+        key,
+        counter,
+        &[],
+        &work[..p],
+        &mut out[TRANSPORT_HEADER_LEN..n],
+    );
     Some(n)
 }
 
