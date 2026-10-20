@@ -15,4 +15,5 @@
 #![no_std]
 
 pub mod blocklist;
+pub mod dns;
 pub mod name;

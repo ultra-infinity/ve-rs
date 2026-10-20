@@ -2,6 +2,7 @@
 -- [adfilter]: function definitions
 import Aeneas
 import Adfilter.Types
+import Adfilter.FunsExternal
 open Aeneas Aeneas.Std Result ControlFlow Error
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
@@ -16,6 +17,9 @@ set_option maxHeartbeats 1000000
 
 /- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
 set_option maxRecDepth 2048
+
+/- You can remove the following line by using the CLI option `-all-computable`: -/
+noncomputable section
 
 namespace adfilter
 
@@ -276,10 +280,226 @@ def blocklist.Blocklist.blocked
   (self : blocklist.Blocklist) («name» : Slice Std.U8) : Result Bool := do
   blocklist.search_suffixes self.data self.ends «name»
 
+/-- [adfilter::dns::PORT]
+    Source: 'crates/adfilter/src/dns.rs', lines 22:0-22:25
+    Visibility: public -/
+@[global_simps, irreducible] def dns.PORT : Std.U16 := 53#u16
+
+/-- [adfilter::dns::HEADER_LEN]
+    Source: 'crates/adfilter/src/dns.rs', lines 24:0-24:33
+    Visibility: public -/
+@[global_simps, irreducible] def dns.HEADER_LEN : Std.Usize := 12#usize
+
+/-- [adfilter::dns::MAX_LABEL_LEN]
+    Source: 'crates/adfilter/src/dns.rs', lines 26:0-26:36
+    Visibility: public -/
+@[global_simps, irreducible] def dns.MAX_LABEL_LEN : Std.Usize := 63#usize
+
+/-- [adfilter::dns::NXDOMAIN]
+    Source: 'crates/adfilter/src/dns.rs', lines 28:0-28:27
+    Visibility: public -/
+@[global_simps, irreducible] def dns.NXDOMAIN : Std.U8 := 3#u8
+
+/-- [adfilter::dns::{impl untrusted::reader::Decode for adfilter::dns::DnsHeader}::decode]:
+    Source: 'crates/adfilter/src/dns.rs', lines 31:9-31:15
+    Visibility: public -/
+def dns.DnsHeader.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result dns.DnsHeader untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r3, r4) ←
+      untrusted.reader.Reader.decode
+        untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r2
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r3
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (r5, r6) ←
+        untrusted.reader.Reader.decode
+          untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r4
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r5
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (r7, r8) ←
+          untrusted.reader.Reader.decode
+            untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r6
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r7
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let (r9, r10) ←
+            untrusted.reader.Reader.decode
+              untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r8
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r9
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let (r11, r12) ←
+              untrusted.reader.Reader.decode
+                untrusted.bytes.BigEndianU16.Insts.UntrustedReaderDecode r10
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r11
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok
+                {
+                  id := val,
+                  flags := val1,
+                  qdcount := val2,
+                  ancount := val3,
+                  nscount := val4,
+                  arcount := val5
+                }, r12)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r13 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  dns.DnsHeader (core.convert.FromSame
+                  untrusted.ValidationError) residual
+              ok (r13, r12)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r11 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                dns.DnsHeader (core.convert.FromSame untrusted.ValidationError)
+                residual
+            ok (r11, r10)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r9 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              dns.DnsHeader (core.convert.FromSame untrusted.ValidationError)
+              residual
+          ok (r9, r8)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r7 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            dns.DnsHeader (core.convert.FromSame untrusted.ValidationError)
+            residual
+        ok (r7, r6)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r5 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          dns.DnsHeader (core.convert.FromSame untrusted.ValidationError)
+          residual
+      ok (r5, r4)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        dns.DnsHeader (core.convert.FromSame untrusted.ValidationError)
+        residual
+    ok (r3, r2)
+
+/-- Trait implementation: [adfilter::dns::{impl untrusted::reader::Decode for adfilter::dns::DnsHeader}]
+    Source: 'crates/adfilter/src/dns.rs', lines 31:9-31:15 -/
+@[reducible]
+def dns.DnsHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
+  dns.DnsHeader := {
+  decode := dns.DnsHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [adfilter::dns::copy_label]: loop 0:
+    Source: 'crates/adfilter/src/dns.rs', lines 58:4-61:5 -/
+@[rust_loop]
+def dns.copy_label_loop
+  (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
+  («from» : Std.Usize) (len : Std.Usize) (j : Std.Usize) :
+  Result (Array Std.U8 253#usize)
+  := do
+  if j < len
+  then
+    let i ← «from» + j
+    let i1 ← Slice.index_usize msg i
+    let i2 ← «at» + j
+    let a ← Array.update text i2 i1
+    let j1 ← j + 1#usize
+    dns.copy_label_loop a «at» msg «from» len j1
+  else ok text
+partial_fixpoint
+
+/-- [adfilter::dns::copy_label]:
+    Source: 'crates/adfilter/src/dns.rs', lines 56:0-62:1 -/
+@[reducible]
+def dns.copy_label
+  (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
+  («from» : Std.Usize) (len : Std.Usize) :
+  Result (Array Std.U8 253#usize)
+  := do
+  dns.copy_label_loop text «at» msg «from» len 0#usize
+
 /-- [adfilter::name::MAX_NAME_LEN]
     Source: 'crates/adfilter/src/name.rs', lines 9:0-9:36
     Visibility: public -/
 @[global_simps, irreducible] def name.MAX_NAME_LEN : Std.Usize := 253#usize
+
+/-- [adfilter::dns::read_name]: loop 0:
+    Source: 'crates/adfilter/src/dns.rs', lines 72:4-92:5 -/
+@[rust_loop]
+def dns.read_name_loop
+  (msg : Slice Std.U8) (text : Array Std.U8 253#usize) (pos : Std.Usize)
+  (n : Std.Usize) (done1 : Bool) (bad : Bool) :
+  Result ((Array Std.U8 253#usize) × Std.Usize × Std.Usize × Bool)
+  := do
+  if done1
+  then ok (text, pos, n, bad)
+  else
+    if bad
+    then ok (text, pos, n, bad)
+    else
+      let i := Slice.len msg
+      if pos >= i
+      then dns.read_name_loop msg text pos n done1 true
+      else
+        let i1 ← Slice.index_usize msg pos
+        let l ← lift (UScalar.cast .Usize i1)
+        let sep ← if n > 0#usize
+                    then ok 1#usize
+                    else ok 0#usize
+        if l = 0#usize
+        then
+          let pos1 ← pos + 1#usize
+          dns.read_name_loop msg text pos1 n true bad
+        else
+          if l > dns.MAX_LABEL_LEN
+          then dns.read_name_loop msg text pos n done1 true
+          else
+            let i2 := Slice.len msg
+            let i3 ← i2 - pos
+            let i4 ← i3 - 1#usize
+            if l > i4
+            then dns.read_name_loop msg text pos n done1 true
+            else
+              let i5 ← n + sep
+              let i6 ← i5 + l
+              if i6 > name.MAX_NAME_LEN
+              then dns.read_name_loop msg text pos n done1 true
+              else
+                let text1 ←
+                  if sep = 1#usize
+                  then Array.update text n 46#u8
+                  else ok text
+                let i7 ← pos + 1#usize
+                let text2 ← dns.copy_label text1 i5 msg i7 l
+                let i8 ← sep + l
+                let n1 ← n + i8
+                let i9 ← 1#usize + l
+                let pos1 ← pos + i9
+                dns.read_name_loop msg text2 pos1 n1 done1 bad
+partial_fixpoint
+
+/-- [adfilter::dns::read_name]:
+    Source: 'crates/adfilter/src/dns.rs', lines 67:0-98:1 -/
+def dns.read_name
+  (msg : Slice Std.U8) (text : Array Std.U8 253#usize) :
+  Result ((Option (Std.Usize × Std.Usize)) × (Array Std.U8 253#usize))
+  := do
+  let (text1, pos, n, bad) ←
+    dns.read_name_loop msg text dns.HEADER_LEN 0#usize false false
+  if bad
+  then ok (none, text1)
+  else if n = 0#usize
+       then ok (none, text1)
+       else ok (some (n, pos), text1)
 
 /-- [adfilter::name::lower]:
     Source: 'crates/adfilter/src/name.rs', lines 22:0-28:1
@@ -334,6 +554,178 @@ def name.Name.from_text (text : Slice Std.U8) : Result (Option name.Name) := do
       let bytes := Array.repeat 253#usize 0#u8
       let bytes1 ← name.Name.from_text_loop text n1 bytes 0#usize
       ok (some { bytes := bytes1, len := n1 })
+
+/-- [adfilter::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::dns::DnsQuery}::validate]:
+    Source: 'crates/adfilter/src/dns.rs', lines 103:4-134:5
+    Visibility: public -/
+def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
+  (msg : Slice Std.U8) :
+  Result (core.result.Result dns.DnsQuery untrusted.ValidationError)
+  := do
+  let i := Slice.len msg
+  if i < dns.HEADER_LEN
+  then ok (core.result.Result.Err untrusted.ValidationError.EndOfInput)
+  else
+    let s ←
+      core.slice.index.Slice.index
+        (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8) msg
+        { «end» := dns.HEADER_LEN }
+    let u ← untrusted.Untrusted.new s
+    let r ←
+      untrusted.reader.UntrustedShared0SliceU8.read_all
+        dns.DnsHeader.Insts.UntrustedReaderDecode u
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i1 := val.flags
+      let i2 ← i1 / 2048#u16
+      if i2 != 0#u16
+      then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+      else
+        let i3 := val.qdcount
+        if i3 != 1#u16
+        then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+        else
+          let i4 := val.ancount
+          if i4 != 0#u16
+          then ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+          else
+            let i5 := val.nscount
+            if i5 != 0#u16
+            then
+              ok (core.result.Result.Err untrusted.ValidationError.OutOfRange)
+            else
+              let text := Array.repeat 253#usize 0#u8
+              let (o, text1) ← dns.read_name msg text
+              match o with
+              | none =>
+                ok (core.result.Result.Err
+                  untrusted.ValidationError.OutOfRange)
+              | some r1 =>
+                let (n, «end») := r1
+                let i6 := Slice.len msg
+                let i7 ← i6 - «end»
+                if i7 < 4#usize
+                then
+                  ok (core.result.Result.Err
+                    untrusted.ValidationError.EndOfInput)
+                else
+                  let s1 ←
+                    core.array.Array.index (core.ops.index.IndexSlice
+                      (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8))
+                      text1 { «end» := n }
+                  let o1 ← name.Name.from_text s1
+                  match o1 with
+                  | none =>
+                    ok (core.result.Result.Err
+                      untrusted.ValidationError.OutOfRange)
+                  | some «name» =>
+                    let i8 ← Slice.index_usize msg «end»
+                    let i9 ← lift (UScalar.cast .U16 i8)
+                    let i10 ← i9 * 256#u16
+                    let i11 ← «end» + 1#usize
+                    let i12 ← Slice.index_usize msg i11
+                    let i13 ← lift (UScalar.cast .U16 i12)
+                    let i14 ← i10 + i13
+                    let i15 ← «end» + 2#usize
+                    let i16 ← Slice.index_usize msg i15
+                    let i17 ← lift (UScalar.cast .U16 i16)
+                    let i18 ← i17 * 256#u16
+                    let i19 ← «end» + 3#usize
+                    let i20 ← Slice.index_usize msg i19
+                    let i21 ← lift (UScalar.cast .U16 i20)
+                    let i22 ← i18 + i21
+                    let i23 ← «end» + 4#usize
+                    let i24 ← i23 - dns.HEADER_LEN
+                    ok (core.result.Result.Ok
+                      {
+                        header := val,
+                        «name»,
+                        qtype := i14,
+                        qclass := i22,
+                        question_len := i24
+                      })
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        dns.DnsQuery (core.convert.FromSame untrusted.ValidationError) residual
+
+/-- Trait implementation: [adfilter::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for adfilter::dns::DnsQuery}]
+    Source: 'crates/adfilter/src/dns.rs', lines 100:0-135:1 -/
+@[reducible]
+def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
+  untrusted.Validate dns.DnsQuery (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
+}
+
+/-- [adfilter::dns::nxdomain]: loop 0:
+    Source: 'crates/adfilter/src/dns.rs', lines 163:4-166:5
+    Visibility: public -/
+@[rust_loop]
+def dns.nxdomain_loop0
+  (out : Slice Std.U8) (header : Array Std.U8 12#usize) (i : Std.Usize) :
+  Result ((Slice Std.U8) × Std.Usize)
+  := do
+  if i < dns.HEADER_LEN
+  then
+    let i1 ← Array.index_usize header i
+    let s ← Slice.update out i i1
+    let i2 ← i + 1#usize
+    dns.nxdomain_loop0 s header i2
+  else ok (out, i)
+partial_fixpoint
+
+/-- [adfilter::dns::nxdomain]: loop 1:
+    Source: 'crates/adfilter/src/dns.rs', lines 167:4-170:5
+    Visibility: public -/
+@[rust_loop]
+def dns.nxdomain_loop1
+  (msg : Slice Std.U8) (out : Slice Std.U8) (n : Std.Usize) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  if i < n
+  then
+    let i1 ← Slice.index_usize msg i
+    let s ← Slice.update out i i1
+    let i2 ← i + 1#usize
+    dns.nxdomain_loop1 msg s n i2
+  else ok out
+partial_fixpoint
+
+/-- [adfilter::dns::nxdomain]:
+    Source: 'crates/adfilter/src/dns.rs', lines 140:0-172:1
+    Visibility: public -/
+def dns.nxdomain
+  (msg : Slice Std.U8) (q : dns.DnsQuery) (out : Slice Std.U8) :
+  Result ((Option Std.Usize) × (Slice Std.U8))
+  := do
+  let n ← dns.HEADER_LEN + q.question_len
+  let i := Slice.len msg
+  if n > i
+  then ok (none, out)
+  else
+    let i1 := Slice.len out
+    if n > i1
+    then ok (none, out)
+    else
+      let id := q.header.id
+      let i2 := q.header.flags
+      let i3 ← i2 / 256#u16
+      let i4 ← i3 % 2#u16
+      let rd ← lift (UScalar.cast .U8 i4)
+      let i5 ← id / 256#u16
+      let i6 ← lift (UScalar.cast .U8 i5)
+      let i7 ← id % 256#u16
+      let i8 ← lift (UScalar.cast .U8 i7)
+      let i9 ← 128#u8 + rd
+      let i10 ← 128#u8 + dns.NXDOMAIN
+      let (out1, i11) ←
+        dns.nxdomain_loop0 out
+          (Array.make 12#usize [
+            i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8
+            ]) 0#usize
+      let out2 ← dns.nxdomain_loop1 msg out1 n i11
+      ok (some n, out2)
 
 /-- [adfilter::name::{adfilter::name::Name}::as_bytes]:
     Source: 'crates/adfilter/src/name.rs', lines 51:4-53:5

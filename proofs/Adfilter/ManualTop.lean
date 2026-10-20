@@ -2,3 +2,4 @@
    `cargo untrusted verify`; imported by its audit. -/
 import Adfilter.NameTop
 import Adfilter.BlocklistTop
+import Adfilter.DnsTop
