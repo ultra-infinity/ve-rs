@@ -1,10 +1,10 @@
-/- Specs of `adfilter::blocklist`: a sorted list of names, binary search,
+/- Specs of `diomede::blocklist`: a sorted list of names, binary search,
    and blocking of listed domains and their subdomains. -/
-import Adfilter.NameTop
+import Diomede.NameTop
 
 open Aeneas Aeneas.Std Result
 
-namespace adfilter.blocklist
+namespace diomede.blocklist
 
 /-! ## Byte-string order -/
 
@@ -574,4 +574,4 @@ theorem Blocklist.blocked.spec (b : Blocklist) (hb : b.Inv) (nm : Slice U8) :
       (r = true ↔ Blocked (vals b.data.val) (endsN b.ends) (vals nm.val)) ⦄ := by
   unfold Blocklist.blocked; unfold Blocklist.Inv at hb; step*
 
-end adfilter.blocklist
+end diomede.blocklist

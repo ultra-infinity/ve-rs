@@ -1,11 +1,11 @@
-/- Specs of `adfilter::dns`: DNS queries (RFC 1035 §4.1) and the NXDOMAIN
+/- Specs of `diomede::dns`: DNS queries (RFC 1035 §4.1) and the NXDOMAIN
    answers to them. -/
-import Adfilter.NameTop
-import Adfilter.Specs.DnsHeader
+import Diomede.NameTop
+import Diomede.Specs.DnsHeader
 
 open Aeneas Aeneas.Std Result untrusted untrusted.reader
 
-namespace adfilter.dns
+namespace diomede.dns
 
 @[simp, scalar_tac_simps] theorem HEADER_LEN_val : HEADER_LEN.val = 12 := by simp [HEADER_LEN]
 @[simp, scalar_tac_simps] theorem MAX_LABEL_LEN_val : MAX_LABEL_LEN.val = 63 := by
@@ -449,9 +449,9 @@ theorem DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate.s
     refine ⟨h12', hres, e0, e1, e2, e3, ls, k, hf, h4, ?_, hinv, htext, ?_, ?_, hql⟩
     · intro h0
       have := congrArg List.length htext
-      simp only [adfilter.name.Name.text, h0, List.map_nil, List.length_map, List.length_take,
+      simp only [diomede.name.Name.text, h0, List.map_nil, List.length_map, List.length_take,
         List.length_nil] at this
-      simp only [adfilter.name.Name.Inv] at hinv
+      simp only [diomede.name.Name.Inv] at hinv
       simp at this
       omega
     · rw [getElem!_pos msg.val (12 + k) (by omega), getElem!_pos msg.val (13 + k) (by omega)]
@@ -570,4 +570,4 @@ theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
   · rw [out2_post2, show n.val = 12 + (n.val - 12) by omega, ← List.drop_drop, out1_post3,
       List.drop_drop]
 
-end adfilter.dns
+end diomede.dns

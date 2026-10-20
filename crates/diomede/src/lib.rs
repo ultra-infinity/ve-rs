@@ -9,7 +9,7 @@
 //!   is dropped, so the connection is never made.
 //!
 //! Every item of this crate is extracted to Lean and proved correct
-//! (`make verify-adfilter`), building on the verified decoders and encoders of
+//! (`make verify-diomede`), building on the verified decoders and encoders of
 //! `net`.
 
 #![no_std]

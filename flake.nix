@@ -61,7 +61,7 @@
                 ./proofs/DeriveDemo
                 ./proofs/Net
                 ./proofs/Wireguard
-                ./proofs/Adfilter
+                ./proofs/Diomede
                 ./proofs/lakefile.toml
               ];
             };
@@ -100,10 +100,10 @@
                 echo 'ERROR: the wireguard model is stale. Run `make verify-wireguard`.'
                 exit 1
               }
-              cargo run -q -p cargo-untrusted -- untrusted verify -p adfilter \
+              cargo run -q -p cargo-untrusted -- untrusted verify -p diomede \
                 --lean-dir proofs --extract-only --extract-all --link net=Net
-              diff -ru proofs-committed/Adfilter proofs/Adfilter || {
-                echo 'ERROR: the adfilter model is stale. Run `make verify-adfilter`.'
+              diff -ru proofs-committed/Diomede proofs/Diomede || {
+                echo 'ERROR: the diomede model is stale. Run `make verify-diomede`.'
                 exit 1
               }
             '';
@@ -152,9 +152,9 @@
             ];
             doCheck = false;
           };
-          # `adfilter-pcap`: runs a capture through the verified ad filter.
-          adfilter-pcap = pkgs.rustPlatform.buildRustPackage {
-            pname = "adfilter-pcap";
+          # `diomede-pcap`: runs a capture through the verified ad filter.
+          diomede-pcap = pkgs.rustPlatform.buildRustPackage {
+            pname = "diomede-pcap";
             version = "0.1.0";
             src = pkgs.lib.fileset.toSource {
               root = ./.;
@@ -168,7 +168,7 @@
             cargoLock.lockFile = ./Cargo.lock;
             cargoBuildFlags = [
               "-p"
-              "adfilter-pcap"
+              "diomede-pcap"
             ];
             doCheck = false;
           };
@@ -235,10 +235,10 @@
 
           # The client looks up and connects to ad domains and a normal one;
           # the server (dnsmasq, `openssl s_server`) captures it and runs
-          # `adfilter-pcap`; see crates/adfilter-pcap/vm-test.py. Run with
-          # `make adfilter-vm-test` (needs KVM).
-          adfilter-vm-test = pkgs.testers.runNixOSTest {
-            name = "adfilter-vm-test";
+          # `diomede-pcap`; see crates/diomede-pcap/vm-test.py. Run with
+          # `make diomede-vm-test` (needs KVM).
+          diomede-vm-test = pkgs.testers.runNixOSTest {
+            name = "diomede-vm-test";
             nodes =
               let
                 common = {
@@ -255,7 +255,7 @@
                 client = common;
                 server = common // {
                   environment.systemPackages = common.environment.systemPackages ++ [
-                    self.packages.${system}.adfilter-pcap
+                    self.packages.${system}.diomede-pcap
                   ];
                   services.dnsmasq = {
                     enable = true;
@@ -268,7 +268,7 @@
                   };
                 };
               };
-            testScript = builtins.readFile ./crates/adfilter-pcap/vm-test.py;
+            testScript = builtins.readFile ./crates/diomede-pcap/vm-test.py;
           };
         };
 

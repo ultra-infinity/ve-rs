@@ -1,5 +1,5 @@
 [package]
-name = "adfilter"
+name = "diomede"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

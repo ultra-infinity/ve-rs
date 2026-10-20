@@ -1,11 +1,11 @@
-/- Specs of `adfilter::name`: domain names lowercased, without a trailing
+/- Specs of `diomede::name`: domain names lowercased, without a trailing
    dot. -/
-import Adfilter.Funs
+import Diomede.Funs
 import Untrusted
 
 open Aeneas Aeneas.Std Result
 
-namespace adfilter.name
+namespace diomede.name
 
 @[simp, scalar_tac_simps] theorem MAX_NAME_LEN_val : MAX_NAME_LEN.val = 253 := by
   simp [MAX_NAME_LEN]
@@ -130,4 +130,4 @@ theorem Name.as_bytes.spec (n : Name) (h : n.Inv) :
   · simp; unfold Name.Inv at h; scalar_tac
   · rw [r_post]; simp [List.slice, Name.text]
 
-end adfilter.name
+end diomede.name

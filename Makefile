@@ -5,9 +5,9 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard verify-adfilter vm-test wg-vm-test adfilter-vm-test aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard verify-diomede vm-test wg-vm-test diomede-vm-test aeneas-pin clean
 
-all: extract verify verify-demo verify-net verify-wireguard verify-adfilter
+all: extract verify verify-demo verify-net verify-wireguard verify-diomede
 
 build:
 	cargo build --workspace
@@ -55,11 +55,11 @@ WIREGUARD_FLAGS := --extract-all --link net=Net
 verify-wireguard:
 	cargo run -q -p cargo-untrusted -- untrusted verify -p wireguard --lean-dir $(PROOFS) $(WIREGUARD_FLAGS)
 
-# Formally verify the `adfilter` crate: every item, linked against the
-# verified `net` model (hand-written specs in $(PROOFS)/Adfilter/).
-ADFILTER_FLAGS := --extract-all --link net=Net
-verify-adfilter:
-	cargo run -q -p cargo-untrusted -- untrusted verify -p adfilter --lean-dir $(PROOFS) $(ADFILTER_FLAGS)
+# Formally verify the `diomede` crate: every item, linked against the
+# verified `net` model (hand-written specs in $(PROOFS)/Diomede/).
+DIOMEDE_FLAGS := --extract-all --link net=Net
+verify-diomede:
+	cargo run -q -p cargo-untrusted -- untrusted verify -p diomede --lean-dir $(PROOFS) $(DIOMEDE_FLAGS)
 
 # Run real traffic through the verified `net` decoders: two QEMU VMs exchange
 # ARP, ICMP and UDP over IPv4 and IPv6 (needs KVM). The capture and the
@@ -70,8 +70,8 @@ vm-test:
 wg-vm-test:
 	nix build .#wg-vm-test -L
 
-adfilter-vm-test:
-	nix build .#adfilter-vm-test -L
+diomede-vm-test:
+	nix build .#diomede-vm-test -L
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

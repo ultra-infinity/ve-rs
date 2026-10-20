@@ -3,23 +3,6 @@
 version = 4
 
 [[package]]
-name = "adfilter"
-version = "0.1.0"
-dependencies = [
- "net",
- "untrusted",
-]
-
-[[package]]
-name = "adfilter-pcap"
-version = "0.1.0"
-dependencies = [
- "adfilter",
- "net",
- "untrusted",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,6 +105,23 @@ dependencies = [
 name = "derive-demo"
 version = "0.1.0"
 dependencies = [
+ "untrusted",
+]
+
+[[package]]
+name = "diomede"
+version = "0.1.0"
+dependencies = [
+ "net",
+ "untrusted",
+]
+
+[[package]]
+name = "diomede-pcap"
+version = "0.1.0"
+dependencies = [
+ "diomede",
+ "net",
  "untrusted",
 ]
 

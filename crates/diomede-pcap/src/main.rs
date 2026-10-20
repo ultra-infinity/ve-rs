@@ -1,6 +1,6 @@
-//! `adfilter-pcap --list hosts.txt [--list ...] capture.pcap [--out kept.pcap]`:
+//! `diomede-pcap --list hosts.txt [--list ...] capture.pcap [--out kept.pcap]`:
 //! runs every packet of a capture through the verified ad filter
-//! (`adfilter::filter`) and reports what it would block.
+//! (`diomede::filter`) and reports what it would block.
 //!
 //! - A DNS query for a listed domain (or a subdomain of one) is answered with
 //!   NXDOMAIN: the report shows the name, and `--out` writes the answer in
@@ -22,10 +22,10 @@
 //! Captures may be Ethernet (link type 1) or raw IP (101). Exits with status
 //! 2 on a malformed capture or list.
 
-use adfilter::blocklist::Blocklist;
-use adfilter::dns::Query;
-use adfilter::filter::{classify, classify_stream, Verdict};
-use adfilter::tls::{self, ClientHello};
+use diomede::blocklist::Blocklist;
+use diomede::dns::Query;
+use diomede::filter::{classify, classify_stream, Verdict};
+use diomede::tls::{self, ClientHello};
 use net::tcp::{Ipv4Tcp, Ipv6Tcp, TcpHeader};
 use net::udp::{Ipv4Udp, Ipv6Udp};
 use std::collections::{BTreeMap, HashMap};
@@ -299,7 +299,7 @@ enum Action {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: adfilter-pcap --list FILE [--list FILE ...] CAPTURE.pcap [--out KEPT.pcap]");
+    eprintln!("usage: diomede-pcap --list FILE [--list FILE ...] CAPTURE.pcap [--out KEPT.pcap]");
     exit(2)
 }
 

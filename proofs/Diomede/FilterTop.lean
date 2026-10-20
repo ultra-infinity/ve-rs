@@ -1,12 +1,12 @@
-/- Specs of `adfilter::filter`: the verdict on an IP packet. -/
-import Adfilter.DnsTop
-import Adfilter.TlsTop
-import Adfilter.BlocklistTop
+/- Specs of `diomede::filter`: the verdict on an IP packet. -/
+import Diomede.DnsTop
+import Diomede.TlsTop
+import Diomede.BlocklistTop
 import Net.ManualTop
 
 open Aeneas Aeneas.Std Result untrusted
 
-namespace adfilter
+namespace diomede
 
 /-! ## Determinism of the decoders -/
 
@@ -50,7 +50,7 @@ def HelloBlocked (list : Blocklist) (s : List U8) : Prop :=
 
 /-- **Spec theorem for `<Query as Validate<&[u8]>>::validate`**. -/
 @[step]
-theorem _root_.adfilter.dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate.spec
+theorem _root_.diomede.dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate.spec
     (msg : Slice U8) :
     dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate msg
       ⦃ (r : core.result.Result dns.Query ValidationError) =>
@@ -149,7 +149,7 @@ def TcpVerdict (list : Blocklist) (port : Nat) (data : List U8) : Verdict → Pr
   | .Drop => port = 443 ∧ HelloBlocked list data
   | .Reply _ => False
 
-theorem _root_.adfilter.tls.ClientHello.Spec.inv {s : List U8} {c : tls.ClientHello} {n : name.Name}
+theorem _root_.diomede.tls.ClientHello.Spec.inv {s : List U8} {c : tls.ClientHello} {n : name.Name}
     (h : tls.ClientHello.Spec s c) (hn : c.server_name = some n) : n.Inv := by
   unfold tls.ClientHello.Spec at h
   rw [hn] at h
@@ -364,4 +364,4 @@ theorem classify_stream.spec (stream : Slice U8) (list : Blocklist) (hb : list.I
   exact hb'
 
 end filter
-end adfilter
+end diomede

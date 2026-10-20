@@ -8,7 +8,7 @@
 //!
 //! Listing a domain blocks its subdomains too: [`Blocklist::blocked`] is true
 //! of `name` exactly when `name`, or the part of it after one of its dots, is
-//! listed. `proofs/Adfilter/BlocklistTop.lean` proves both lookups.
+//! listed. `proofs/Diomede/BlocklistTop.lean` proves both lookups.
 
 /// Compares `a` and `b` byte by byte: -1, 0 or 1 as `a` comes before, is
 /// equal to, or comes after `b` (a prefix comes first).

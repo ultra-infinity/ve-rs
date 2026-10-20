@@ -21,4 +21,4 @@ name = "Net"
 name = "Wireguard"
 
 [[lean_lib]]
-name = "Adfilter"
+name = "Diomede"

@@ -1,10 +1,10 @@
-/- Specs of `adfilter::tls`: the server name of a TLS ClientHello
+/- Specs of `diomede::tls`: the server name of a TLS ClientHello
    (RFC 8446 §4.1.2, RFC 6066 §3). -/
-import Adfilter.NameTop
+import Diomede.NameTop
 
 open Aeneas Aeneas.Std Result untrusted
 
-namespace adfilter.tls
+namespace diomede.tls
 
 @[simp, scalar_tac_simps] theorem RECORD_HEADER_LEN_val : RECORD_HEADER_LEN.val = 5 := by
   simp [RECORD_HEADER_LEN]
@@ -872,4 +872,4 @@ theorem ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError.validat
     · exact spec_none _ hs
     · exact absurd hf (by simp_all)
 
-end adfilter.tls
+end diomede.tls

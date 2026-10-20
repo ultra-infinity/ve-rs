@@ -1,7 +1,7 @@
 # NixOS VM test: the client looks up and connects to listed (ad) domains and
 # a normal one, over IPv4 and IPv6; the server (dnsmasq and an `openssl
-# s_server`) captures what it receives and runs it through `adfilter-pcap`.
-# See `packages.adfilter-vm-test` in flake.nix.
+# s_server`) captures what it receives and runs it through `diomede-pcap`.
+# See `packages.diomede-vm-test` in flake.nix.
 
 start_all()
 for m in (client, server):
@@ -39,10 +39,10 @@ server.copy_from_machine("/tmp/in.pcap")
 
 server.succeed("printf '# ads\\n0.0.0.0 ads.example\\n0.0.0.0 tracker.io\\n' > /tmp/hosts")
 status, out = server.execute(
-    "adfilter-pcap --list /tmp/hosts /tmp/in.pcap --out /tmp/kept.pcap"
+    "diomede-pcap --list /tmp/hosts /tmp/in.pcap --out /tmp/kept.pcap"
 )
 print(out)
-assert status == 0, "adfilter-pcap failed"
+assert status == 0, "diomede-pcap failed"
 assert "dns  ads.example" in out and "answered NXDOMAIN" in out, "ads.example not answered"
 assert "dns  cdn.tracker.io" in out, "cdn.tracker.io not answered"
 assert "tls  metrics.tracker.io" in out, "the ClientHello to metrics.tracker.io was not dropped"
@@ -53,6 +53,6 @@ assert "example.org" not in out, "example.org was blocked"
 replies = server.succeed("tcpdump -n -r /tmp/kept.pcap udp src port 53")
 print(replies)
 assert replies.count("NXDomain") == 2, "expected two NXDOMAIN replies"
-kept = server.succeed("adfilter-pcap --list /tmp/hosts /tmp/kept.pcap")
+kept = server.succeed("diomede-pcap --list /tmp/hosts /tmp/kept.pcap")
 print(kept)
 assert " 0 dropped" in kept, "blocked traffic was kept"
