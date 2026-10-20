@@ -247,6 +247,7 @@
                     pkgs.dig
                     pkgs.ethtool
                     pkgs.openssl
+                    pkgs.socat
                     pkgs.tcpdump
                   ];
                 };

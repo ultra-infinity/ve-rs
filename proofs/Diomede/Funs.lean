@@ -281,27 +281,42 @@ def blocklist.Blocklist.blocked
   blocklist.search_suffixes self.data self.ends «name»
 
 /-- [diomede::dns::PORT]
-    Source: 'crates/diomede/src/dns.rs', lines 22:0-22:25
+    Source: 'crates/diomede/src/dns.rs', lines 23:0-23:25
     Visibility: public -/
 @[global_simps, irreducible] def dns.PORT : Std.U16 := 53#u16
 
 /-- [diomede::dns::HEADER_LEN]
-    Source: 'crates/diomede/src/dns.rs', lines 24:0-24:33
+    Source: 'crates/diomede/src/dns.rs', lines 25:0-25:33
     Visibility: public -/
 @[global_simps, irreducible] def dns.HEADER_LEN : Std.Usize := 12#usize
 
 /-- [diomede::dns::MAX_LABEL_LEN]
-    Source: 'crates/diomede/src/dns.rs', lines 26:0-26:36
+    Source: 'crates/diomede/src/dns.rs', lines 27:0-27:36
     Visibility: public -/
 @[global_simps, irreducible] def dns.MAX_LABEL_LEN : Std.Usize := 63#usize
 
 /-- [diomede::dns::NXDOMAIN]
-    Source: 'crates/diomede/src/dns.rs', lines 28:0-28:27
+    Source: 'crates/diomede/src/dns.rs', lines 29:0-29:27
     Visibility: public -/
 @[global_simps, irreducible] def dns.NXDOMAIN : Std.U8 := 3#u8
 
+/-- [diomede::dns::NOERROR]
+    Source: 'crates/diomede/src/dns.rs', lines 32:0-32:26
+    Visibility: public -/
+@[global_simps, irreducible] def dns.NOERROR : Std.U8 := 0#u8
+
+/-- [diomede::dns::TYPE_SVCB]
+    Source: 'crates/diomede/src/dns.rs', lines 34:0-34:30
+    Visibility: public -/
+@[global_simps, irreducible] def dns.TYPE_SVCB : Std.U16 := 64#u16
+
+/-- [diomede::dns::TYPE_HTTPS]
+    Source: 'crates/diomede/src/dns.rs', lines 36:0-36:31
+    Visibility: public -/
+@[global_simps, irreducible] def dns.TYPE_HTTPS : Std.U16 := 65#u16
+
 /-- [diomede::dns::{impl untrusted::reader::Decode for diomede::dns::DnsHeader}::decode]:
-    Source: 'crates/diomede/src/dns.rs', lines 31:9-31:15
+    Source: 'crates/diomede/src/dns.rs', lines 39:9-39:15
     Visibility: public -/
 def dns.DnsHeader.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -391,7 +406,7 @@ def dns.DnsHeader.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [diomede::dns::{impl untrusted::reader::Decode for diomede::dns::DnsHeader}]
-    Source: 'crates/diomede/src/dns.rs', lines 31:9-31:15 -/
+    Source: 'crates/diomede/src/dns.rs', lines 39:9-39:15 -/
 @[reducible]
 def dns.DnsHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   dns.DnsHeader := {
@@ -458,7 +473,7 @@ def name.Name.from_text (text : Slice Std.U8) : Result (Option name.Name) := do
       ok (some { bytes := bytes1, len := n1 })
 
 /-- [diomede::dns::copy_label]: loop 0:
-    Source: 'crates/diomede/src/dns.rs', lines 74:4-77:5 -/
+    Source: 'crates/diomede/src/dns.rs', lines 82:4-85:5 -/
 @[rust_loop]
 def dns.copy_label_loop
   (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
@@ -477,7 +492,7 @@ def dns.copy_label_loop
 partial_fixpoint
 
 /-- [diomede::dns::copy_label]:
-    Source: 'crates/diomede/src/dns.rs', lines 72:0-78:1 -/
+    Source: 'crates/diomede/src/dns.rs', lines 80:0-86:1 -/
 @[reducible]
 def dns.copy_label
   (text : Array Std.U8 253#usize) («at» : Std.Usize) (msg : Slice Std.U8)
@@ -487,7 +502,7 @@ def dns.copy_label
   dns.copy_label_loop text «at» msg «from» len 0#usize
 
 /-- [diomede::dns::read_name]: loop 0:
-    Source: 'crates/diomede/src/dns.rs', lines 88:4-108:5 -/
+    Source: 'crates/diomede/src/dns.rs', lines 96:4-116:5 -/
 @[rust_loop]
 def dns.read_name_loop
   (msg : Slice Std.U8) (text : Array Std.U8 253#usize) (pos : Std.Usize)
@@ -542,7 +557,7 @@ def dns.read_name_loop
 partial_fixpoint
 
 /-- [diomede::dns::read_name]:
-    Source: 'crates/diomede/src/dns.rs', lines 83:0-114:1 -/
+    Source: 'crates/diomede/src/dns.rs', lines 91:0-122:1 -/
 def dns.read_name
   (msg : Slice Std.U8) (text : Array Std.U8 253#usize) :
   Result ((Option (Std.Usize × Std.Usize)) × (Array Std.U8 253#usize))
@@ -556,7 +571,7 @@ def dns.read_name
        else ok (some (n, pos), text1)
 
 /-- [diomede::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for diomede::dns::DnsQuery}::validate]:
-    Source: 'crates/diomede/src/dns.rs', lines 119:4-150:5
+    Source: 'crates/diomede/src/dns.rs', lines 127:4-158:5
     Visibility: public -/
 def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
   (msg : Slice Std.U8) :
@@ -650,7 +665,7 @@ def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
         dns.DnsQuery (core.convert.FromSame untrusted.ValidationError) residual
 
 /-- [diomede::dns::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::dns::Query<'a>}::validate]:
-    Source: 'crates/diomede/src/dns.rs', lines 65:4-68:5
+    Source: 'crates/diomede/src/dns.rs', lines 73:4-76:5
     Visibility: public -/
 def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
   (msg : Slice Std.U8) :
@@ -668,7 +683,7 @@ def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
       dns.Query (core.convert.FromSame untrusted.ValidationError) residual
 
 /-- Trait implementation: [diomede::dns::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::dns::Query<'a>}]
-    Source: 'crates/diomede/src/dns.rs', lines 62:0-69:1 -/
+    Source: 'crates/diomede/src/dns.rs', lines 70:0-77:1 -/
 @[reducible]
 def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate dns.Query (Slice Std.U8) untrusted.ValidationError := {
@@ -677,7 +692,7 @@ def dns.Query.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- Trait implementation: [diomede::dns::{impl untrusted::Validate<&'_0 [u8], untrusted::ValidationError> for diomede::dns::DnsQuery}]
-    Source: 'crates/diomede/src/dns.rs', lines 116:0-151:1 -/
+    Source: 'crates/diomede/src/dns.rs', lines 124:0-159:1 -/
 @[reducible]
 def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
   untrusted.Validate dns.DnsQuery (Slice Std.U8) untrusted.ValidationError := {
@@ -685,11 +700,11 @@ def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
     dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
 }
 
-/-- [diomede::dns::nxdomain]: loop 0:
-    Source: 'crates/diomede/src/dns.rs', lines 179:4-182:5
+/-- [diomede::dns::answer]: loop 0:
+    Source: 'crates/diomede/src/dns.rs', lines 188:4-191:5
     Visibility: public -/
 @[rust_loop]
-def dns.nxdomain_loop0
+def dns.answer_loop0
   (out : Slice Std.U8) (header : Array Std.U8 12#usize) (i : Std.Usize) :
   Result ((Slice Std.U8) × Std.Usize)
   := do
@@ -698,15 +713,15 @@ def dns.nxdomain_loop0
     let i1 ← Array.index_usize header i
     let s ← Slice.update out i i1
     let i2 ← i + 1#usize
-    dns.nxdomain_loop0 s header i2
+    dns.answer_loop0 s header i2
   else ok (out, i)
 partial_fixpoint
 
-/-- [diomede::dns::nxdomain]: loop 1:
-    Source: 'crates/diomede/src/dns.rs', lines 183:4-186:5
+/-- [diomede::dns::answer]: loop 1:
+    Source: 'crates/diomede/src/dns.rs', lines 192:4-195:5
     Visibility: public -/
 @[rust_loop]
-def dns.nxdomain_loop1
+def dns.answer_loop1
   (msg : Slice Std.U8) (out : Slice Std.U8) (n : Std.Usize) (i : Std.Usize) :
   Result (Slice Std.U8)
   := do
@@ -715,15 +730,16 @@ def dns.nxdomain_loop1
     let i1 ← Slice.index_usize msg i
     let s ← Slice.update out i i1
     let i2 ← i + 1#usize
-    dns.nxdomain_loop1 msg s n i2
+    dns.answer_loop1 msg s n i2
   else ok out
 partial_fixpoint
 
-/-- [diomede::dns::nxdomain]:
-    Source: 'crates/diomede/src/dns.rs', lines 156:0-188:1
+/-- [diomede::dns::answer]:
+    Source: 'crates/diomede/src/dns.rs', lines 165:0-197:1
     Visibility: public -/
-def dns.nxdomain
-  (msg : Slice Std.U8) (q : dns.DnsQuery) (out : Slice Std.U8) :
+def dns.answer
+  (msg : Slice Std.U8) (q : dns.DnsQuery) (rcode : Std.U8) (out : Slice Std.U8)
+  :
   Result ((Option Std.Usize) × (Slice Std.U8))
   := do
   let n ← dns.HEADER_LEN + q.question_len
@@ -745,19 +761,62 @@ def dns.nxdomain
       let i7 ← id % 256#u16
       let i8 ← lift (UScalar.cast .U8 i7)
       let i9 ← 128#u8 + rd
-      let i10 ← 128#u8 + dns.NXDOMAIN
-      let (out1, i11) ←
-        dns.nxdomain_loop0 out
+      let i10 ← rcode % 16#u8
+      let i11 ← 128#u8 + i10
+      let (out1, i12) ←
+        dns.answer_loop0 out
           (Array.make 12#usize [
-            i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8
+            i6, i8, i9, i11, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8
             ]) 0#usize
-      let out2 ← dns.nxdomain_loop1 msg out1 n i11
+      let out2 ← dns.answer_loop1 msg out1 n i12
       ok (some n, out2)
 
 /-- [diomede::filter::MAX_ANSWER_LEN]
-    Source: 'crates/diomede/src/filter.rs', lines 23:0-23:38
+    Source: 'crates/diomede/src/filter.rs', lines 31:0-31:38
     Visibility: public -/
 @[global_simps, irreducible] def filter.MAX_ANSWER_LEN : Std.Usize := 512#usize
+
+/-- [diomede::filter::DOT_PORT]
+    Source: 'crates/diomede/src/filter.rs', lines 33:0-33:30
+    Visibility: public -/
+@[global_simps, irreducible] def filter.DOT_PORT : Std.U16 := 853#u16
+
+/-- [diomede::filter::RST_ACK]
+    Source: 'crates/diomede/src/filter.rs', lines 35:0-35:29
+    Visibility: public -/
+@[global_simps, irreducible] def filter.RST_ACK : Std.U8 := 20#u8
+
+/-- [diomede::filter::STRICT]
+    Source: 'crates/diomede/src/filter.rs', lines 51:0-55:2
+    Visibility: public -/
+@[global_simps, irreducible]
+def filter.STRICT : filter.Policy :=
+  { block_quic := true, block_dot := true, strip_https_rr := true }
+
+/-- [diomede::filter::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::filter::Data<'a>}::validate]:
+    Source: 'crates/diomede/src/filter.rs', lines 75:4-77:5
+    Visibility: public -/
+def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+  (input : Slice Std.U8) :
+  Result (core.result.Result filter.Data untrusted.ValidationError)
+  := do
+  ok (core.result.Result.Ok input)
+
+/-- Trait implementation: [diomede::filter::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::filter::Data<'a>}]
+    Source: 'crates/diomede/src/filter.rs', lines 73:0-78:1 -/
+@[reducible]
+def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError :
+  untrusted.Validate filter.Data (Slice Std.U8) untrusted.ValidationError := {
+  validate :=
+    filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
+}
+
+/-- [diomede::filter::https_type]:
+    Source: 'crates/diomede/src/filter.rs', lines 81:0-86:1 -/
+def filter.https_type (qtype : Std.U16) : Result Bool := do
+  if qtype = dns.TYPE_HTTPS
+  then ok true
+  else ok (qtype = dns.TYPE_SVCB)
 
 /-- [diomede::name::{diomede::name::Name}::as_bytes]:
     Source: 'crates/diomede/src/name.rs', lines 51:4-53:5
@@ -768,10 +827,10 @@ def name.Name.as_bytes (self : name.Name) : Result (Slice Std.U8) := do
     { «end» := self.len }
 
 /-- [diomede::filter::dns_answer]:
-    Source: 'crates/diomede/src/filter.rs', lines 39:0-52:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 92:0-112:1 -/
 def filter.dns_answer
   (msg : untrusted.Untrusted (Slice Std.U8)) (list : blocklist.Blocklist)
-  (answer : Array Std.U8 512#usize) :
+  (policy : filter.Policy) (answer : Array Std.U8 512#usize) :
   Result ((Option (Option Std.Usize)) × (Array Std.U8 512#usize))
   := do
   let r ←
@@ -784,25 +843,56 @@ def filter.dns_answer
     if b
     then
       let (s1, to_slice_mut_back) ← lift (Array.to_slice_mut answer)
-      let (o, s2) ← dns.nxdomain q.msg q.query s1
+      let (o, s2) ← dns.answer q.msg q.query dns.NXDOMAIN s1
       let answer1 := to_slice_mut_back s2
       ok (some o, answer1)
-    else ok (none, answer)
+    else
+      if policy.strip_https_rr
+      then
+        let b1 ← filter.https_type q.query.qtype
+        if b1
+        then
+          let (s1, to_slice_mut_back) ← lift (Array.to_slice_mut answer)
+          let (o, s2) ← dns.answer q.msg q.query dns.NOERROR s1
+          let answer1 := to_slice_mut_back s2
+          ok (some o, answer1)
+        else ok (none, answer)
+      else ok (none, answer)
   | core.result.Result.Err _ => ok (none, answer)
 
+/-- [diomede::tls::PORT]
+    Source: 'crates/diomede/src/tls.rs', lines 23:0-23:26
+    Visibility: public -/
+@[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
+
+/-- [diomede::filter::udp_dropped]:
+    Source: 'crates/diomede/src/filter.rs', lines 115:0-123:1 -/
+def filter.udp_dropped
+  (policy : filter.Policy) (port : Std.U16) : Result Bool := do
+  if port = tls.PORT
+  then ok policy.block_quic
+  else if port = filter.DOT_PORT
+       then ok policy.block_dot
+       else ok false
+
 /-- [diomede::filter::udp_ipv4]:
-    Source: 'crates/diomede/src/filter.rs', lines 55:0-73:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 126:0-148:1 -/
 def filter.udp_ipv4
-  (u : net.udp.Ipv4Udp) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  (u : net.udp.Ipv4Udp) (list : blocklist.Blocklist) (policy : filter.Policy)
+  (out : Slice Std.U8) :
   Result (filter.Verdict × (Slice Std.U8))
   := do
-  let i := u.header.dst_port
-  if i != dns.PORT
-  then ok (filter.Verdict.Pass, out)
+  let port := u.header.dst_port
+  if port != dns.PORT
+  then
+    let b ← filter.udp_dropped policy port
+    if b
+    then ok (filter.Verdict.Drop, out)
+    else ok (filter.Verdict.Pass, out)
   else
     let client_port := u.header.src_port
     let answer := Array.repeat 512#usize 0#u8
-    let (o, answer1) ← filter.dns_answer u.payload list answer
+    let (o, answer1) ← filter.dns_answer u.payload list policy answer
     match o with
     | none => ok (filter.Verdict.Pass, out)
     | some o1 =>
@@ -821,18 +911,23 @@ def filter.udp_ipv4
         | some m => ok (filter.Verdict.Reply m, out1)
 
 /-- [diomede::filter::udp_ipv6]:
-    Source: 'crates/diomede/src/filter.rs', lines 76:0-94:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 151:0-173:1 -/
 def filter.udp_ipv6
-  (u : net.udp.Ipv6Udp) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  (u : net.udp.Ipv6Udp) (list : blocklist.Blocklist) (policy : filter.Policy)
+  (out : Slice Std.U8) :
   Result (filter.Verdict × (Slice Std.U8))
   := do
-  let i := u.header.dst_port
-  if i != dns.PORT
-  then ok (filter.Verdict.Pass, out)
+  let port := u.header.dst_port
+  if port != dns.PORT
+  then
+    let b ← filter.udp_dropped policy port
+    if b
+    then ok (filter.Verdict.Drop, out)
+    else ok (filter.Verdict.Pass, out)
   else
     let client_port := u.header.src_port
     let answer := Array.repeat 512#usize 0#u8
-    let (o, answer1) ← filter.dns_answer u.payload list answer
+    let (o, answer1) ← filter.dns_answer u.payload list policy answer
     match o with
     | none => ok (filter.Verdict.Pass, out)
     | some o1 =>
@@ -1146,15 +1241,13 @@ def tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError :
 }
 
 /-- [diomede::filter::hello_blocked]:
-    Source: 'crates/diomede/src/filter.rs', lines 97:0-105:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 176:0-184:1 -/
 def filter.hello_blocked
-  (stream : untrusted.Untrusted (Slice Std.U8)) (list : blocklist.Blocklist) :
-  Result Bool
-  := do
+  (stream : Slice Std.U8) (list : blocklist.Blocklist) : Result Bool := do
+  let u ← untrusted.Untrusted.new stream
   let r ←
     untrusted.Untrusted.validate
-      tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError
-      stream
+      tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError u
   match r with
   | core.result.Result.Ok c =>
     match c.server_name with
@@ -1164,31 +1257,98 @@ def filter.hello_blocked
       blocklist.Blocklist.blocked list s
   | core.result.Result.Err _ => ok false
 
-/-- [diomede::tls::PORT]
-    Source: 'crates/diomede/src/tls.rs', lines 23:0-23:26
-    Visibility: public -/
-@[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
-
-/-- [diomede::filter::tcp_verdict]:
-    Source: 'crates/diomede/src/filter.rs', lines 108:0-117:1 -/
-def filter.tcp_verdict
-  (dst_port : Std.U16) (data : untrusted.Untrusted (Slice Std.U8))
-  (list : blocklist.Blocklist) :
-  Result filter.Verdict
+/-- [diomede::filter::tcp_reset]:
+    Source: 'crates/diomede/src/filter.rs', lines 188:0-196:1 -/
+def filter.tcp_reset
+  (port : Std.U16) (data : Slice Std.U8) (list : blocklist.Blocklist)
+  (policy : filter.Policy) :
+  Result Bool
   := do
-  if dst_port != tls.PORT
-  then ok filter.Verdict.Pass
-  else
-    let b ← filter.hello_blocked data list
+  if port = tls.PORT
+  then filter.hello_blocked data list
+  else if port = filter.DOT_PORT
+       then ok policy.block_dot
+       else ok false
+
+/-- [diomede::filter::reset_numbers]:
+    Source: 'crates/diomede/src/filter.rs', lines 201:0-205:1 -/
+def filter.reset_numbers
+  (h : net.tcp.TcpHeader) (len : Std.Usize) : Result (Std.U32 × Std.U32) := do
+  let i := h.flags
+  let i1 ← i / 2#u8
+  let i2 ← i1 % 2#u8
+  let syn ← lift (UScalar.cast .U32 i2)
+  let i3 := h.seq
+  let i4 ← lift (UScalar.cast .U32 len)
+  let i5 ← lift (core.num.U32.wrapping_add i3 i4)
+  let ack ← lift (core.num.U32.wrapping_add i5 syn)
+  let i6 := h.ack
+  ok (i6, ack)
+
+/-- [diomede::filter::tcp_ipv4]:
+    Source: 'crates/diomede/src/filter.rs', lines 208:0-225:1 -/
+def filter.tcp_ipv4
+  (t : net.tcp.Ipv4Tcp) (list : blocklist.Blocklist) (policy : filter.Policy)
+  (out : Slice Std.U8) :
+  Result (filter.Verdict × (Slice Std.U8))
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError
+      t.payload
+  match r with
+  | core.result.Result.Ok d =>
+    let dst_port := t.header.dst_port
+    let b ← filter.tcp_reset dst_port d list policy
     if b
-    then ok filter.Verdict.Drop
-    else ok filter.Verdict.Pass
+    then
+      let i := Slice.len d
+      let (seq, ack) ← filter.reset_numbers t.header i
+      let src_port := t.header.src_port
+      let (o, out1) ←
+        net.tcp.encode_ipv4 t.ip.header.dst t.ip.header.src dst_port src_port
+          seq ack filter.RST_ACK out
+      match o with
+      | none => ok (filter.Verdict.Drop, out1)
+      | some n => ok (filter.Verdict.Reset n, out1)
+    else ok (filter.Verdict.Pass, out)
+  | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
+
+/-- [diomede::filter::tcp_ipv6]:
+    Source: 'crates/diomede/src/filter.rs', lines 228:0-245:1 -/
+def filter.tcp_ipv6
+  (t : net.tcp.Ipv6Tcp) (list : blocklist.Blocklist) (policy : filter.Policy)
+  (out : Slice Std.U8) :
+  Result (filter.Verdict × (Slice Std.U8))
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError
+      t.payload
+  match r with
+  | core.result.Result.Ok d =>
+    let dst_port := t.header.dst_port
+    let b ← filter.tcp_reset dst_port d list policy
+    if b
+    then
+      let i := Slice.len d
+      let (seq, ack) ← filter.reset_numbers t.header i
+      let src_port := t.header.src_port
+      let (o, out1) ←
+        net.tcp.encode_ipv6 t.ip.header.dst t.ip.header.src dst_port src_port
+          seq ack filter.RST_ACK out
+      match o with
+      | none => ok (filter.Verdict.Drop, out1)
+      | some n => ok (filter.Verdict.Reset n, out1)
+    else ok (filter.Verdict.Pass, out)
+  | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
 
 /-- [diomede::filter::classify]:
-    Source: 'crates/diomede/src/filter.rs', lines 121:0-135:1
+    Source: 'crates/diomede/src/filter.rs', lines 249:0-263:1
     Visibility: public -/
 def filter.classify
-  (packet : Slice Std.U8) (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  (packet : Slice Std.U8) (list : blocklist.Blocklist) (policy : filter.Policy)
+  (out : Slice Std.U8) :
   Result (filter.Verdict × (Slice Std.U8))
   := do
   let u ← untrusted.Untrusted.new packet
@@ -1196,41 +1356,34 @@ def filter.classify
     untrusted.Untrusted.validate
       net.udp.Ipv4Udp.Insts.UntrustedValidateSharedASliceU8ValidationError u
   match r with
-  | core.result.Result.Ok iu => filter.udp_ipv4 iu list out
+  | core.result.Result.Ok iu => filter.udp_ipv4 iu list policy out
   | core.result.Result.Err _ =>
     let r1 ←
       untrusted.Untrusted.validate
         net.udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError u
     match r1 with
-    | core.result.Result.Ok iu => filter.udp_ipv6 iu list out
+    | core.result.Result.Ok iu => filter.udp_ipv6 iu list policy out
     | core.result.Result.Err _ =>
       let r2 ←
         untrusted.Untrusted.validate
           net.tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError
           u
       match r2 with
-      | core.result.Result.Ok it =>
-        let i := it.header.dst_port
-        let v ← filter.tcp_verdict i it.payload list
-        ok (v, out)
+      | core.result.Result.Ok it => filter.tcp_ipv4 it list policy out
       | core.result.Result.Err _ =>
         let r3 ←
           untrusted.Untrusted.validate
             net.tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError
             u
         match r3 with
-        | core.result.Result.Ok it =>
-          let i := it.header.dst_port
-          let v ← filter.tcp_verdict i it.payload list
-          ok (v, out)
+        | core.result.Result.Ok it => filter.tcp_ipv6 it list policy out
         | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
 
 /-- [diomede::filter::classify_stream]:
-    Source: 'crates/diomede/src/filter.rs', lines 140:0-142:1
+    Source: 'crates/diomede/src/filter.rs', lines 268:0-270:1
     Visibility: public -/
 def filter.classify_stream
   (stream : Slice Std.U8) (list : blocklist.Blocklist) : Result Bool := do
-  let u ← untrusted.Untrusted.new stream
-  filter.hello_blocked u list
+  filter.hello_blocked stream list
 
 end diomede

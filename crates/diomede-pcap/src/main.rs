@@ -1,15 +1,21 @@
-//! `diomede-pcap --list hosts.txt [--list ...] capture.pcap [--out kept.pcap]`:
+//! `diomede-pcap --list hosts.txt [--list ...] [--permissive] capture.pcap [--out kept.pcap]`:
 //! runs every packet of a capture through the verified ad filter
 //! (`diomede::filter`) and reports what it would block.
 //!
 //! - A DNS query for a listed domain (or a subdomain of one) is answered with
-//!   NXDOMAIN: the report shows the name, and `--out` writes the answer in
+//!   NXDOMAIN, and a query for HTTPS or SVCB records of any other name with
+//!   no records: the report shows the name, and `--out` writes the answer in
 //!   place of the query.
-//! - A TLS ClientHello to port 443 for a listed server name is dropped, with
-//!   the rest of that TCP connection. A ClientHello may span several
+//! - A TLS ClientHello to port 443 for a listed server name is reset, and the
+//!   rest of that TCP connection dropped. A ClientHello may span several
 //!   segments (browsers' post-quantum key shares make it longer than one), so
 //!   the start of each connection is reassembled and checked with
 //!   `classify_stream`.
+//! - QUIC (UDP to port 443) and DNS over QUIC (UDP to 853) are dropped, and
+//!   DNS over TLS (TCP to 853) is reset.
+//!
+//! `--permissive` keeps only the blocklist: QUIC, DNS over TLS or QUIC and
+//! HTTPS records pass.
 //!
 //! Lists are hosts files (`0.0.0.0 ads.example`) or one domain per line;
 //! `#` starts a comment, and `localhost` and the like are skipped. The tool
@@ -24,7 +30,8 @@
 
 use diomede::blocklist::Blocklist;
 use diomede::dns::Query;
-use diomede::filter::{classify, classify_stream, Verdict};
+use diomede::dns;
+use diomede::filter::{classify, classify_stream, Policy, Verdict, DOT_PORT, STRICT};
 use diomede::tls::{self, ClientHello};
 use net::tcp::{Ipv4Tcp, Ipv6Tcp, TcpHeader};
 use net::udp::{Ipv4Udp, Ipv6Udp};
@@ -290,6 +297,37 @@ impl Stream {
     }
 }
 
+/// The destination port of the UDP datagram in `ip`, if it is one.
+fn udp_dst_port(ip: &[u8]) -> Option<u16> {
+    if let Ok(u) = Untrusted::new(ip).validate::<Ipv4Udp>() {
+        return Some(u.header.dst_port.0);
+    }
+    Untrusted::new(ip).validate::<Ipv6Udp>().ok().map(|u| u.header.dst_port.0)
+}
+
+/// The frame carrying `packet` back on the link `frame` came in on: the
+/// Ethernet addresses swapped, if any.
+fn back(link_len: usize, frame: &[u8], packet: &[u8]) -> Vec<u8> {
+    let mut f = Vec::with_capacity(link_len + packet.len());
+    if link_len > 0 {
+        f.extend_from_slice(&frame[6..12]);
+        f.extend_from_slice(&frame[0..6]);
+        f.extend_from_slice(&frame[12..link_len]);
+    }
+    f.extend_from_slice(packet);
+    f
+}
+
+/// What was blocked, by kind.
+#[derive(Default)]
+struct Counts {
+    answered: usize,
+    stripped: usize,
+    tls: usize,
+    quic: usize,
+    dot: usize,
+}
+
 /// What happens to a packet.
 enum Action {
     Keep,
@@ -299,7 +337,9 @@ enum Action {
 }
 
 fn usage() -> ! {
-    eprintln!("usage: diomede-pcap --list FILE [--list FILE ...] CAPTURE.pcap [--out KEPT.pcap]");
+    eprintln!(
+        "usage: diomede-pcap --list FILE [--list FILE ...] [--permissive] CAPTURE.pcap [--out KEPT.pcap]"
+    );
     exit(2)
 }
 
@@ -307,11 +347,15 @@ fn main() {
     let mut lists = Vec::new();
     let mut capture = None;
     let mut out_path = None;
+    let mut policy = STRICT;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
             "--list" => lists.push(args.next().unwrap_or_else(|| usage())),
             "--out" => out_path = Some(args.next().unwrap_or_else(|| usage())),
+            "--permissive" => {
+                policy = Policy { block_quic: false, block_dot: false, strip_https_rr: false }
+            }
             _ if capture.is_none() && !a.starts_with('-') => capture = Some(a),
             _ => usage(),
         }
@@ -350,40 +394,57 @@ fn main() {
     let mut actions: Vec<Action> = Vec::with_capacity(cap.records.len());
     let mut streams: HashMap<(Vec<u8>, u16, Vec<u8>, u16), Stream> = HashMap::new();
     let mut out = vec![0u8; 65535];
-    let (mut answered, mut dropped_tls) = (0, 0);
+    let mut counts = Counts::default();
     for (index, &(_, frame)) in cap.records.iter().enumerate() {
         let Some(link_len) = link_header_len(cap.link_type, frame) else {
             actions.push(Action::Keep);
             continue;
         };
         let ip = &frame[link_len..];
-        let action = match classify(ip, &list, &mut out) {
+        let action = match classify(ip, &list, &policy, &mut out) {
             Verdict::Pass => Action::Keep,
             Verdict::Drop => {
-                match tcp_segment(ip) {
-                    Some(s) => {
-                        let name = server_name(&s.data);
-                        println!("#{index:<6} tls  {name:<40} dropped");
-                        dropped_tls += 1;
-                        // The rest of the connection goes too.
-                        streams.entry(s.flow).or_default().blocked = Some(name);
+                match (tcp_segment(ip), udp_dst_port(ip)) {
+                    (Some(s), _) => {
+                        println!("#{index:<6} tcp  port {:<35} dropped (no room to reset)", s.flow.3)
                     }
-                    None => println!("#{index:<6} dns  {:<40} dropped (no room to answer)", query_name(ip)),
+                    (None, Some(tls::PORT)) => {
+                        println!("#{index:<6} quic {:<40} dropped", "");
+                        counts.quic += 1;
+                    }
+                    (None, Some(DOT_PORT)) => {
+                        println!("#{index:<6} doq  {:<40} dropped", "");
+                        counts.dot += 1;
+                    }
+                    _ => println!("#{index:<6} dns  {:<40} dropped (no room to answer)", query_name(ip)),
                 }
                 Action::Drop
             }
             Verdict::Reply(n) => {
-                println!("#{index:<6} dns  {:<40} answered NXDOMAIN", query_name(ip));
-                answered += 1;
-                // The reply goes back on the same link, the other way.
-                let mut reply = Vec::with_capacity(link_len + n);
-                if link_len > 0 {
-                    reply.extend_from_slice(&frame[6..12]);
-                    reply.extend_from_slice(&frame[0..6]);
-                    reply.extend_from_slice(&frame[12..link_len]);
+                let dns_at = if out[0] >> 4 == 4 { 28 } else { 48 };
+                if out[dns_at + 3] % 16 == dns::NXDOMAIN {
+                    println!("#{index:<6} dns  {:<40} answered NXDOMAIN", query_name(ip));
+                    counts.answered += 1;
+                } else {
+                    println!("#{index:<6} dns  {:<40} answered: no HTTPS records", query_name(ip));
+                    counts.stripped += 1;
                 }
-                reply.extend_from_slice(&out[..n]);
-                Action::Reply(reply)
+                Action::Reply(back(link_len, frame, &out[..n]))
+            }
+            Verdict::Reset(n) => {
+                if let Some(s) = tcp_segment(ip) {
+                    if s.flow.3 == tls::PORT {
+                        let name = server_name(&s.data);
+                        println!("#{index:<6} tls  {name:<40} reset");
+                        counts.tls += 1;
+                        // The rest of the connection goes too.
+                        streams.entry(s.flow).or_default().blocked = Some(name);
+                    } else {
+                        println!("#{index:<6} dot  {:<40} reset", "");
+                        counts.dot += 1;
+                    }
+                }
+                Action::Reply(back(link_len, frame, &out[..n]))
             }
         };
         actions.push(action);
@@ -392,16 +453,16 @@ fn main() {
             if s.flow.3 == tls::PORT {
                 let stream = streams.entry(s.flow.clone()).or_default();
                 if stream.blocked.is_some() {
-                    if !s.data.is_empty() {
+                    if !s.data.is_empty() && matches!(actions[index], Action::Keep) {
                         actions[index] = Action::Drop;
                     }
                 } else if stream.add(index, &s, &list) {
                     let name = stream.blocked.clone().unwrap_or_default();
                     println!(
-                        "#{index:<6} tls  {name:<40} dropped (ClientHello in {} segments)",
+                        "#{index:<6} tls  {name:<40} reset (ClientHello in {} segments)",
                         stream.packets.len()
                     );
-                    dropped_tls += 1;
+                    counts.tls += 1;
                     for &i in &stream.packets {
                         actions[i] = Action::Drop;
                     }
@@ -412,12 +473,16 @@ fn main() {
 
     let dropped = actions.iter().filter(|a| !matches!(a, Action::Keep)).count();
     println!(
-        "{} packets: {} kept, {} dropped ({} DNS queries answered, {} TLS connections blocked)",
+        "{} packets: {} kept, {} dropped ({} DNS queries answered NXDOMAIN, {} without HTTPS \
+         records, {} TLS connections blocked, {} QUIC and {} DNS over TLS/QUIC packets refused)",
         actions.len(),
         actions.len() - dropped,
         dropped,
-        answered,
-        dropped_tls
+        counts.answered,
+        counts.stripped,
+        counts.tls,
+        counts.quic,
+        counts.dot,
     );
 
     if let Some(path) = out_path {

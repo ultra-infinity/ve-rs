@@ -29,6 +29,11 @@ dig = "dig @server +tries=1 +time=2"
 client.succeed(f"{dig} -4 ads.example A")
 client.succeed(f"{dig} -6 Cdn.Tracker.io AAAA")
 client.succeed(f"{dig} -4 example.org A")
+# HTTPS records, which carry Encrypted ClientHello keys: none, for any name.
+client.succeed(f"{dig} -4 www.example.net HTTPS")
+# QUIC, and DNS over TLS.
+client.succeed("echo quic | socat - UDP4-SENDTO:server:443")
+client.execute("timeout 5 openssl s_client -connect server:853 < /dev/null")
 for name in ["metrics.tracker.io", "example.org"]:
     client.succeed(
         f"timeout 10 openssl s_client -connect server:443 -servername {name} < /dev/null"
@@ -45,7 +50,10 @@ print(out)
 assert status == 0, "diomede-pcap failed"
 assert "dns  ads.example" in out and "answered NXDOMAIN" in out, "ads.example not answered"
 assert "dns  cdn.tracker.io" in out, "cdn.tracker.io not answered"
-assert "tls  metrics.tracker.io" in out, "the ClientHello to metrics.tracker.io was not dropped"
+assert "tls  metrics.tracker.io" in out, "the ClientHello to metrics.tracker.io was not reset"
+assert "dns  www.example.net" in out and "no HTTPS records" in out, "HTTPS records not stripped"
+assert "quic" in out, "QUIC was not dropped"
+assert "dot " in out, "DNS over TLS was not reset"
 assert "example.org" not in out, "example.org was blocked"
 
 # The answers written out are NXDOMAIN replies from the server's port 53, and
@@ -53,6 +61,11 @@ assert "example.org" not in out, "example.org was blocked"
 replies = server.succeed("tcpdump -n -r /tmp/kept.pcap udp src port 53")
 print(replies)
 assert replies.count("NXDomain") == 2, "expected two NXDOMAIN replies"
+resets = server.succeed("tcpdump -n -r /tmp/kept.pcap 'tcp[tcpflags] & tcp-rst != 0'")
+print(resets)
+# (The ClientHello above spans two segments: the tool drops them; resets for
+# reassembled streams come from the stream table.)
+assert "853 >" in resets, "expected a reset from port 853"
 kept = server.succeed("diomede-pcap --list /tmp/hosts /tmp/kept.pcap")
 print(kept)
 assert " 0 dropped" in kept, "blocked traffic was kept"

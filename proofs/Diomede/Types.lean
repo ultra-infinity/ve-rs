@@ -27,7 +27,7 @@ structure blocklist.Blocklist where
   ends : Slice Std.U32
 
 /-- [diomede::dns::DnsHeader]
-    Source: 'crates/diomede/src/dns.rs', lines 32:0-40:1
+    Source: 'crates/diomede/src/dns.rs', lines 40:0-48:1
     Visibility: public -/
 structure dns.DnsHeader where
   id : untrusted.bytes.BigEndian Std.U16
@@ -45,7 +45,7 @@ structure name.Name where
   len : Std.Usize
 
 /-- [diomede::dns::DnsQuery]
-    Source: 'crates/diomede/src/dns.rs', lines 44:0-53:1
+    Source: 'crates/diomede/src/dns.rs', lines 52:0-61:1
     Visibility: public -/
 structure dns.DnsQuery where
   header : dns.DnsHeader
@@ -55,20 +55,34 @@ structure dns.DnsQuery where
   question_len : Std.Usize
 
 /-- [diomede::dns::Query]
-    Source: 'crates/diomede/src/dns.rs', lines 57:0-60:1
+    Source: 'crates/diomede/src/dns.rs', lines 65:0-68:1
     Visibility: public -/
 structure dns.Query where
   msg : Slice Std.U8
   query : dns.DnsQuery
 
+/-- [diomede::filter::Policy]
+    Source: 'crates/diomede/src/filter.rs', lines 39:0-48:1
+    Visibility: public -/
+structure filter.Policy where
+  block_quic : Bool
+  block_dot : Bool
+  strip_https_rr : Bool
+
 /-- [diomede::filter::Verdict]
-    Source: 'crates/diomede/src/filter.rs', lines 27:0-34:1
+    Source: 'crates/diomede/src/filter.rs', lines 59:0-68:1
     Visibility: public -/
 @[discriminant isize]
 inductive filter.Verdict where
 | Pass : filter.Verdict
 | Drop : filter.Verdict
 | Reply : Std.Usize → filter.Verdict
+| Reset : Std.Usize → filter.Verdict
+
+/-- [diomede::filter::Data]
+    Source: 'crates/diomede/src/filter.rs', lines 71:0-71:26 -/
+@[reducible]
+def filter.Data := Slice Std.U8
 
 /-- [diomede::tls::ClientHello]
     Source: 'crates/diomede/src/tls.rs', lines 41:0-43:1

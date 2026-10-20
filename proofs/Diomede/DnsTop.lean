@@ -467,21 +467,21 @@ theorem DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate.s
 
 /-! ## NXDOMAIN answers -/
 
-/-- **Spec theorem for `nxdomain`'s first loop**: copies `header[i..]` to
+/-- **Spec theorem for `answer`'s first loop**: copies `header[i..]` to
     `out[i..12]`. -/
 @[step]
-theorem nxdomain_loop0.spec (out : Slice U8) (header : Array U8 12#usize) (i : Usize)
+theorem answer_loop0.spec (out : Slice U8) (header : Array U8 12#usize) (i : Usize)
     (hi : i.val ≤ 12) (hout : 12 ≤ out.length) :
-    nxdomain_loop0 out header i ⦃ (r : Slice U8 × Usize) =>
+    answer_loop0 out header i ⦃ (r : Slice U8 × Usize) =>
       r.2.val = 12 ∧ r.1.length = out.length ∧
         r.1.val.take 12 = out.val.take i.val ++ header.val.drop i.val ∧
         r.1.val.drop 12 = out.val.drop 12 ⦄ := by
-  unfold nxdomain_loop0
+  unfold answer_loop0
   split
   · step as ⟨c, hc⟩
     step as ⟨s, hs⟩
     step as ⟨i2, hi2⟩
-    apply WP.spec_mono (nxdomain_loop0.spec s header i2 (by scalar_tac) (by simp [hs]; scalar_tac))
+    apply WP.spec_mono (answer_loop0.spec s header i2 (by scalar_tac) (by simp [hs]; scalar_tac))
     rintro ⟨r, k⟩ ⟨hk, hl, ht, hd⟩
     have hlt : i.val < out.val.length := by scalar_tac
     have hlt' : i.val < header.val.length := by simp; scalar_tac
@@ -496,20 +496,20 @@ theorem nxdomain_loop0.spec (out : Slice U8) (header : Array U8 12#usize) (i : U
 termination_by 12 - i.val
 decreasing_by all_goals scalar_tac
 
-/-- **Spec theorem for `nxdomain`'s second loop**: copies `msg[i..n]` to
+/-- **Spec theorem for `answer`'s second loop**: copies `msg[i..n]` to
     `out[i..n]`. -/
 @[step]
-theorem nxdomain_loop1.spec (msg out : Slice U8) (n i : Usize) (hi : i.val ≤ n.val)
+theorem answer_loop1.spec (msg out : Slice U8) (n i : Usize) (hi : i.val ≤ n.val)
     (hm : n.val ≤ msg.length) (hout : n.val ≤ out.length) :
-    nxdomain_loop1 msg out n i ⦃ (r : Slice U8) =>
+    answer_loop1 msg out n i ⦃ (r : Slice U8) =>
       r.length = out.length ∧ r.val.take n.val = out.val.take i.val ++ (msg.val.take n.val).drop i.val ∧
         r.val.drop n.val = out.val.drop n.val ⦄ := by
-  unfold nxdomain_loop1
+  unfold answer_loop1
   split
   · step as ⟨c, hc⟩
     step as ⟨s, hs⟩
     step as ⟨i2, hi2⟩
-    apply WP.spec_mono (nxdomain_loop1.spec msg s n i2 (by scalar_tac) hm (by simp [hs]; scalar_tac))
+    apply WP.spec_mono (answer_loop1.spec msg s n i2 (by scalar_tac) hm (by simp [hs]; scalar_tac))
     rintro r ⟨hl, ht, hd⟩
     have hlt : i.val < out.val.length := by scalar_tac
     have hlt' : i.val < (msg.val.take n.val).length := by simp; scalar_tac
@@ -524,28 +524,29 @@ theorem nxdomain_loop1.spec (msg out : Slice U8) (n i : Usize) (hi : i.val ≤ n
 termination_by n.val - i.val
 decreasing_by all_goals scalar_tac
 
-/-- The NXDOMAIN answer to the query `q` decoded from `m`, as byte values:
-    the ID; QR = 1, opcode 0, AA = TC = 0, RD as asked; RA = 1, Z = 0,
-    RCODE = 3; one question and no records; then the question, as asked. -/
-def answerN (m : List U8) (q : DnsQuery) : List Nat :=
+/-- The answer with response code `rcode` to the query `q` decoded from `m`,
+    as byte values: the ID; QR = 1, opcode 0, AA = TC = 0, RD as asked;
+    RA = 1, Z = 0, RCODE; one question and no records; then the question, as
+    asked. -/
+def answerN (m : List U8) (q : DnsQuery) (rcode : Nat) : List Nat :=
   [(q.header.id : U16).val / 256, (q.header.id : U16).val % 256,
-    128 + (q.header.flags : U16).val / 256 % 2, 128 + 3, 0, 1, 0, 0, 0, 0, 0, 0] ++
+    128 + (q.header.flags : U16).val / 256 % 2, 128 + rcode % 16, 0, 1, 0, 0, 0, 0, 0, 0] ++
     ((m.drop 12).take q.question_len.val).map (·.val)
 
-/-- **Spec theorem for `nxdomain`**: writes the answer to the start of `out`,
+/-- **Spec theorem for `answer`**: writes the answer to the start of `out`,
     if both `msg` and `out` hold `12 + question_len` bytes; the rest of `out`
     is kept. -/
 @[step]
-theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
+theorem answer.spec (msg : Slice U8) (q : DnsQuery) (rcode : U8) (out : Slice U8)
     (hq : 12 + q.question_len.val ≤ Usize.max) :
-    nxdomain msg q out ⦃ (r : Option Usize × Slice U8) =>
+    answer msg q rcode out ⦃ (r : Option Usize × Slice U8) =>
       match r.1 with
       | none => (msg.length < 12 + q.question_len.val ∨ out.length < 12 + q.question_len.val) ∧
           r.2 = out
       | some n => n.val = 12 + q.question_len.val ∧ n.val ≤ out.length ∧ r.2.length = out.length ∧
-          (r.2.val.take n.val).map (·.val) = answerN msg.val q ∧
+          (r.2.val.take n.val).map (·.val) = answerN msg.val q rcode.val ∧
           r.2.val.drop n.val = out.val.drop n.val ⦄ := by
-  unfold nxdomain
+  unfold answer
   step as ⟨n, hn⟩
   split
   · simp only [WP.spec_ok]; exact ⟨Or.inl (by scalar_tac), trivial⟩
@@ -555,8 +556,8 @@ theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
   have h12 : 12 ≤ n.val := by scalar_tac
   have hql : n.val - 12 = q.question_len.val := by scalar_tac
   refine ⟨by scalar_tac, by scalar_tac, by rw [out2_post, out1_post1], ?_, ?_⟩
-  · have hA : ∀ h, (Array.make 12#usize [i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8,
-        0#u8] h).val = [i6, i8, i9, i10, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8] :=
+  · have hA : ∀ h, (Array.make 12#usize [i6, i8, i9, i11, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8,
+        0#u8] h).val = [i6, i8, i9, i11, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8] :=
       fun _ => rfl
     rw [hA, List.take_zero, List.drop_zero, List.nil_append] at out1_post2
     rw [out2_post1, out1_post, out1_post2, List.drop_take, hql]
@@ -564,8 +565,8 @@ theorem nxdomain.spec (msg : Slice U8) (q : DnsQuery) (out : Slice U8)
     have hfl : (q.header.flags : U16).val < 65536 := by scalar_tac
     simp only [answerN, List.map_cons, List.cons_append,
       List.nil_append, List.cons.injEq, and_true]
-    simp only [i6_post, i8_post, i9_post, i10_post, rd_post, UScalar.cast_val_eq, i5_post, i7_post,
-      i4_post, i3_post, NXDOMAIN_val, UScalarTy.numBits]
+    simp only [i6_post, i8_post, i9_post, i11_post, i10_post, rd_post, UScalar.cast_val_eq, i5_post, i7_post,
+      i4_post, i3_post, UScalarTy.numBits]
     refine ⟨by omega, by omega, by simp; omega, by simp, by simp⟩
   · rw [out2_post2, show n.val = 12 + (n.val - 12) by omega, ← List.drop_drop, out1_post3,
       List.drop_drop]

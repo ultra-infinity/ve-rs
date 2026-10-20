@@ -152,11 +152,14 @@ UDP datagrams can also be built: `udp::encode_ipv4` and `udp::encode_ipv6`
 write a whole IP packet (header, UDP header, data, checksums) into a buffer.
 They are proved to round-trip: `Ipv4Udp` / `Ipv6Udp` accept what they write and
 decode it back to the same addresses, ports and data
-(`proofs/Net/UdpEncode.lean`).
+(`proofs/Net/UdpEncode.lean`). Likewise `tcp::encode_ipv4` and
+`tcp::encode_ipv6` write a bare TCP segment (no options or data, such as a
+reset), which `Ipv4Tcp` / `Ipv6Tcp` decode back to the same addresses,
+ports, numbers and flags (`proofs/Net/TcpEncode.lean`).
 
 Not covered: reassembling fragments or TCP streams, IPv6 extension headers,
 interpreting IPv4 or TCP options, ICMP message types or NDP, and encoding
-anything but UDP.
+anything but UDP and bare TCP segments.
 
 It also shows how hand-written and derived proofs combine:
 - field decoders that check values have hand-written specs:
@@ -222,38 +225,48 @@ by `net-pcap`. Then it runs both sides with `wg-userspace`.
 ## Example: an ad-blocking packet filter (`crates/diomede`)
 
 Ads arrive encrypted, so `diomede` blocks traffic *to ad domains*, where the
-domain shows in the clear, as DNS blockers and SNI firewalls do. It is a
-sans-IO, `no_std` filter built on `untrusted` and `net`, verified as a whole
-(`make verify-diomede`, `proofs/Diomede/`):
+domain shows in the clear, as DNS blockers and SNI firewalls do. It also
+closes the usual ways around such a filter. It is a sans-IO, `no_std` filter
+built on `untrusted` and `net`, verified as a whole (`make verify-diomede`,
+`proofs/Diomede/`):
 
 ```rust
 let list = Blocklist::new(&data, &ends)?; // sorted domains, checked
-match diomede::filter::classify(ip_packet, &list, &mut out) {
+match diomede::filter::classify(ip_packet, &list, &filter::STRICT, &mut out) {
     Verdict::Pass => { /* forward it */ }
     Verdict::Drop => { /* drop it */ }
-    Verdict::Reply(n) => { /* drop it, send out[..n] back */ }
+    Verdict::Reply(n) | Verdict::Reset(n) => { /* drop it, send out[..n] back */ }
 }
 ```
 
 - **Blocklist:** `Blocklist::new` accepts exactly the storage whose entries
-  are non-empty, within the data, and in strictly increasing order. `blocked(name)` holds
-  exactly when the name is an entry or a subdomain of one (binary search on
-  each suffix after a dot).
+  are non-empty, within the data, and in strictly increasing order.
+  `blocked(name)` holds exactly when the name is an entry or a subdomain of
+  one (binary search on each suffix after a dot).
 - **DNS:** `dns::DnsQuery` accepts exactly the standard queries with one
   question, a name of plain labels of at most 253 characters (RFC 1035 §4.1),
-  lowercased. `dns::nxdomain` writes exactly the NXDOMAIN answer: same ID and
-  question, RD copied, RA set, RCODE 3.
+  lowercased. `dns::answer` writes exactly the answer with no records: same ID
+  and question, RD copied, RA set, and the response code given.
 - **TLS:** `tls::ClientHello` reads the first record of a TCP stream. It
   accepts exactly the handshake records holding a whole ClientHello whose
   vector lengths are consistent (RFC 8446 §4.1.2), and returns the host name
   of the first server_name extension (RFC 6066 §3), if there is one.
-- **Filter:** `classify` decodes the packet as UDP or TCP over IPv4 or IPv6.
-  - A query to port 53 for a blocked name gets `Reply`. The reply is proved to
-    decode, by `net`'s decoders, as a packet from the server back to the
-    client (addresses and ports swapped) carrying exactly the NXDOMAIN answer.
-    If the reply does not fit in `out`, the verdict is `Drop`.
-  - A ClientHello to port 443 for a blocked name gets `Drop`.
-  - Everything else gets `Pass`.
+- **Filter:** `classify` decodes the packet as UDP or TCP over IPv4 or IPv6,
+  and decides under a `Policy` (`STRICT` turns everything on):
+  - A DNS query for a blocked name gets `Reply` with NXDOMAIN. With
+    `strip_https_rr`, a query for HTTPS or SVCB records of any other name
+    gets `Reply` with no records, so browsers get no Encrypted ClientHello
+    keys and show the server name in the clear. A reply is proved to decode,
+    by `net`'s decoders, as a packet from the server back to the client
+    (addresses and ports swapped) carrying exactly that answer.
+  - A ClientHello to port 443 for a blocked name, and with `block_dot` any
+    DNS over TLS (TCP port 853), gets `Reset`. The reset is proved to decode
+    as a TCP RST and ACK from the server back to the client, numbered so that
+    the client accepts it.
+  - With `block_quic`, QUIC (UDP port 443) gets `Drop`, and browsers fall
+    back to TCP. With `block_dot`, DNS over QUIC (UDP port 853) gets `Drop`.
+  - A reply or reset that does not fit in `out` gets `Drop`. Everything else
+    gets `Pass`.
 
   `classify_stream` checks a reassembled stream start, for ClientHellos that
   span several segments.
@@ -262,12 +275,12 @@ match diomede::filter::classify(ip_packet, &list, &mut out) {
 files or domain lists and runs a capture through `classify`, reassembling the
 start of each TLS connection for `classify_stream`. It reports what would be
 blocked, and `--out` writes the capture without the blocked packets and with
-the NXDOMAIN replies. `make diomede-vm-test` checks it in two VMs: `dig`
-and `openssl s_client` against dnsmasq and `openssl s_server`, for ad domains
-and a normal one.
+the replies and resets. `make diomede-vm-test` checks it in two VMs: `dig`,
+`openssl s_client` and `socat` against dnsmasq and `openssl s_server`, for ad
+domains, a normal one, HTTPS records, QUIC and DNS over TLS.
 
-Not covered: DNS over HTTPS or TLS, Encrypted ClientHello, QUIC (its
-ClientHello is encrypted), and ads served from the site's own domain.
+Not covered: DNS over HTTPS to servers reached by address, ads served from
+the site's own domain, and apps that bring their own resolver.
 
 ## Pros
 

@@ -1,4 +1,4 @@
-//! DNS queries and NXDOMAIN answers (RFC 1035 §4.1).
+//! DNS queries and the empty answers to them (RFC 1035 §4.1).
 //!
 //! ```text
 //! header: | ID (2) | flags (2) | QDCOUNT (2) | ANCOUNT (2) | NSCOUNT (2) | ARCOUNT (2) |
@@ -11,9 +11,10 @@
 //! labels of 1 to 63 bytes (no compression pointers) forming a name of at
 //! most 253 characters, not the root.
 //!
-//! [`nxdomain`] writes the answer saying the name does not exist: the same ID
-//! and question (byte for byte, so resolvers that randomize letter case
-//! accept it), QR = 1, RD copied, RA = 1, RCODE = 3, no records.
+//! [`answer`] writes an answer with no records: the same ID and question
+//! (byte for byte, so resolvers that randomize letter case accept it),
+//! QR = 1, RD copied, RA = 1, and a response code: NXDOMAIN (the name does
+//! not exist) or NOERROR (no records of the type asked for).
 
 use crate::name::{Name, MAX_NAME_LEN};
 use untrusted::{BigEndian, Decode, Untrusted, Validate, ValidationError};
@@ -26,6 +27,13 @@ pub const HEADER_LEN: usize = 12;
 pub const MAX_LABEL_LEN: usize = 63;
 /// The response code "name error": the name does not exist.
 pub const NXDOMAIN: u8 = 3;
+/// The response code "no error": with no records, there are none of the type
+/// asked for.
+pub const NOERROR: u8 = 0;
+/// The query type of SVCB records.
+pub const TYPE_SVCB: u16 = 64;
+/// The query type of HTTPS records, which carry Encrypted ClientHello keys.
+pub const TYPE_HTTPS: u16 = 65;
 
 /// The header.
 #[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +60,7 @@ pub struct DnsQuery {
     pub question_len: usize,
 }
 
-/// A [`DnsQuery`] with the message it was decoded from, which [`nxdomain`]
+/// A [`DnsQuery`] with the message it was decoded from, which [`answer`]
 /// copies the question from.
 pub struct Query<'a> {
     pub msg: &'a [u8],
@@ -150,22 +158,23 @@ impl Validate<&[u8]> for DnsQuery {
     }
 }
 
-/// Writes to the start of `out` the NXDOMAIN answer to the query `q`, which
-/// was decoded from `msg`. Returns its length, or `None` if `out` is too
-/// short (or `q` is not from `msg`).
-pub fn nxdomain(msg: &[u8], q: &DnsQuery, out: &mut [u8]) -> Option<usize> {
+/// Writes to the start of `out` the answer to the query `q`, which was
+/// decoded from `msg`, with no records and the response code `rcode`
+/// (modulo 16). Returns its length, or `None` if `out` is too short (or `q`
+/// is not from `msg`).
+pub fn answer(msg: &[u8], q: &DnsQuery, rcode: u8, out: &mut [u8]) -> Option<usize> {
     let n = HEADER_LEN + q.question_len;
     if n > msg.len() || n > out.len() {
         return None;
     }
     let id = q.header.id.0;
-    // QR = 1, opcode 0, AA = 0, TC = 0, RD as asked; RA = 1, Z = 0, RCODE 3.
+    // QR = 1, opcode 0, AA = 0, TC = 0, RD as asked; RA = 1, Z = 0, RCODE.
     let rd = (q.header.flags.0 / 256 % 2) as u8;
     let header = [
         (id / 256) as u8,
         (id % 256) as u8,
         0x80 + rd,
-        0x80 + NXDOMAIN,
+        0x80 + rcode % 16,
         0,
         1,
         0,
@@ -260,10 +269,12 @@ mod tests {
         let m = query("ads.example", 0x0100);
         let q = validate(&m).unwrap();
         let mut out = [0u8; 512];
-        let n = nxdomain(&m, &q, &mut out).unwrap();
+        let n = answer(&m, &q, NXDOMAIN, &mut out).unwrap();
         assert_eq!(n, 12 + q.question_len);
         assert_eq!(&out[..12], &[0xBE, 0xEF, 0x81, 0x83, 0, 1, 0, 0, 0, 0, 0, 0]);
         assert_eq!(&out[12..n], &m[12..n]);
-        assert!(nxdomain(&m, &q, &mut out[..n - 1]).is_none());
+        assert!(answer(&m, &q, NXDOMAIN, &mut out[..n - 1]).is_none());
+        assert_eq!(answer(&m, &q, NOERROR, &mut out), Some(n));
+        assert_eq!(&out[2..4], &[0x81, 0x80]);
     }
 }
