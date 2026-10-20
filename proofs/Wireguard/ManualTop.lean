@@ -5,3 +5,4 @@ import Wireguard.MessageTop
 import Wireguard.Crypto
 import Wireguard.NoiseTop
 import Wireguard.CookieTop
+import Wireguard.ReplayTop

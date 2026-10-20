@@ -118,4 +118,11 @@ structure noise.InitiationStatic where
   chain : noise.Chain
   initiator_static : Array Std.U8 32#usize
 
+/-- [wireguard::replay::Replay]
+    Source: 'crates/wireguard/src/replay.rs', lines 26:0-30:1
+    Visibility: public -/
+structure replay.Replay where
+  top : Std.U64
+  bitmap : Array Std.U64 128#usize
+
 end wireguard

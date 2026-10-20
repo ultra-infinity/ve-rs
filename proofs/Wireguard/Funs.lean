@@ -1329,4 +1329,116 @@ def noise.transport_keys
   let s ← lift (Array.to_slice (Std.Array.empty Std.U8))
   crypto.kdf2 cryptoCryptoInst c chain.key s
 
+/-- [wireguard::replay::REJECT_AFTER_MESSAGES]
+    Source: 'crates/wireguard/src/replay.rs', lines 17:0-17:66
+    Visibility: public -/
+@[global_simps, irreducible]
+def replay.REJECT_AFTER_MESSAGES : Std.U64 := 18446744073709543423#u64
+
+/-- [wireguard::replay::WINDOW]
+    Source: 'crates/wireguard/src/replay.rs', lines 20:0-20:29
+    Visibility: public -/
+@[global_simps, irreducible] def replay.WINDOW : Std.U64 := 8128#u64
+
+/-- [wireguard::replay::WORDS]
+    Source: 'crates/wireguard/src/replay.rs', lines 22:0-22:29
+    Visibility: public -/
+@[global_simps, irreducible] def replay.WORDS : Std.Usize := 128#usize
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::new]:
+    Source: 'crates/wireguard/src/replay.rs', lines 34:4-39:5
+    Visibility: public -/
+def replay.Replay.new : Result replay.Replay := do
+  let a := Array.repeat 128#usize 0#u64
+  ok { top := 0#u64, bitmap := a }
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]: loop 0:
+    Source: 'crates/wireguard/src/replay.rs', lines 61:12-64:13
+    Visibility: public -/
+@[rust_loop]
+def replay.Replay.check_and_update_loop
+  (a : Array Std.U64 128#usize) (current : Std.U64) (n : Std.U64) (i : Std.U64)
+  :
+  Result (Array Std.U64 128#usize)
+  := do
+  if i <= n
+  then
+    let i1 ← current + i
+    let i2 ← i1 % 128#u64
+    let i3 ← lift (UScalar.cast .Usize i2)
+    let a1 ← Array.update a i3 0#u64
+    let i4 ← i + 1#u64
+    replay.Replay.check_and_update_loop a1 current n i4
+  else ok a
+partial_fixpoint
+
+/-- [wireguard::replay::{wireguard::replay::Replay}::check_and_update]:
+    Source: 'crates/wireguard/src/replay.rs', lines 42:4-74:5
+    Visibility: public -/
+def replay.Replay.check_and_update
+  (self : replay.Replay) (counter : Std.U64) :
+  Result (Bool × replay.Replay)
+  := do
+  if counter >= replay.REJECT_AFTER_MESSAGES
+  then ok (false, self)
+  else
+    let v ← counter + 1#u64
+    let i ← v + replay.WINDOW
+    if i < self.top
+    then ok (false, self)
+    else
+      if v > self.top
+      then
+        let current ← self.top / 64#u64
+        let index ← v / 64#u64
+        let i1 ← index - current
+        let i2 ← lift (UScalar.cast .U64 replay.WORDS)
+        let n ←
+          if i1 > i2
+          then ok (UScalar.cast .U64 replay.WORDS)
+          else ok i1
+        let a ←
+          replay.Replay.check_and_update_loop self.bitmap current n 1#u64
+        let i3 ← v / 64#u64
+        let i4 ← i3 % 128#u64
+        let w ← lift (UScalar.cast .Usize i4)
+        let i5 ← v % 64#u64
+        let bit ← 1#u64 <<< i5
+        let i6 ← Array.index_usize a w
+        let i7 ← lift (i6 &&& bit)
+        if i7 != 0#u64
+        then ok (false, { top := v, bitmap := a })
+        else
+          let i8 ← lift (i6 ||| bit)
+          let a1 ← Array.update a w i8
+          ok (true, { top := v, bitmap := a1 })
+      else
+        let i1 ← v / 64#u64
+        let i2 ← i1 % 128#u64
+        let w ← lift (UScalar.cast .Usize i2)
+        let i3 ← v % 64#u64
+        let bit ← 1#u64 <<< i3
+        let i4 ← Array.index_usize self.bitmap w
+        let i5 ← lift (i4 &&& bit)
+        if i5 != 0#u64
+        then ok (false, self)
+        else
+          let i6 ← lift (i4 ||| bit)
+          let a ← Array.update self.bitmap w i6
+          ok (true, { self with bitmap := a })
+
+/-- [wireguard::replay::{impl core::default::Default for wireguard::replay::Replay}::default]:
+    Source: 'crates/wireguard/src/replay.rs', lines 78:4-80:5
+    Visibility: public -/
+def replay.Replay.Insts.CoreDefaultDefault.default : Result replay.Replay := do
+  replay.Replay.new
+
+/-- Trait implementation: [wireguard::replay::{impl core::default::Default for wireguard::replay::Replay}]
+    Source: 'crates/wireguard/src/replay.rs', lines 77:0-81:1 -/
+@[reducible]
+def replay.Replay.Insts.CoreDefaultDefault : core.default.Default replay.Replay
+  := {
+  default := replay.Replay.Insts.CoreDefaultDefault.default
+}
+
 end wireguard
