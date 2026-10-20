@@ -62,10 +62,10 @@ assert_eq!(
 - **`#[derive(Decode)]`:** decodes a struct's fields one after another, in
   declaration order. Works for named, tuple and unit structs.
 
-## Example: a network stack up to UDP (`crates/net`)
+## Example: a network stack up to UDP and TCP (`crates/net`)
 
 The `net` crate is a verified decoder for network packets, from Ethernet II
-frames up to UDP, built on `untrusted`. Each layer hands its payload back
+frames up to UDP and TCP, built on `untrusted`. Each layer hands its payload back
 still `Untrusted`, and the next layer validates it:
 
 ```rust
@@ -126,6 +126,15 @@ without copying. Padding is handed back explicitly rather than dropped.
   - the same length condition as over IPv4;
   - a checksum that is non-zero (IPv6 makes it mandatory) and valid over the
     RFC 8200 pseudo-header and the datagram.
+- **`tcp::Ipv4Tcp`, `tcp::Ipv6Tcp`:**
+  - an IPv4 packet with protocol 6 that is not a fragment, or an IPv6 packet
+    with next header 6;
+  - a segment of at least 20 bytes whose data offset is at least 5 and whose
+    header length (4 × data offset) fits in the segment;
+  - a valid checksum over the pseudo-header and the segment.
+
+  The options and the data are handed back; reassembling streams is left to
+  the caller.
 - **`icmp::Icmpv4`:** an IPv4 packet with protocol 1 that is not a fragment,
   whose payload is at least 8 bytes long with a valid checksum.
 - **`icmp::Icmpv6`:** an IPv6 packet with next header 58, whose payload is at
@@ -145,8 +154,9 @@ They are proved to round-trip: `Ipv4Udp` / `Ipv6Udp` accept what they write and
 decode it back to the same addresses, ports and data
 (`proofs/Net/UdpEncode.lean`).
 
-Not covered: reassembling fragments, IPv6 extension headers, interpreting IPv4
-options, ICMP message types or NDP, and encoding anything but UDP.
+Not covered: reassembling fragments or TCP streams, IPv6 extension headers,
+interpreting IPv4 or TCP options, ICMP message types or NDP, and encoding
+anything but UDP.
 
 It also shows how hand-written and derived proofs combine:
 - field decoders that check values have hand-written specs:
@@ -208,6 +218,56 @@ device. Its UDP is `net`'s, not the kernel's:
 side initiates a handshake; IPv4 and IPv6 pings and TCP transfers go both ways;
 a spoofed source is dropped; and every captured WireGuard datagram is accepted
 by `net-pcap`. Then it runs both sides with `wg-userspace`.
+
+## Example: an ad-blocking packet filter (`crates/adfilter`)
+
+Ads arrive encrypted, so `adfilter` blocks traffic *to ad domains*, where the
+domain shows in the clear, as DNS blockers and SNI firewalls do. It is a
+sans-IO, `no_std` filter built on `untrusted` and `net`, verified as a whole
+(`make verify-adfilter`, `proofs/Adfilter/`):
+
+```rust
+let list = Blocklist::new(&data, &ends)?; // sorted domains, checked
+match adfilter::filter::classify(ip_packet, &list, &mut out) {
+    Verdict::Pass => { /* forward it */ }
+    Verdict::Drop => { /* drop it */ }
+    Verdict::Reply(n) => { /* drop it, send out[..n] back */ }
+}
+```
+
+- **Blocklist:** `Blocklist::new` accepts exactly the storage whose entries
+  are non-empty, within the data, and in strictly increasing order. `blocked(name)` holds
+  exactly when the name is an entry or a subdomain of one (binary search on
+  each suffix after a dot).
+- **DNS:** `dns::DnsQuery` accepts exactly the standard queries with one
+  question, a name of plain labels of at most 253 characters (RFC 1035 §4.1),
+  lowercased. `dns::nxdomain` writes exactly the NXDOMAIN answer: same ID and
+  question, RD copied, RA set, RCODE 3.
+- **TLS:** `tls::ClientHello` reads the first record of a TCP stream. It
+  accepts exactly the handshake records holding a whole ClientHello whose
+  vector lengths are consistent (RFC 8446 §4.1.2), and returns the host name
+  of the first server_name extension (RFC 6066 §3), if there is one.
+- **Filter:** `classify` decodes the packet as UDP or TCP over IPv4 or IPv6.
+  - A query to port 53 for a blocked name gets `Reply`. The reply is proved to
+    decode, by `net`'s decoders, as a packet from the server back to the
+    client (addresses and ports swapped) carrying exactly the NXDOMAIN answer.
+    If the reply does not fit in `out`, the verdict is `Drop`.
+  - A ClientHello to port 443 for a blocked name gets `Drop`.
+  - Everything else gets `Pass`.
+
+  `classify_stream` checks a reassembled stream start, for ClientHellos that
+  span several segments.
+
+`crates/adfilter-pcap` is an unverified harness around it. It loads hosts
+files or domain lists and runs a capture through `classify`, reassembling the
+start of each TLS connection for `classify_stream`. It reports what would be
+blocked, and `--out` writes the capture without the blocked packets and with
+the NXDOMAIN replies. `make adfilter-vm-test` checks it in two VMs: `dig`
+and `openssl s_client` against dnsmasq and `openssl s_server`, for ad domains
+and a normal one.
+
+Not covered: DNS over HTTPS or TLS, Encrypted ClientHello, QUIC (its
+ClientHello is encrypted), and ads served from the site's own domain.
 
 ## Pros
 
@@ -317,9 +377,11 @@ make extract verify       # translate the crate to Lean, check proofs, audit
 make verify-demo          # verify the example user crate
 make verify-net           # verify the `net` crate (Ethernet up to UDP)
 make verify-wireguard     # verify the `wireguard` crate
+make verify-adfilter      # verify the `adfilter` crate
 nix flake check           # extraction up to date, Aeneas pin consistent
 make vm-test              # real traffic through `net` in two VMs (needs KVM)
 make wg-vm-test           # wg-userspace against the kernel's WireGuard (needs KVM)
+make adfilter-vm-test     # DNS and TLS to ad domains through adfilter-pcap (needs KVM)
 ```
 
 To verify the `Decode` impls in your own crate:
@@ -340,12 +402,14 @@ exits with an error if anything is unproved.
 | `crates/untrusted` | The library. |
 | `crates/untrusted-derive` | `#[derive(Decode)]` (untrusted generator). |
 | `crates/cargo-untrusted` | `cargo untrusted verify` (untrusted orchestrator). |
-| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP, and UDP encoding, built on `untrusted`. |
+| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP and TCP, and UDP encoding, built on `untrusted`. |
 | `crates/wireguard` | A verified, sans-IO WireGuard core, built on `untrusted` and `net`. |
 | `crates/wireguard-libcrux` | Its cryptographic primitives, from libcrux (not extracted; tested against RFC vectors). |
 | `crates/wg-userspace` | A `no_std` WireGuard interface (TUN, raw sockets) around the core; unverified. |
+| `crates/adfilter` | A verified, sans-IO ad-blocking filter (DNS and TLS SNI), built on `untrusted` and `net`. |
+| `crates/adfilter-pcap` | Runs a capture through the filter with hosts-file lists; unverified. |
 | `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |
-| `proofs/Net/`, `proofs/Wireguard/` | The Lean models and proofs of `net` and `wireguard`. |
+| `proofs/Net/`, `proofs/Wireguard/`, `proofs/Adfilter/` | The Lean models and proofs of `net`, `wireguard` and `adfilter`. |
 | `examples/derive-demo` | An example user crate, verified by `make verify-demo`. |
 | `proofs/Untrusted/{Types,Funs}.lean` | The Lean model, generated by `make extract`. |
 | `proofs/Untrusted/Spec.lean` | Specification vocabulary (`beNat`, ranges, …). |

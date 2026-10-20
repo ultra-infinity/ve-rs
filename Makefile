@@ -5,7 +5,7 @@ LLBC   := target/charon/$(CRATE).llbc
 PROOFS := proofs
 SUBDIR := Untrusted
 
-.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard verify-adfilter vm-test wg-vm-test aeneas-pin clean
+.PHONY: all build test llbc extract specs lean-deps verify verify-demo verify-net verify-wireguard verify-adfilter vm-test wg-vm-test adfilter-vm-test aeneas-pin clean
 
 all: extract verify verify-demo verify-net verify-wireguard verify-adfilter
 
@@ -69,6 +69,9 @@ vm-test:
 
 wg-vm-test:
 	nix build .#wg-vm-test -L
+
+adfilter-vm-test:
+	nix build .#adfilter-vm-test -L
 
 # Check the generated model and the proofs, then audit that every model
 # function has a spec and nothing relies on `sorry` or unexpected axioms.

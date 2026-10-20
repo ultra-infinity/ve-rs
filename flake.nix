@@ -152,6 +152,26 @@
             ];
             doCheck = false;
           };
+          # `adfilter-pcap`: runs a capture through the verified ad filter.
+          adfilter-pcap = pkgs.rustPlatform.buildRustPackage {
+            pname = "adfilter-pcap";
+            version = "0.1.0";
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./crates
+                ./examples
+              ];
+            };
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "-p"
+              "adfilter-pcap"
+            ];
+            doCheck = false;
+          };
         }
 
         # Two VMs on a virtual LAN: the client sends ARP, ICMP and UDP over
@@ -211,6 +231,44 @@
                 b = node;
               };
             testScript = builtins.readFile ./crates/wg-userspace/vm-test.py;
+          };
+
+          # The client looks up and connects to ad domains and a normal one;
+          # the server (dnsmasq, `openssl s_server`) captures it and runs
+          # `adfilter-pcap`; see crates/adfilter-pcap/vm-test.py. Run with
+          # `make adfilter-vm-test` (needs KVM).
+          adfilter-vm-test = pkgs.testers.runNixOSTest {
+            name = "adfilter-vm-test";
+            nodes =
+              let
+                common = {
+                  networking.firewall.enable = false;
+                  environment.systemPackages = [
+                    pkgs.dig
+                    pkgs.ethtool
+                    pkgs.openssl
+                    pkgs.tcpdump
+                  ];
+                };
+              in
+              {
+                client = common;
+                server = common // {
+                  environment.systemPackages = common.environment.systemPackages ++ [
+                    self.packages.${system}.adfilter-pcap
+                  ];
+                  services.dnsmasq = {
+                    enable = true;
+                    resolveLocalQueries = false;
+                    settings = {
+                      no-resolv = true;
+                      # Every name resolves, so that only the filter decides.
+                      address = [ "/#/192.0.2.1" ];
+                    };
+                  };
+                };
+              };
+            testScript = builtins.readFile ./crates/adfilter-pcap/vm-test.py;
           };
         };
 
