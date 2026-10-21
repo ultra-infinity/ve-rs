@@ -60,7 +60,7 @@ structure crypto.Crypto (Self : Type _) where
     Bool
 
 /-- [wireguard::message::CookieReply]
-    Source: 'crates/wireguard/src/message.rs', lines 71:0-75:1
+    Source: 'crates/wireguard/src/message.rs', lines 72:0-76:1
     Visibility: public -/
 structure message.CookieReply where
   receiver : untrusted.bytes.LittleEndian Std.U32
@@ -184,7 +184,7 @@ structure device.Device where
   now : Std.U64
 
 /-- [wireguard::message::Initiation]
-    Source: 'crates/wireguard/src/message.rs', lines 49:0-56:1
+    Source: 'crates/wireguard/src/message.rs', lines 50:0-57:1
     Visibility: public -/
 structure message.Initiation where
   sender : untrusted.bytes.LittleEndian Std.U32
@@ -195,7 +195,7 @@ structure message.Initiation where
   mac2 : Array Std.U8 16#usize
 
 /-- [wireguard::message::TransportHeader]
-    Source: 'crates/wireguard/src/message.rs', lines 79:0-82:1
+    Source: 'crates/wireguard/src/message.rs', lines 80:0-83:1
     Visibility: public -/
 structure message.TransportHeader where
   receiver : untrusted.bytes.LittleEndian Std.U32
@@ -211,7 +211,7 @@ structure transport.Inner where
   len : Std.Usize
 
 /-- [wireguard::message::Response]
-    Source: 'crates/wireguard/src/message.rs', lines 60:0-67:1
+    Source: 'crates/wireguard/src/message.rs', lines 61:0-68:1
     Visibility: public -/
 structure message.Response where
   sender : untrusted.bytes.LittleEndian Std.U32
@@ -238,14 +238,14 @@ inductive transport.Received where
 | Packet : Std.Usize → transport.Received
 
 /-- [wireguard::message::Transport]
-    Source: 'crates/wireguard/src/message.rs', lines 86:0-90:1
+    Source: 'crates/wireguard/src/message.rs', lines 87:0-91:1
     Visibility: public -/
 structure message.Transport where
   header : message.TransportHeader
   packet : untrusted.Untrusted (Slice Std.U8)
 
 /-- [wireguard::message::Message]
-    Source: 'crates/wireguard/src/message.rs', lines 93:0-98:1
+    Source: 'crates/wireguard/src/message.rs', lines 94:0-99:1
     Visibility: public -/
 @[discriminant isize]
 inductive message.Message where

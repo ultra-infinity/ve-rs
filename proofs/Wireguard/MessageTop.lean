@@ -7,7 +7,7 @@ import Wireguard.Specs.CookieReply
 import Wireguard.Specs.TransportHeader
 import Net.Lemmas
 
-open Aeneas Aeneas.Std Result untrusted untrusted.reader
+open Aeneas Aeneas.Std Result untrusted untrusted.reader untrusted.writer
 
 namespace wireguard.message
 
@@ -215,298 +215,171 @@ theorem put_bytes.spec (out : Slice U8) (pos : Usize) (src : Slice U8)
   step*
   simp_all
 
-/-- The bytes of a `u32` field, least significant first. -/
-def LeBytes (w : List U8) (v : U32) : Prop := w.length = 4 ∧ leNat w = v.val
+theorem setSlice!_drop {α} (s s' : List α) (i : Nat) (h : i + s'.length = s.length) :
+    s.setSlice! i s' = s.take i ++ s' := by
+  simp only [List.setSlice!]
+  rw [min_eq_left (by omega), List.take_of_length_le (le_refl _), List.drop_eq_nil_of_le (by omega),
+    List.append_nil]
 
-/-- **Spec theorem for `put_u32`**: writes the 4 bytes of `v`, least
-    significant first, at `pos`, and returns the position after them. -/
+/-- **Spec theorem for `put_message`**: the type, little-endian, then the body,
+    into an `out` that holds exactly both. -/
 @[step]
-theorem put_u32.spec (out : Slice U8) (pos : Usize) (v : U32) (h : pos.val + 4 ≤ out.length) :
-    put_u32 out pos v ⦃ (pos' : Usize) (out' : Slice U8) =>
-      pos'.val = pos.val + 4 ∧ ∃ w, LeBytes w v ∧
-        out'.val = out.val.take pos.val ++ w ++ out.val.drop (pos.val + 4) ⦄ := by
-  unfold put_u32
-  step*
-  have hs : s.val = [i1, i4, i7, i9] := by simp [s_post, Array.make]
-  have hslen : s.length = 4 := by simp [Slice.length, hs]
-  refine ⟨by rw [pos'_post, hslen], s.val, ⟨by simp [hs], ?_⟩, by rw [pos'_post1, hslen]⟩
-  have c1 : i1.val = v.val % 256 := by
-    rw [i1_post, UScalar.cast_val_eq, i_post]; simp only [UScalarTy.U8_numBits_eq]; omega
-  have c2 : i4.val = v.val / 256 % 256 := by
-    rw [i4_post, UScalar.cast_val_eq, i3_post, i2_post]; simp only [UScalarTy.U8_numBits_eq]; omega
-  have c3 : i7.val = v.val / 65536 % 256 := by
-    rw [i7_post, UScalar.cast_val_eq, i6_post, i5_post]; simp only [UScalarTy.U8_numBits_eq]; omega
-  have c4 : i9.val = v.val / 16777216 := by
-    rw [i9_post, UScalar.cast_val_eq, i8_post]; simp only [UScalarTy.U8_numBits_eq]
-    have := v.hBounds; simp only [UScalarTy.U32_numBits_eq] at this; omega
-  have := v.hBounds
-  simp only [UScalarTy.U32_numBits_eq] at this
-  simp only [hs, leNat, beNat, List.reverse_cons, List.reverse_nil, List.nil_append,
-    List.cons_append, List.foldl_cons, List.foldl_nil, c1, c2, c3, c4]
-  omega
+theorem put_message.spec {T : Type} (inst : untrusted.writer.Encode T) {E : T → List U8}
+    [untrusted.writer.EncodesAs inst E] (kind : U32) (body : T) (out : Slice U8)
+    (h : out.length = 4 + (E body).length) :
+    put_message inst kind body out ⦃ (out' : Slice U8) =>
+      out'.val = untrusted.writer.leBytes 4 kind.val ++ E body ⦄ := by
+  unfold put_message
+  apply WP.spec_bind (untrusted.writer.encode_into.spec
+    bytes.LittleEndianU32.Insts.UntrustedWriterEncode kind out)
+  rintro ⟨r1, out1⟩ ⟨hl1, h1⟩
+  simp only [WP.uncurry'_pair, uncurry]
+  cases r1
+  · obtain ⟨-, -, hout1⟩ := h1
+    simp only [core.slice.index.Slice.index_mut, core.slice.index.SliceIndexRangeFromUsizeSlice.index_mut]
+    split
+    case isFalse hn =>
+      exfalso; apply hn; simp only [Slice.length] at hl1 h ⊢; scalar_tac
+    simp only [bind_ok]
+    apply WP.spec_bind (untrusted.writer.encode_into.spec inst body (out1.drop TYPE_LEN))
+    rintro ⟨r2, s1⟩ ⟨hl2, h2⟩
+    simp only [WP.uncurry'_pair, uncurry]
+    have hd : (out1.drop TYPE_LEN).length = (E body).length := by
+      simp only [Slice.length] at hl1 h
+      simp [Slice.drop, Slice.length, hl1, h]
+    cases r2
+    · obtain ⟨-, -, hs1⟩ := h2
+      simp only [WP.spec_ok]
+      have hs1' : s1.val = E body := by
+        rw [hs1, List.drop_eq_nil_of_le (by simp only [Slice.length] at hd; omega), List.append_nil]
+      simp only [Slice.from_val, TYPE_LEN_val]
+      rw [setSlice!_drop _ _ _ (by simp only [Slice.length] at hl1 h hs1' ⊢; rw [hs1']; omega),
+        hs1', hout1, List.take_left' (by simp)]
+    · exfalso
+      rw [hd] at h2
+      exact Nat.lt_irrefl _ h2
+  · exfalso
+    simp only [Slice.length] at h h1
+    simp at h1
+    omega
 
-/-! ### Building the encoded bytes -/
+/-- A message's bytes, `kind` then the encoded `body`: its type is `kind`, and
+    the rest decodes back to `body`, given `body`'s round trip. -/
+theorem decodes_encoded {T : Type} (enc : untrusted.writer.Encode T)
+    (dec : untrusted.reader.Decode T) {E : T → List U8} {D : List U8 → T → Nat → Prop}
+    {F : List U8 → Prop} [untrusted.writer.EncodesAs enc E] [DecodesAs dec D F]
+    {V : T → Prop} [h : untrusted.writer.RoundTrip enc dec V] (kind : U32) (body : T)
+    (hv : V body) :
+    let l := untrusted.writer.leBytes 4 kind.val ++ E body
+    4 ≤ l.length ∧ leNat (l.take 4) = kind.val ∧ D (l.drop 4) body (l.length - 4) := by
+  have hk := kind.hBounds
+  simp only [UScalarTy.U32_numBits_eq] at hk
+  refine ⟨by simp, ?_, ?_⟩
+  · rw [List.take_left' (by simp), untrusted.writer.leNat_leBytes, Nat.mod_eq_of_lt (by simpa using hk)]
+  · rw [List.drop_left' (by simp)]
+    simpa using h.roundtrip body [] hv
 
-/-- Writing `w` at position `p`, right after the bytes `pre` written so far,
-    into the `n` zeros after them. -/
-theorem write_at (pre w : List U8) (n p : Nat) (hp : p = pre.length) (k : Nat)
-    (hk : k = w.length) (h : w.length ≤ n) :
-    (pre ++ List.replicate n 0#u8).take p ++ w ++ (pre ++ List.replicate n 0#u8).drop (p + k) =
-      pre ++ w ++ List.replicate (n - w.length) 0#u8 := by
-  subst hp hk
-  simp [List.drop_append, List.drop_replicate]
-
-/-- A little-endian `u32` field at the front of `l`. -/
-theorem fmt_le32 (w rest : List U8) (v : U32) (h : LeBytes w v) :
-    FmtD bytes.LittleEndianU32.Insts.UntrustedReaderDecode (w ++ rest) v 4 :=
-  ⟨rfl, by simp [h.1], by rw [List.take_left' h.1, h.2]⟩
-
-/-- A byte array field at the front of `l`. -/
-theorem fmt_array {N : Usize} (a : Array U8 N) (rest : List U8) :
-    FmtD (ArrayU8N.Insts.UntrustedReaderDecode N) (a.val ++ rest) a N.val :=
-  ⟨rfl, by simp, by simp⟩
-
-theorem LeBytes.leNat_type (w : List U8) (v : U32) (h : LeBytes w v) (rest : List U8) :
-    leNat ((w ++ rest).take 4) = v.val := by
-  rw [List.take_left' h.1, h.2]
-
-/-- **Spec theorem for `CookieReply::encode`**: bytes that decode back to the
-    same cookie reply. -/
-@[step]
-theorem CookieReply.encode.spec (self : CookieReply) :
-    CookieReply.encode self ⦃ (a : Array U8 64#usize) =>
-      Message.Spec a.val (.CookieReply self) ⦄ := by
-  unfold CookieReply.encode
-  step*
-  obtain ⟨w0, hw0, hs1⟩ : ∃ w0, LeBytes w0 TYPE_COOKIE_REPLY ∧
-      s1.val = s.val.take 0 ++ w0 ++ s.val.drop (0 + 4) := ⟨_, pos_post1, pos_post2⟩
-  have hz : s.val = [] ++ List.replicate 64 0#u8 := by simp [s_post]
-  rw [hz, write_at [] w0 64 0 rfl 4 hw0.1.symm (by simp [hw0.1])] at hs1
-  simp only [List.nil_append, hw0.1] at hs1
-  have hpos : pos.val = w0.length := by simp [pos_post, hw0.1]
-  have hs2 : s2.val = s1.val := by
-    rw [s2_post, to_slice_mut_back_post, Array.from_slice_val _ _ (by simp [hs1, hw0.1])]
-  have hs3 : s3.val = w0 ++ w ++ List.replicate 56 0#u8 := by
-    rw [pos1_post2, hs2, hs1, write_at w0 w 60 pos.val hpos 4 pos1_post1.1.symm
-      (by simp [pos1_post1.1])]
-    simp [pos1_post1.1]
-  have hs4 : s4.val = s3.val := by
-    rw [s4_post, to_slice_mut_back1_post,
-      Array.from_slice_val _ _ (by simp [hs3, hw0.1, pos1_post1.1])]
-  have hpos1 : pos1.val = (w0 ++ w).length := by simp [pos1_post, hpos, pos1_post1.1]
-  have hs6 : s6.val = w0 ++ w ++ self.nonce.val ++ List.replicate 32 0#u8 := by
-    rw [pos2_post1, hs4, hs3, s5_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w) self.nonce.val 56 pos1.val hpos1 _ (by simp) (by simp)]
-    simp
-  have hs7 : s7.val = s6.val := by
-    rw [s7_post, to_slice_mut_back2_post,
-      Array.from_slice_val _ _ (by simp [hs6, hw0.1, pos1_post1.1])]
-  have hpos2 : pos2.val = (w0 ++ w ++ self.nonce.val).length := by
-    simp [pos2_post, s5_post, hpos1]; omega
-  have hs9 : s9.val = w0 ++ (w ++ (self.nonce.val ++ self.encrypted_cookie.val)) := by
-    rw [__post1, hs7, hs6, s8_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w ++ self.nonce.val) self.encrypted_cookie.val 32 pos2.val hpos2 _
-      (by simp) (by simp)]
-    simp
-  have hfinal : (to_slice_mut_back3 s9).val = s9.val := by
-    rw [to_slice_mut_back3_post,
-      Array.from_slice_val _ _ (by simp [hs9, hw0.1, pos1_post1.1])]
-  rw [hfinal, hs9]
-  refine ⟨by simp [hw0.1, pos1_post1.1], by rw [LeBytes.leNat_type _ _ hw0]; simp, ?_⟩
-  rw [List.drop_left' hw0.1, show (w0 ++ (w ++ (self.nonce.val ++ self.encrypted_cookie.val))).length - 4
-    = 4 + ((24#usize).val + (32 + 0)) by simp [hw0.1, pos1_post1.1]]
-  exact Dseq.intro (fmt_le32 w _ _ pos1_post1)
-    (by rw [List.drop_left' pos1_post1.1]
-        exact Dseq.intro (fmt_array self.nonce _)
-          (by rw [List.drop_left' (by simp)]
-              exact Dseq.intro (by simpa using fmt_array self.encrypted_cookie [])
-                (Dnil.intro _)))
-
-/-- **Spec theorem for `Response::encode`**: bytes that decode back to the same
-    response. -/
-@[step]
-theorem Response.encode.spec (self : Response) :
-    Response.encode self ⦃ (a : Array U8 92#usize) => Message.Spec a.val (.Response self) ⦄ := by
-  unfold Response.encode
-  step*
-  obtain ⟨w0, hw0, h1⟩ : ∃ w0, LeBytes w0 TYPE_RESPONSE ∧
-      s1.val = s.val.take 0 ++ w0 ++ s.val.drop (0 + 4) := ⟨_, pos_post1, pos_post2⟩
-  obtain ⟨w1, hw1, h3⟩ : ∃ w1, LeBytes w1 self.sender ∧
-      s3.val = s2.val.take pos.val ++ w1 ++ s2.val.drop (pos.val + 4) := ⟨_, pos1_post1, pos1_post2⟩
-  have hz : s.val = [] ++ List.replicate 92 0#u8 := by simp [s_post]
-  rw [hz, write_at [] w0 92 0 rfl 4 hw0.1.symm (by simp [hw0.1])] at h1
-  simp only [List.nil_append, hw0.1] at h1
-  have h2 : s2.val = s1.val := by
-    rw [s2_post, to_slice_mut_back_post, Array.from_slice_val _ _ (by simp [h1, hw0.1])]
-  rw [h2, h1, write_at w0 w1 88 pos.val (by simp [pos_post, hw0.1]) 4 hw1.1.symm
-    (by simp [hw1.1])] at h3
-  simp only [hw1.1] at h3
-  have h4 : s4.val = s3.val := by
-    rw [s4_post, to_slice_mut_back1_post, Array.from_slice_val _ _ (by simp [h3, hw0.1, hw1.1])]
-  have h5 : s5.val = w0 ++ w1 ++ w ++ List.replicate 80 0#u8 := by
-    rw [pos2_post2, h4, h3, write_at (w0 ++ w1) w 84 pos1.val
-      (by simp [pos1_post, pos_post, hw0.1, hw1.1]) 4 pos2_post1.1.symm (by simp [pos2_post1.1])]
-    simp [pos2_post1.1]
-  have h6 : s6.val = s5.val := by
-    rw [s6_post, to_slice_mut_back2_post,
-      Array.from_slice_val _ _ (by simp [h5, hw0.1, hw1.1, pos2_post1.1])]
-  have h8 : s8.val = w0 ++ w1 ++ w ++ self.ephemeral.val ++ List.replicate 48 0#u8 := by
-    rw [pos3_post1, h6, h5, s7_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w1 ++ w) self.ephemeral.val 80 pos2.val
-      (by simp [pos2_post, pos1_post, pos_post, hw0.1, hw1.1, pos2_post1.1]) _ (by simp) (by simp)]
-    simp
-  have h9 : s9.val = s8.val := by
-    rw [s9_post, to_slice_mut_back3_post,
-      Array.from_slice_val _ _ (by simp [h8, hw0.1, hw1.1, pos2_post1.1])]
-  have h11 : s11.val = w0 ++ w1 ++ w ++ self.ephemeral.val ++ self.encrypted_nothing.val ++
-      List.replicate 32 0#u8 := by
-    rw [pos4_post1, h9, h8, s10_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w1 ++ w ++ self.ephemeral.val) self.encrypted_nothing.val 48 pos3.val
-      (by simp [pos3_post, s7_post, pos2_post, pos1_post, pos_post, hw0.1, hw1.1,
-        pos2_post1.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have h12 : s12.val = s11.val := by
-    rw [s12_post, to_slice_mut_back4_post,
-      Array.from_slice_val _ _ (by simp [h11, hw0.1, hw1.1, pos2_post1.1])]
-  have h14 : s14.val = w0 ++ w1 ++ w ++ self.ephemeral.val ++ self.encrypted_nothing.val ++
-      self.mac1.val ++ List.replicate 16 0#u8 := by
-    rw [pos5_post1, h12, h11, s13_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w1 ++ w ++ self.ephemeral.val ++ self.encrypted_nothing.val) self.mac1.val
-      32 pos4.val (by simp [pos4_post, s10_post, pos3_post, s7_post, pos2_post, pos1_post,
-        pos_post, hw0.1, hw1.1, pos2_post1.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have h15 : s15.val = s14.val := by
-    rw [s15_post, to_slice_mut_back5_post,
-      Array.from_slice_val _ _ (by simp [h14, hw0.1, hw1.1, pos2_post1.1])]
-  have h17 : s17.val = w0 ++ (w1 ++ (w ++ (self.ephemeral.val ++ (self.encrypted_nothing.val ++
-      (self.mac1.val ++ self.mac2.val))))) := by
-    rw [__post1, h15, h14, s16_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w1 ++ w ++ self.ephemeral.val ++ self.encrypted_nothing.val ++
-      self.mac1.val) self.mac2.val 16 pos5.val (by simp [pos5_post, s13_post, pos4_post,
-        s10_post, pos3_post, s7_post, pos2_post, pos1_post, pos_post, hw0.1, hw1.1,
-        pos2_post1.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have hfinal : (to_slice_mut_back6 s17).val = s17.val := by
-    rw [to_slice_mut_back6_post,
-      Array.from_slice_val _ _ (by simp [h17, hw0.1, hw1.1, pos2_post1.1])]
-  rw [hfinal, h17]
-  refine ⟨by simp [hw0.1, hw1.1, pos2_post1.1], by rw [LeBytes.leNat_type _ _ hw0]; simp, ?_⟩
-  rw [List.drop_left' hw0.1, show (w0 ++ (w1 ++ (w ++ (self.ephemeral.val ++
-      (self.encrypted_nothing.val ++ (self.mac1.val ++ self.mac2.val)))))).length - 4
-    = 4 + (4 + ((32#usize).val + ((16#usize).val + ((16#usize).val + (16 + 0))))) by
-      simp [hw0.1, hw1.1, pos2_post1.1]]
-  exact Dseq.intro (fmt_le32 w1 _ _ hw1)
-    (by rw [List.drop_left' hw1.1]
-        exact Dseq.intro (fmt_le32 w _ _ pos2_post1)
-          (by rw [List.drop_left' pos2_post1.1]
-              exact Dseq.intro (fmt_array self.ephemeral _)
-                (by rw [List.drop_left' (by simp)]
-                    exact Dseq.intro (fmt_array self.encrypted_nothing _)
-                      (by rw [List.drop_left' (by simp)]
-                          exact Dseq.intro (fmt_array self.mac1 _)
-                            (by rw [List.drop_left' (by simp)]
-                                exact Dseq.intro (by simpa using fmt_array self.mac2 [])
-                                  (Dnil.intro _))))))
+/-- The bytes of the fixed-size array `a`, written through its slice. -/
+theorem from_slice_put {N : Usize} (a : Std.Array U8 N) (s : Slice U8) (h : s.length = N.val) :
+    (a.from_slice s).val = s.val :=
+  Array.from_slice_val _ _ h
 
 /-- **Spec theorem for `Initiation::encode`**: bytes that decode back to the
-    same initiation. -/
+    same message. -/
 @[step]
 theorem Initiation.encode.spec (self : Initiation) :
     Initiation.encode self ⦃ (a : Array U8 148#usize) =>
       Message.Spec a.val (.Initiation self) ⦄ := by
+  have hl : ∀ s : List U8, s = untrusted.writer.leBytes 4 TYPE_INITIATION.val ++
+      FmtE Initiation.Insts.UntrustedWriterEncode self → s.length = 148 := by
+    rintro s rfl
+    simp only [FmtE, Eseq, Enil, Initiation.fields, List.length_append, leBytes_length, List.length_nil]
+    all_goals simp
   unfold Initiation.encode
   step*
-  obtain ⟨w0, hw0, h1⟩ : ∃ w0, LeBytes w0 TYPE_INITIATION ∧
-      s1.val = s.val.take 0 ++ w0 ++ s.val.drop (0 + 4) := ⟨_, pos_post1, pos_post2⟩
-  have hz : s.val = [] ++ List.replicate 148 0#u8 := by simp [s_post]
-  rw [hz, write_at [] w0 148 0 rfl 4 hw0.1.symm (by simp [hw0.1])] at h1
-  simp only [List.nil_append, hw0.1] at h1
-  have hw := pos1_post1
-  have h2 : s2.val = s1.val := by
-    rw [s2_post, to_slice_mut_back_post, Array.from_slice_val _ _ (by simp [h1, hw0.1])]
-  have h3 : s3.val = w0 ++ w ++ List.replicate 140 0#u8 := by
-    rw [pos1_post2, h2, h1, write_at w0 w 144 pos.val (by simp [pos_post, hw0.1]) 4 hw.1.symm
-      (by simp [hw.1])]
-    simp [hw.1]
-  have h4 : s4.val = s3.val := by
-    rw [s4_post, to_slice_mut_back1_post, Array.from_slice_val _ _ (by simp [h3, hw0.1, hw.1])]
-  have h6 : s6.val = w0 ++ w ++ self.ephemeral.val ++ List.replicate 108 0#u8 := by
-    rw [pos2_post1, h4, h3, s5_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w) self.ephemeral.val 140 pos1.val
-      (by simp [pos1_post, pos_post, hw0.1, hw.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have h7 : s7.val = s6.val := by
-    rw [s7_post, to_slice_mut_back2_post, Array.from_slice_val _ _ (by simp [h6, hw0.1, hw.1])]
-  have h9 : s9.val = w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val ++
-      List.replicate 60 0#u8 := by
-    rw [pos3_post1, h7, h6, s8_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w ++ self.ephemeral.val) self.encrypted_static.val 108 pos2.val
-      (by simp [pos2_post, s5_post, pos1_post, pos_post, hw0.1, hw.1] <;> omega) _ (by simp)
-      (by simp)]
-    simp
-  have h10 : s10.val = s9.val := by
-    rw [s10_post, to_slice_mut_back3_post, Array.from_slice_val _ _ (by simp [h9, hw0.1, hw.1])]
-  have h12 : s12.val = w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val ++
-      self.encrypted_timestamp.val ++ List.replicate 32 0#u8 := by
-    rw [pos4_post1, h10, h9, s11_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val)
-      self.encrypted_timestamp.val 60 pos3.val (by simp [pos3_post, s8_post, pos2_post, s5_post,
-        pos1_post, pos_post, hw0.1, hw.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have h13 : s13.val = s12.val := by
-    rw [s13_post, to_slice_mut_back4_post,
-      Array.from_slice_val _ _ (by simp [h12, hw0.1, hw.1])]
-  have h15 : s15.val = w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val ++
-      self.encrypted_timestamp.val ++ self.mac1.val ++ List.replicate 16 0#u8 := by
-    rw [pos5_post1, h13, h12, s14_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val ++
-      self.encrypted_timestamp.val) self.mac1.val 32 pos4.val (by simp [pos4_post, s11_post,
-        pos3_post, s8_post, pos2_post, s5_post, pos1_post, pos_post, hw0.1, hw.1] <;> omega)
-      _ (by simp) (by simp)]
-    simp
-  have h16 : s16.val = s15.val := by
-    rw [s16_post, to_slice_mut_back5_post,
-      Array.from_slice_val _ _ (by simp [h15, hw0.1, hw.1])]
-  have h18 : s18.val = w0 ++ (w ++ (self.ephemeral.val ++ (self.encrypted_static.val ++
-      (self.encrypted_timestamp.val ++ (self.mac1.val ++ self.mac2.val))))) := by
-    rw [__post1, h16, h15, s17_post]
-    simp only [Array.length_to_slice, Array.val_to_slice]
-    rw [write_at (w0 ++ w ++ self.ephemeral.val ++ self.encrypted_static.val ++
-      self.encrypted_timestamp.val ++ self.mac1.val) self.mac2.val 16 pos5.val (by simp [pos5_post,
-        s14_post, pos4_post, s11_post, pos3_post, s8_post, pos2_post, s5_post, pos1_post, pos_post,
-        hw0.1, hw.1] <;> omega) _ (by simp) (by simp)]
-    simp
-  have hfinal : (to_slice_mut_back6 s18).val = s18.val := by
-    rw [to_slice_mut_back6_post, Array.from_slice_val _ _ (by simp [h18, hw0.1, hw.1])]
-  rw [hfinal, h18]
-  refine ⟨by simp [hw0.1, hw.1], by rw [LeBytes.leNat_type _ _ hw0]; simp, ?_⟩
-  rw [List.drop_left' hw0.1, show (w0 ++ (w ++ (self.ephemeral.val ++
-      (self.encrypted_static.val ++ (self.encrypted_timestamp.val ++ (self.mac1.val ++
-      self.mac2.val)))))).length - 4
-    = 4 + ((32#usize).val + ((48#usize).val + ((28#usize).val + ((16#usize).val +
-      (16 + 0))))) by simp [hw0.1, hw.1]]
-  exact Dseq.intro (fmt_le32 w _ _ hw)
-    (by rw [List.drop_left' hw.1]
-        exact Dseq.intro (fmt_array self.ephemeral _)
-          (by rw [List.drop_left' (by simp)]
-              exact Dseq.intro (fmt_array self.encrypted_static _)
-                (by rw [List.drop_left' (by simp)]
-                    exact Dseq.intro (fmt_array self.encrypted_timestamp _)
-                      (by rw [List.drop_left' (by simp)]
-                          exact Dseq.intro (fmt_array self.mac1 _)
-                            (by rw [List.drop_left' (by simp)]
-                                exact Dseq.intro (by simpa using fmt_array self.mac2 [])
-                                  (Dnil.intro _))))))
+  · have := hl (untrusted.writer.leBytes 4 TYPE_INITIATION.val ++ FmtE Initiation.Insts.UntrustedWriterEncode self) rfl
+    simp only [Slice.length, s_post, FmtE, List.length_append, leBytes_length] at this ⊢
+    simp at this ⊢
+    omega
+  rw [to_slice_mut_back_post, from_slice_put _ _ (by rw [Slice.length, s1_post]; exact hl _ rfl),
+    s1_post]
+  obtain ⟨h4, hk, hD⟩ := decodes_encoded Initiation.Insts.UntrustedWriterEncode
+    Initiation.Insts.UntrustedReaderDecode TYPE_INITIATION self (by simp only [Vseq, Vnil, FmtV, and_self])
+  exact ⟨h4, by simpa using hk, hD⟩
+
+/-- **Spec theorem for `Response::encode`**: bytes that decode back to the
+    same message. -/
+@[step]
+theorem Response.encode.spec (self : Response) :
+    Response.encode self ⦃ (a : Array U8 92#usize) =>
+      Message.Spec a.val (.Response self) ⦄ := by
+  have hl : ∀ s : List U8, s = untrusted.writer.leBytes 4 TYPE_RESPONSE.val ++
+      FmtE Response.Insts.UntrustedWriterEncode self → s.length = 92 := by
+    rintro s rfl
+    simp only [FmtE, Eseq, Enil, Response.fields, List.length_append, leBytes_length, List.length_nil]
+    all_goals simp
+  unfold Response.encode
+  step*
+  · have := hl (untrusted.writer.leBytes 4 TYPE_RESPONSE.val ++ FmtE Response.Insts.UntrustedWriterEncode self) rfl
+    simp only [Slice.length, s_post, FmtE, List.length_append, leBytes_length] at this ⊢
+    simp at this ⊢
+    omega
+  rw [to_slice_mut_back_post, from_slice_put _ _ (by rw [Slice.length, s1_post]; exact hl _ rfl),
+    s1_post]
+  obtain ⟨h4, hk, hD⟩ := decodes_encoded Response.Insts.UntrustedWriterEncode
+    Response.Insts.UntrustedReaderDecode TYPE_RESPONSE self (by simp only [Vseq, Vnil, FmtV, and_self])
+  exact ⟨h4, by simpa using hk, hD⟩
+
+/-- **Spec theorem for `CookieReply::encode`**: bytes that decode back to the
+    same message. -/
+@[step]
+theorem CookieReply.encode.spec (self : CookieReply) :
+    CookieReply.encode self ⦃ (a : Array U8 64#usize) =>
+      Message.Spec a.val (.CookieReply self) ⦄ := by
+  have hl : ∀ s : List U8, s = untrusted.writer.leBytes 4 TYPE_COOKIE_REPLY.val ++
+      FmtE CookieReply.Insts.UntrustedWriterEncode self → s.length = 64 := by
+    rintro s rfl
+    simp only [FmtE, Eseq, Enil, CookieReply.fields, List.length_append, leBytes_length, List.length_nil]
+    all_goals simp
+  unfold CookieReply.encode
+  step*
+  · have := hl (untrusted.writer.leBytes 4 TYPE_COOKIE_REPLY.val ++ FmtE CookieReply.Insts.UntrustedWriterEncode self) rfl
+    simp only [Slice.length, s_post, FmtE, List.length_append, leBytes_length] at this ⊢
+    simp at this ⊢
+    omega
+  rw [to_slice_mut_back_post, from_slice_put _ _ (by rw [Slice.length, s1_post]; exact hl _ rfl),
+    s1_post]
+  obtain ⟨h4, hk, hD⟩ := decodes_encoded CookieReply.Insts.UntrustedWriterEncode
+    CookieReply.Insts.UntrustedReaderDecode TYPE_COOKIE_REPLY self (by simp only [Vseq, Vnil, FmtV, and_self])
+  exact ⟨h4, by simpa using hk, hD⟩
+
+/-- **Spec theorem for `TransportHeader::encode`**: bytes that decode back to the
+    same message. -/
+@[step]
+theorem TransportHeader.encode.spec (self : TransportHeader) :
+    TransportHeader.encode self ⦃ (a : Array U8 16#usize) =>
+      leNat (a.val.take 4) = 4 ∧
+        FmtD TransportHeader.Insts.UntrustedReaderDecode (a.val.drop 4) self 12 ⦄ := by
+  have hl : ∀ s : List U8, s = untrusted.writer.leBytes 4 TYPE_TRANSPORT.val ++
+      FmtE TransportHeader.Insts.UntrustedWriterEncode self → s.length = 16 := by
+    rintro s rfl
+    simp only [FmtE, Eseq, Enil, TransportHeader.fields, List.length_append, leBytes_length, List.length_nil]
+    all_goals simp
+  unfold TransportHeader.encode
+  step*
+  · have := hl (untrusted.writer.leBytes 4 TYPE_TRANSPORT.val ++ FmtE TransportHeader.Insts.UntrustedWriterEncode self) rfl
+    simp only [Slice.length, s_post, FmtE, List.length_append, leBytes_length] at this ⊢
+    simp at this ⊢
+    omega
+  rw [to_slice_mut_back_post, from_slice_put _ _ (by rw [Slice.length, s1_post]; exact hl _ rfl),
+    s1_post]
+  obtain ⟨h4, hk, hD⟩ := decodes_encoded TransportHeader.Insts.UntrustedWriterEncode
+    TransportHeader.Insts.UntrustedReaderDecode TYPE_TRANSPORT self (by simp only [Vseq, Vnil, FmtV, and_self])
+  refine ⟨by simpa using hk, ?_⟩
+  have h12 := hl _ rfl
+  simp only [List.length_append, leBytes_length] at h12
+  rwa [show (12 : Nat) = (untrusted.writer.leBytes 4 TYPE_TRANSPORT.val ++
+    FmtE TransportHeader.Insts.UntrustedWriterEncode self).length - 4 by simp only [List.length_append, leBytes_length]; omega]
 
 /-! ## Round trips -/
 

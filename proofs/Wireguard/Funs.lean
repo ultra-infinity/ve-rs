@@ -330,7 +330,7 @@ def cookie.mac_at
   | core.result.Result.Err _ => ok (Array.repeat 16#usize 0#u8)
 
 /-- [wireguard::message::put_bytes]: loop 0:
-    Source: 'crates/wireguard/src/message.rs', lines 149:4-152:5 -/
+    Source: 'crates/wireguard/src/message.rs', lines 137:4-140:5 -/
 @[rust_loop]
 def message.put_bytes_loop
   (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
@@ -348,7 +348,7 @@ def message.put_bytes_loop
 partial_fixpoint
 
 /-- [wireguard::message::put_bytes]:
-    Source: 'crates/wireguard/src/message.rs', lines 147:0-154:1 -/
+    Source: 'crates/wireguard/src/message.rs', lines 135:0-142:1 -/
 def message.put_bytes
   (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
   Result (Std.Usize × (Slice Std.U8))
@@ -1533,66 +1533,285 @@ def noise.create_initiation
     else ok none
   else ok none
 
-/-- [wireguard::message::put_u32]:
-    Source: 'crates/wireguard/src/message.rs', lines 135:0-143:1 -/
-def message.put_u32
-  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U32) :
-  Result (Std.Usize × (Slice Std.U8))
+/-- [wireguard::message::TYPE_LEN]
+    Source: 'crates/wireguard/src/message.rs', lines 36:0-36:30
+    Visibility: public -/
+@[global_simps, irreducible] def message.TYPE_LEN : Std.Usize := 4#usize
+
+/-- [wireguard::message::put_message]:
+    Source: 'crates/wireguard/src/message.rs', lines 147:0-150:1 -/
+def message.put_message
+  {T : Type _} (untrustedwriterEncodeInst : untrusted.writer.Encode T)
+  (kind : Std.U32) (body : T) (out : Slice Std.U8) :
+  Result (Slice Std.U8)
   := do
-  let i ← v % 256#u32
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← v / 256#u32
-  let i3 ← i2 % 256#u32
-  let i4 ← lift (UScalar.cast .U8 i3)
-  let i5 ← v / 65536#u32
-  let i6 ← i5 % 256#u32
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← v / 16777216#u32
-  let i9 ← lift (UScalar.cast .U8 i8)
-  let s ← lift (Array.to_slice (Array.make 4#usize [ i1, i4, i7, i9 ]))
-  message.put_bytes out pos s
+  let (_, out1) ←
+    untrusted.writer.encode_into
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode kind out
+  let (s, index_mut_back) ←
+    core.slice.index.Slice.index_mut
+      (core.slice.index.SliceIndexRangeFromUsizeSlice Std.U8) out1
+      { start := message.TYPE_LEN }
+  let (_, s1) ← untrusted.writer.encode_into untrustedwriterEncodeInst body s
+  ok (index_mut_back s1)
+
+/-- [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::Initiation}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 49:17-49:23
+    Visibility: public -/
+def message.Initiation.Insts.UntrustedWriterEncode.encode
+  (self : message.Initiation) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+      self.sender w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      ArrayU8N.Insts.UntrustedWriterEncode.encode self.ephemeral w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        ArrayU8N.Insts.UntrustedWriterEncode.encode self.encrypted_static w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          ArrayU8N.Insts.UntrustedWriterEncode.encode self.encrypted_timestamp
+            w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            ArrayU8N.Insts.UntrustedWriterEncode.encode self.mac1 w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              ArrayU8N.Insts.UntrustedWriterEncode.encode self.mac2 w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (core.result.Result.Ok (), w6, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::Initiation}]
+    Source: 'crates/wireguard/src/message.rs', lines 49:17-49:23 -/
+@[reducible]
+def message.Initiation.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  message.Initiation := {
+  encode := message.Initiation.Insts.UntrustedWriterEncode.encode
+}
 
 /-- [wireguard::message::TYPE_INITIATION]
-    Source: 'crates/wireguard/src/message.rs', lines 26:0-26:35
+    Source: 'crates/wireguard/src/message.rs', lines 27:0-27:35
     Visibility: public -/
 @[global_simps, irreducible] def message.TYPE_INITIATION : Std.U32 := 1#u32
 
 /-- [wireguard::message::{wireguard::message::Initiation}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 158:4-168:5
+    Source: 'crates/wireguard/src/message.rs', lines 154:4-158:5
     Visibility: public -/
 def message.Initiation.encode
   (self : message.Initiation) : Result (Array Std.U8 148#usize) := do
   let out := Array.repeat 148#usize 0#u8
   let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_INITIATION
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.sender
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let s5 ← lift (Array.to_slice self.ephemeral)
-  let (pos2, s6) ← message.put_bytes s4 pos1 s5
-  let out3 := to_slice_mut_back2 s6
-  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s8 ← lift (Array.to_slice self.encrypted_static)
-  let (pos3, s9) ← message.put_bytes s7 pos2 s8
-  let out4 := to_slice_mut_back3 s9
-  let (s10, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
-  let s11 ← lift (Array.to_slice self.encrypted_timestamp)
-  let (pos4, s12) ← message.put_bytes s10 pos3 s11
-  let out5 := to_slice_mut_back4 s12
-  let (s13, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
-  let s14 ← lift (Array.to_slice self.mac1)
-  let (pos5, s15) ← message.put_bytes s13 pos4 s14
-  let out6 := to_slice_mut_back5 s15
-  let (s16, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
-  let s17 ← lift (Array.to_slice self.mac2)
-  let (_, s18) ← message.put_bytes s16 pos5 s17
-  ok (to_slice_mut_back6 s18)
+  let s1 ←
+    message.put_message message.Initiation.Insts.UntrustedWriterEncode
+      message.TYPE_INITIATION self s
+  ok (to_slice_mut_back s1)
 
 /-- [wireguard::message::INITIATION_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 37:0-37:38
+    Source: 'crates/wireguard/src/message.rs', lines 38:0-38:38
     Visibility: public -/
 @[global_simps, irreducible]
 def message.INITIATION_LEN : Std.Usize := 148#usize
@@ -1663,44 +1882,81 @@ def transport.padded_len (len : Std.Usize) : Result Std.Usize := do
        let i2 ← i1 * 16#usize
        i2 + 16#usize
 
-/-- [wireguard::message::put_u64]:
-    Source: 'crates/wireguard/src/message.rs', lines 200:0-203:1 -/
-def message.put_u64
-  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U64) :
-  Result (Std.Usize × (Slice Std.U8))
+/-- [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::TransportHeader}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 79:17-79:23
+    Visibility: public -/
+def message.TransportHeader.Insts.UntrustedWriterEncode.encode
+  (self : message.TransportHeader) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
   := do
-  let i ← v % 4294967296#u64
-  let i1 ← lift (UScalar.cast .U32 i)
-  let (pos1, out1) ← message.put_u32 out pos i1
-  let i2 ← v / 4294967296#u64
-  let i3 ← lift (UScalar.cast .U32 i2)
-  message.put_u32 out1 pos1 i3
+  let (r, w1, encode_back) ←
+    untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+      self.receiver w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.LittleEndianU64.Insts.UntrustedWriterEncode.encode
+        self.counter w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::TransportHeader}]
+    Source: 'crates/wireguard/src/message.rs', lines 79:17-79:23 -/
+@[reducible]
+def message.TransportHeader.Insts.UntrustedWriterEncode :
+  untrusted.writer.Encode message.TransportHeader := {
+  encode := message.TransportHeader.Insts.UntrustedWriterEncode.encode
+}
 
 /-- [wireguard::message::TYPE_TRANSPORT]
-    Source: 'crates/wireguard/src/message.rs', lines 32:0-32:34
+    Source: 'crates/wireguard/src/message.rs', lines 33:0-33:34
     Visibility: public -/
 @[global_simps, irreducible] def message.TYPE_TRANSPORT : Std.U32 := 4#u32
 
 /-- [wireguard::message::{wireguard::message::TransportHeader}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 207:4-213:5
+    Source: 'crates/wireguard/src/message.rs', lines 181:4-185:5
     Visibility: public -/
 def message.TransportHeader.encode
   (self : message.TransportHeader) : Result (Array Std.U8 16#usize) := do
   let out := Array.repeat 16#usize 0#u8
   let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_TRANSPORT
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.receiver
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let i1 := self.counter
-  let (_, s5) ← message.put_u64 s4 pos1 i1
-  ok (to_slice_mut_back2 s5)
+  let s1 ←
+    message.put_message message.TransportHeader.Insts.UntrustedWriterEncode
+      message.TYPE_TRANSPORT self s
+  ok (to_slice_mut_back s1)
 
 /-- [wireguard::message::TRANSPORT_HEADER_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 43:0-43:43
+    Source: 'crates/wireguard/src/message.rs', lines 44:0-44:43
     Visibility: public -/
 @[global_simps, irreducible]
 def message.TRANSPORT_HEADER_LEN : Std.Usize := 16#usize
@@ -1927,32 +2183,110 @@ def device.Device.secret_stale
     ok (i >= device.COOKIE_SECRET_MAX_AGE)
   else ok true
 
+/-- [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::CookieReply}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 71:17-71:23
+    Visibility: public -/
+def message.CookieReply.Insts.UntrustedWriterEncode.encode
+  (self : message.CookieReply) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+      self.receiver w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      ArrayU8N.Insts.UntrustedWriterEncode.encode self.nonce w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        ArrayU8N.Insts.UntrustedWriterEncode.encode self.encrypted_cookie w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (core.result.Result.Ok (), w3, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::CookieReply}]
+    Source: 'crates/wireguard/src/message.rs', lines 71:17-71:23 -/
+@[reducible]
+def message.CookieReply.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  message.CookieReply := {
+  encode := message.CookieReply.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [wireguard::message::TYPE_COOKIE_REPLY]
-    Source: 'crates/wireguard/src/message.rs', lines 30:0-30:37
+    Source: 'crates/wireguard/src/message.rs', lines 31:0-31:37
     Visibility: public -/
 @[global_simps, irreducible] def message.TYPE_COOKIE_REPLY : Std.U32 := 3#u32
 
 /-- [wireguard::message::{wireguard::message::CookieReply}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 188:4-195:5
+    Source: 'crates/wireguard/src/message.rs', lines 172:4-176:5
     Visibility: public -/
 def message.CookieReply.encode
   (self : message.CookieReply) : Result (Array Std.U8 64#usize) := do
   let out := Array.repeat 64#usize 0#u8
   let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_COOKIE_REPLY
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.receiver
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let s5 ← lift (Array.to_slice self.nonce)
-  let (pos2, s6) ← message.put_bytes s4 pos1 s5
-  let out3 := to_slice_mut_back2 s6
-  let (s7, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s8 ← lift (Array.to_slice self.encrypted_cookie)
-  let (_, s9) ← message.put_bytes s7 pos2 s8
-  ok (to_slice_mut_back3 s9)
+  let s1 ←
+    message.put_message message.CookieReply.Insts.UntrustedWriterEncode
+      message.TYPE_COOKIE_REPLY self s
+  ok (to_slice_mut_back s1)
 
 /-- [wireguard::device::{wireguard::device::Device}::admit]:
     Source: 'crates/wireguard/src/device.rs', lines 778:4-811:5 -/
@@ -2187,53 +2521,269 @@ def noise.consume_initiation_static
     else ok none
   else ok none
 
+/-- [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::Response}::encode]:
+    Source: 'crates/wireguard/src/message.rs', lines 60:17-60:23
+    Visibility: public -/
+def message.Response.Insts.UntrustedWriterEncode.encode
+  (self : message.Response) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+      self.sender w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+        self.receiver w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        ArrayU8N.Insts.UntrustedWriterEncode.encode self.ephemeral w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          ArrayU8N.Insts.UntrustedWriterEncode.encode self.encrypted_nothing w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            ArrayU8N.Insts.UntrustedWriterEncode.encode self.mac1 w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              ArrayU8N.Insts.UntrustedWriterEncode.encode self.mac2 w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (core.result.Result.Ok (), w6, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [wireguard::message::{impl untrusted::writer::Encode for wireguard::message::Response}]
+    Source: 'crates/wireguard/src/message.rs', lines 60:17-60:23 -/
+@[reducible]
+def message.Response.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  message.Response := {
+  encode := message.Response.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [wireguard::message::TYPE_RESPONSE]
-    Source: 'crates/wireguard/src/message.rs', lines 28:0-28:33
+    Source: 'crates/wireguard/src/message.rs', lines 29:0-29:33
     Visibility: public -/
 @[global_simps, irreducible] def message.TYPE_RESPONSE : Std.U32 := 2#u32
 
 /-- [wireguard::message::{wireguard::message::Response}::encode]:
-    Source: 'crates/wireguard/src/message.rs', lines 173:4-183:5
+    Source: 'crates/wireguard/src/message.rs', lines 163:4-167:5
     Visibility: public -/
 def message.Response.encode
   (self : message.Response) : Result (Array Std.U8 92#usize) := do
   let out := Array.repeat 92#usize 0#u8
   let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let (pos, s1) ← message.put_u32 s 0#usize message.TYPE_RESPONSE
-  let out1 := to_slice_mut_back s1
-  let (s2, to_slice_mut_back1) ← lift (Array.to_slice_mut out1)
-  let i := self.sender
-  let (pos1, s3) ← message.put_u32 s2 pos i
-  let out2 := to_slice_mut_back1 s3
-  let (s4, to_slice_mut_back2) ← lift (Array.to_slice_mut out2)
-  let i1 := self.receiver
-  let (pos2, s5) ← message.put_u32 s4 pos1 i1
-  let out3 := to_slice_mut_back2 s5
-  let (s6, to_slice_mut_back3) ← lift (Array.to_slice_mut out3)
-  let s7 ← lift (Array.to_slice self.ephemeral)
-  let (pos3, s8) ← message.put_bytes s6 pos2 s7
-  let out4 := to_slice_mut_back3 s8
-  let (s9, to_slice_mut_back4) ← lift (Array.to_slice_mut out4)
-  let s10 ← lift (Array.to_slice self.encrypted_nothing)
-  let (pos4, s11) ← message.put_bytes s9 pos3 s10
-  let out5 := to_slice_mut_back4 s11
-  let (s12, to_slice_mut_back5) ← lift (Array.to_slice_mut out5)
-  let s13 ← lift (Array.to_slice self.mac1)
-  let (pos5, s14) ← message.put_bytes s12 pos4 s13
-  let out6 := to_slice_mut_back5 s14
-  let (s15, to_slice_mut_back6) ← lift (Array.to_slice_mut out6)
-  let s16 ← lift (Array.to_slice self.mac2)
-  let (_, s17) ← message.put_bytes s15 pos5 s16
-  ok (to_slice_mut_back6 s17)
+  let s1 ←
+    message.put_message message.Response.Insts.UntrustedWriterEncode
+      message.TYPE_RESPONSE self s
+  ok (to_slice_mut_back s1)
 
 /-- [wireguard::message::COOKIE_REPLY_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 41:0-41:39
+    Source: 'crates/wireguard/src/message.rs', lines 42:0-42:39
     Visibility: public -/
 @[global_simps, irreducible]
 def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
 
 /-- [wireguard::message::RESPONSE_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 39:0-39:35
+    Source: 'crates/wireguard/src/message.rs', lines 40:0-40:35
     Visibility: public -/
 @[global_simps, irreducible] def message.RESPONSE_LEN : Std.Usize := 92#usize
 
@@ -2649,7 +3199,7 @@ def device.Device.on_transport
     else ok (device.Action.None, self, out)
 
 /-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15
+    Source: 'crates/wireguard/src/message.rs', lines 79:9-79:15
     Visibility: public -/
 def message.TransportHeader.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -2683,7 +3233,7 @@ def message.TransportHeader.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::TransportHeader}]
-    Source: 'crates/wireguard/src/message.rs', lines 78:9-78:15 -/
+    Source: 'crates/wireguard/src/message.rs', lines 79:9-79:15 -/
 @[reducible]
 def message.TransportHeader.Insts.UntrustedReaderDecode :
   untrusted.reader.Decode message.TransportHeader := {
@@ -2691,7 +3241,7 @@ def message.TransportHeader.Insts.UntrustedReaderDecode :
 }
 
 /-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15
+    Source: 'crates/wireguard/src/message.rs', lines 71:9-71:15
     Visibility: public -/
 def message.CookieReply.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -2738,7 +3288,7 @@ def message.CookieReply.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::CookieReply}]
-    Source: 'crates/wireguard/src/message.rs', lines 70:9-70:15 -/
+    Source: 'crates/wireguard/src/message.rs', lines 71:9-71:15 -/
 @[reducible]
 def message.CookieReply.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   message.CookieReply := {
@@ -2746,7 +3296,7 @@ def message.CookieReply.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Response}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 59:9-59:15
+    Source: 'crates/wireguard/src/message.rs', lines 60:9-60:15
     Visibility: public -/
 def message.Response.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -2836,7 +3386,7 @@ def message.Response.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Response}]
-    Source: 'crates/wireguard/src/message.rs', lines 59:9-59:15 -/
+    Source: 'crates/wireguard/src/message.rs', lines 60:9-60:15 -/
 @[reducible]
 def message.Response.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   message.Response := {
@@ -2844,7 +3394,7 @@ def message.Response.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}::decode]:
-    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15
+    Source: 'crates/wireguard/src/message.rs', lines 49:9-49:15
     Visibility: public -/
 def message.Initiation.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -2934,7 +3484,7 @@ def message.Initiation.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [wireguard::message::{impl untrusted::reader::Decode for wireguard::message::Initiation}]
-    Source: 'crates/wireguard/src/message.rs', lines 48:9-48:15 -/
+    Source: 'crates/wireguard/src/message.rs', lines 49:9-49:15 -/
 @[reducible]
 def message.Initiation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   message.Initiation := {
@@ -2942,17 +3492,12 @@ def message.Initiation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [wireguard::message::TAG_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 45:0-45:30
+    Source: 'crates/wireguard/src/message.rs', lines 46:0-46:30
     Visibility: public -/
 @[global_simps, irreducible] def message.TAG_LEN : Std.Usize := 16#usize
 
-/-- [wireguard::message::TYPE_LEN]
-    Source: 'crates/wireguard/src/message.rs', lines 35:0-35:30
-    Visibility: public -/
-@[global_simps, irreducible] def message.TYPE_LEN : Std.Usize := 4#usize
-
 /-- [wireguard::message::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for wireguard::message::Message<'a>}::validate]:
-    Source: 'crates/wireguard/src/message.rs', lines 103:4-130:5
+    Source: 'crates/wireguard/src/message.rs', lines 104:4-131:5
     Visibility: public -/
 def
   message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
@@ -3064,7 +3609,7 @@ def
         residual
 
 /-- Trait implementation: [wireguard::message::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for wireguard::message::Message<'a>}]
-    Source: 'crates/wireguard/src/message.rs', lines 100:0-131:1 -/
+    Source: 'crates/wireguard/src/message.rs', lines 101:0-132:1 -/
 @[reducible]
 def message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate message.Message (Slice Std.U8) untrusted.ValidationError

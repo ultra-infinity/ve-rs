@@ -3,3 +3,5 @@ import Untrusted
 import Wireguard.Specs.CookieReply
 
 derive_decode_spec wireguard.message.Initiation
+derive_encode_spec wireguard.message.Initiation
+derive_roundtrip_spec wireguard.message.Initiation

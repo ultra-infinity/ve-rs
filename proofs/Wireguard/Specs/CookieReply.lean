@@ -2,3 +2,5 @@ import Wireguard.Funs
 import Untrusted
 
 derive_decode_spec wireguard.message.CookieReply
+derive_encode_spec wireguard.message.CookieReply
+derive_roundtrip_spec wireguard.message.CookieReply

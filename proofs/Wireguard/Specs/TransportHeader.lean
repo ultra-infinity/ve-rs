@@ -5,3 +5,5 @@ import Wireguard.Specs.Initiation
 import Wireguard.Specs.Response
 
 derive_decode_spec wireguard.message.TransportHeader
+derive_encode_spec wireguard.message.TransportHeader
+derive_roundtrip_spec wireguard.message.TransportHeader

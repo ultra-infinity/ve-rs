@@ -17,10 +17,11 @@
 //! senders pad to a multiple of 16 only up to the MTU, so full-size packets
 //! are unaligned when the MTU is (as with Linux's default 1420).
 //!
-//! Each fixed-size message has an encoder, proved to produce bytes that
-//! [`Message`] decodes back to the same message.
+//! Each fixed-size message has an encoder (its type, then its body with the
+//! derived `Encode`), proved to produce bytes that [`Message`] decodes back to
+//! the same message.
 
-use untrusted::{Decode, LittleEndian, Untrusted, Validate, ValidationError};
+use untrusted::{encode_into, Decode, Encode, LittleEndian, Untrusted, Validate, ValidationError};
 
 /// The type of a handshake initiation.
 pub const TYPE_INITIATION: u32 = 1;
@@ -45,7 +46,7 @@ pub const TRANSPORT_HEADER_LEN: usize = 16;
 pub const TAG_LEN: usize = 16;
 
 /// A handshake initiation, after its type.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Initiation {
     pub sender: LittleEndian<u32>,
     pub ephemeral: [u8; 32],
@@ -56,7 +57,7 @@ pub struct Initiation {
 }
 
 /// A handshake response, after its type.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Response {
     pub sender: LittleEndian<u32>,
     pub receiver: LittleEndian<u32>,
@@ -67,7 +68,7 @@ pub struct Response {
 }
 
 /// A cookie reply, after its type.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CookieReply {
     pub receiver: LittleEndian<u32>,
     pub nonce: [u8; 24],
@@ -75,7 +76,7 @@ pub struct CookieReply {
 }
 
 /// The header of a transport message, after its type.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransportHeader {
     pub receiver: LittleEndian<u32>,
     pub counter: LittleEndian<u64>,
@@ -129,19 +130,6 @@ impl<'a> Validate<&'a [u8]> for Message<'a> {
         }
     }
 }
-
-/// Writes `v`, least significant byte first, at `out[pos..pos + 4]`, which must
-/// exist. Returns `pos + 4`.
-fn put_u32(out: &mut [u8], pos: usize, v: u32) -> usize {
-    let bytes = [
-        (v % 256) as u8,
-        (v / 256 % 256) as u8,
-        (v / 65536 % 256) as u8,
-        (v / 16777216) as u8,
-    ];
-    put_bytes(out, pos, &bytes)
-}
-
 /// Writes `src` at `out[pos..pos + src.len()]`, which must exist. Returns
 /// `pos + src.len()`.
 pub(crate) fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) -> usize {
@@ -153,17 +141,19 @@ pub(crate) fn put_bytes(out: &mut [u8], pos: usize, src: &[u8]) -> usize {
     pos + src.len()
 }
 
+/// Writes a message of type `kind` with `body` to `out`, which holds exactly
+/// the type and the body: the type, little-endian, then the body as derived.
+/// (Not named `message`: that would shadow the `message` namespace in Lean.)
+fn put_message<T: Encode>(kind: u32, body: &T, out: &mut [u8]) {
+    let _ = encode_into(&LittleEndian(kind), out);
+    let _ = encode_into(body, &mut out[TYPE_LEN..]);
+}
+
 impl Initiation {
     /// The message's bytes, type included.
     pub fn encode(&self) -> [u8; INITIATION_LEN] {
         let mut out = [0u8; INITIATION_LEN];
-        let pos = put_u32(&mut out, 0, TYPE_INITIATION);
-        let pos = put_u32(&mut out, pos, self.sender.0);
-        let pos = put_bytes(&mut out, pos, &self.ephemeral);
-        let pos = put_bytes(&mut out, pos, &self.encrypted_static);
-        let pos = put_bytes(&mut out, pos, &self.encrypted_timestamp);
-        let pos = put_bytes(&mut out, pos, &self.mac1);
-        put_bytes(&mut out, pos, &self.mac2);
+        put_message(TYPE_INITIATION, self, &mut out);
         out
     }
 }
@@ -172,13 +162,7 @@ impl Response {
     /// The message's bytes, type included.
     pub fn encode(&self) -> [u8; RESPONSE_LEN] {
         let mut out = [0u8; RESPONSE_LEN];
-        let pos = put_u32(&mut out, 0, TYPE_RESPONSE);
-        let pos = put_u32(&mut out, pos, self.sender.0);
-        let pos = put_u32(&mut out, pos, self.receiver.0);
-        let pos = put_bytes(&mut out, pos, &self.ephemeral);
-        let pos = put_bytes(&mut out, pos, &self.encrypted_nothing);
-        let pos = put_bytes(&mut out, pos, &self.mac1);
-        put_bytes(&mut out, pos, &self.mac2);
+        put_message(TYPE_RESPONSE, self, &mut out);
         out
     }
 }
@@ -187,32 +171,19 @@ impl CookieReply {
     /// The message's bytes, type included.
     pub fn encode(&self) -> [u8; COOKIE_REPLY_LEN] {
         let mut out = [0u8; COOKIE_REPLY_LEN];
-        let pos = put_u32(&mut out, 0, TYPE_COOKIE_REPLY);
-        let pos = put_u32(&mut out, pos, self.receiver.0);
-        let pos = put_bytes(&mut out, pos, &self.nonce);
-        put_bytes(&mut out, pos, &self.encrypted_cookie);
+        put_message(TYPE_COOKIE_REPLY, self, &mut out);
         out
     }
-}
-
-/// Writes `v`, least significant byte first, at `out[pos..pos + 8]`, which must
-/// exist. Returns `pos + 8`.
-fn put_u64(out: &mut [u8], pos: usize, v: u64) -> usize {
-    let pos = put_u32(out, pos, (v % 4_294_967_296) as u32);
-    put_u32(out, pos, (v / 4_294_967_296) as u32)
 }
 
 impl TransportHeader {
     /// The first 16 bytes of a transport message: its type, then this header.
     pub fn encode(&self) -> [u8; TRANSPORT_HEADER_LEN] {
         let mut out = [0u8; TRANSPORT_HEADER_LEN];
-        let pos = put_u32(&mut out, 0, TYPE_TRANSPORT);
-        let pos = put_u32(&mut out, pos, self.receiver.0);
-        put_u64(&mut out, pos, self.counter.0);
+        put_message(TYPE_TRANSPORT, self, &mut out);
         out
     }
 }
-
 #[cfg(test)]
 mod tests {
     extern crate std;
