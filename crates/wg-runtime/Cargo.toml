@@ -1,0 +1,14 @@
+[package]
+name = "wg-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "A no_std runtime for userspace WireGuard interfaces around the verified `wireguard` device: configuration, sockets, TUN, the event loop, and a hook on delivered packets"
+
+[dependencies]
+wireguard = { path = "../wireguard" }
+wireguard-libcrux = { path = "../wireguard-libcrux" }
+net = { path = "../net" }
+untrusted = { path = "../untrusted" }
+libc = { version = "0.2", default-features = false }

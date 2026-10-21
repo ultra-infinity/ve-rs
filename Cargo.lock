@@ -682,12 +682,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "wg-userspace"
+name = "wg-runtime"
 version = "0.1.0"
 dependencies = [
  "libc",
  "net",
  "untrusted",
+ "wireguard",
+ "wireguard-libcrux",
+]
+
+[[package]]
+name = "wg-userspace"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "wg-runtime",
  "wireguard",
  "wireguard-libcrux",
 ]

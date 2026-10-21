@@ -212,8 +212,10 @@ axioms. `crates/wireguard-libcrux` implements the trait with the formally
 verified [libcrux](https://github.com/cryspen/libcrux), and is tested against
 the RFC test vectors; that it satisfies the laws is the trust assumption.
 
-`crates/wg-userspace` is a small, unverified `no_std` runner around the
-device. Its UDP is `net`'s, not the kernel's:
+`crates/wg-userspace` is a small, unverified `no_std` interface around the
+device, on `crates/wg-runtime` (configuration, sockets, TUN, the event loop,
+and peers reloaded from a peers file on SIGHUP). Its UDP is `net`'s, not the
+kernel's:
 
 - incoming IP packets come from a packet socket and are validated by
   `net::udp`;
@@ -428,7 +430,8 @@ exits with an error if anything is unproved.
 | `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP and TCP, and UDP encoding, built on `untrusted`. |
 | `crates/wireguard` | A verified, sans-IO WireGuard core, built on `untrusted` and `net`. |
 | `crates/wireguard-libcrux` | Its cryptographic primitives, from libcrux (not extracted; tested against RFC vectors). |
-| `crates/wg-userspace` | A `no_std` WireGuard interface (TUN, raw sockets) around the core; unverified. |
+| `crates/wg-runtime` | The `no_std` runtime of userspace interfaces around the core: configuration, sockets, TUN, event loop, a hook on delivered packets; unverified. |
+| `crates/wg-userspace` | A `no_std` WireGuard interface on `wg-runtime`; unverified. |
 | `crates/diomede` | A verified, sans-IO ad-blocking filter (DNS and TLS SNI), built on `untrusted` and `net`. |
 | `crates/diomede-pcap` | Runs a capture through the filter with hosts-file lists; unverified. |
 | `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |

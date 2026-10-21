@@ -4,6 +4,7 @@
 //! [Interface]
 //! PrivateKey = <base64>
 //! ListenPort = 51820
+//! PeersFile = /var/lib/wg/peers  # optional: more [Peer] sections, reloaded on SIGHUP
 //!
 //! [Peer]
 //! PublicKey = <base64>
@@ -36,7 +37,7 @@ pub struct PeerConfig {
     pub persistent_keepalive: u64,
 }
 
-const NO_PEER: PeerConfig = PeerConfig {
+pub const NO_PEER: PeerConfig = PeerConfig {
     public: [0; 32],
     psk: [0; 32],
     endpoint: None,
@@ -52,6 +53,9 @@ pub struct Config {
     pub listen_port: u16,
     pub peers: [PeerConfig; MAX_PEERS],
     pub peer_count: usize,
+    /// The file of more peers, if any: `peers_file[..peers_file_len]`.
+    pub peers_file: [u8; 256],
+    pub peers_file_len: usize,
 }
 
 /// Decodes standard base64 (with padding) into `out`; returns its length.
@@ -141,11 +145,27 @@ pub struct Error {
 impl Config {
     /// Parses a configuration file.
     pub fn parse(text: &str) -> Result<Config, Error> {
+        Config::parse_with(text, true)
+    }
+
+    /// Parses a peers file: `[Peer]` sections only.
+    pub fn parse_peers(text: &str) -> Result<Config, Error> {
+        Config::parse_with(text, false)
+    }
+
+    /// The peers file, if any.
+    pub fn peers_file(&self) -> Option<&[u8]> {
+        (self.peers_file_len > 0).then_some(&self.peers_file[..self.peers_file_len])
+    }
+
+    fn parse_with(text: &str, interface: bool) -> Result<Config, Error> {
         let mut c = Config {
             private: [0; 32],
             listen_port: 51820,
             peers: [NO_PEER; MAX_PEERS],
             peer_count: 0,
+            peers_file: [0; 256],
+            peers_file_len: 0,
         };
         let mut has_private = false;
         let mut in_peer = false;
@@ -159,6 +179,9 @@ impl Config {
                 continue;
             }
             if line == "[Interface]" {
+                if !interface {
+                    return Err(err("no [Interface] in a peers file"));
+                }
                 in_peer = false;
                 continue;
             }
@@ -172,6 +195,9 @@ impl Config {
             }
             let (name, value) = line.split_once('=').ok_or(err("expected `Name = value`"))?;
             let (name, value) = (name.trim(), value.trim());
+            if !in_peer && !interface {
+                return Err(err("a setting outside [Peer] in a peers file"));
+            }
             if in_peer {
                 let p = &mut c.peers[c.peer_count - 1];
                 match name {
@@ -202,11 +228,19 @@ impl Config {
                         has_private = true;
                     }
                     "ListenPort" => c.listen_port = value.parse().map_err(|_| err("bad port"))?,
+                    "PeersFile" => {
+                        let v = value.as_bytes();
+                        if v.len() >= c.peers_file.len() {
+                            return Err(err("peers file path too long"));
+                        }
+                        c.peers_file[..v.len()].copy_from_slice(v);
+                        c.peers_file_len = v.len();
+                    }
                     _ => return Err(err("unknown interface setting")),
                 }
             }
         }
-        if !has_private {
+        if interface && !has_private {
             return Err(Error {
                 line: 0,
                 message: "no PrivateKey",
@@ -268,5 +302,21 @@ mod tests {
                 message: "unknown interface setting"
             })
         );
+    }
+
+    #[test]
+    fn parses_a_peers_file() {
+        let mut buf = [0u8; 64];
+        let k = to_base64(&[7; 32], &mut buf).to_string();
+        let c = Config::parse(&format!("[Interface]\nPrivateKey = {k}\nPeersFile = /var/lib/peers\n"))
+            .unwrap();
+        assert_eq!(c.peers_file(), Some(&b"/var/lib/peers"[..]));
+        let p = Config::parse_peers(&format!(
+            "[Peer]\nPublicKey = {k}\nAllowedIPs = 10.0.0.2/32\n[Peer]\nPublicKey = {k}\n"
+        ))
+        .unwrap();
+        assert_eq!(p.peer_count, 2);
+        assert!(Config::parse_peers(&format!("[Interface]\nPrivateKey = {k}\n")).is_err());
+        assert!(Config::parse_peers(&format!("PrivateKey = {k}\n")).is_err());
     }
 }

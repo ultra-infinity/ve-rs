@@ -481,3 +481,71 @@ pub fn poll2(a: &Fd, b: &Fd, timeout_ms: i32) -> Result<(bool, bool), OsError> {
         fds[1].revents & libc::POLLIN != 0,
     ))
 }
+
+/// Set by the SIGHUP handler.
+static HANGUP: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+
+extern "C" fn on_hangup(_: libc::c_int) {
+    HANGUP.store(true, core::sync::atomic::Ordering::Relaxed);
+}
+
+/// Makes SIGHUP set a flag, read with [`hangup`], instead of ending the
+/// process.
+pub fn catch_hangup() -> Result<(), OsError> {
+    // SAFETY: installs a handler that only stores to an atomic.
+    let handler = on_hangup as extern "C" fn(libc::c_int);
+    let r = unsafe { libc::signal(libc::SIGHUP, handler as libc::sighandler_t) };
+    if r == libc::SIG_ERR {
+        return Err(OsError {
+            what: "signal",
+            errno: errno(),
+        });
+    }
+    Ok(())
+}
+
+/// Whether SIGHUP arrived since the last call.
+pub fn hangup() -> bool {
+    HANGUP.swap(false, core::sync::atomic::Ordering::Relaxed)
+}
+
+/// Replaces the file at `path` with `data`: written to `path.tmp`, then
+/// renamed, so readers never see it half written.
+pub fn write_file(path: &[u8], data: &[u8]) -> Result<(), OsError> {
+    let mut tmp = [0u8; 256];
+    if path.len() + 4 >= tmp.len() {
+        return Err(OsError {
+            what: "path too long",
+            errno: libc::ENAMETOOLONG,
+        });
+    }
+    tmp[..path.len()].copy_from_slice(path);
+    tmp[path.len()..path.len() + 4].copy_from_slice(b".tmp");
+    let mut t = [0u8; 256];
+    let t = c_path(&tmp[..path.len() + 4], &mut t)?;
+    let mut p = [0u8; 256];
+    let p = c_path(path, &mut p)?;
+    // SAFETY: `t` is NUL-terminated.
+    let fd = Fd(check(
+        unsafe {
+            libc::open(
+                t.as_ptr().cast(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC,
+                0o644,
+            )
+        } as isize,
+        "open",
+    )? as i32);
+    let mut b = data;
+    while !b.is_empty() {
+        let n = fd.write(b)?;
+        b = &b[n..];
+    }
+    drop(fd);
+    // SAFETY: both paths are NUL-terminated.
+    check(
+        unsafe { libc::rename(t.as_ptr().cast(), p.as_ptr().cast()) } as isize,
+        "rename",
+    )?;
+    Ok(())
+}

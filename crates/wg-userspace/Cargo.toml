@@ -4,11 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
-description = "A no_std userspace WireGuard runner around the verified `wireguard` device, sending and receiving its UDP datagrams through the verified `net` encoders and decoders"
+description = "A no_std userspace WireGuard interface around the verified `wireguard` device, on `wg-runtime`"
 
 [dependencies]
+wg-runtime = { path = "../wg-runtime" }
 wireguard = { path = "../wireguard" }
 wireguard-libcrux = { path = "../wireguard-libcrux" }
-net = { path = "../net" }
-untrusted = { path = "../untrusted" }
 libc = { version = "0.2", default-features = false }
