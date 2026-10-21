@@ -306,3 +306,36 @@ fn rejects_bad_handshakes() {
     assert_eq!(b.receive(&from, &[1, 2, 3], false).0, Action::None);
     assert_eq!(b.receive(&from, &[4, 0, 0, 0, 1], false).0, Action::None);
 }
+
+#[test]
+fn removed_peers_are_gone_and_slots_reused() {
+    let (mut a, mut b) = pair();
+    handshake(&mut a, &mut b);
+    let c = Libcrux;
+    let mut pa = [0u8; 32];
+    c.x25519_public(&[1u8; 32], &mut pa);
+    // Bob removes Alice: her data is dropped, and so is her next initiation.
+    assert!(b.dev.remove_peer(0));
+    assert!(!b.dev.remove_peer(7));
+    let p = ipv4([10, 0, 0, 1], [10, 0, 0, 2], 20);
+    let (act, _) = data(&mut a, &mut b, &p);
+    assert_eq!(act, Action::None);
+    assert!(!b.dev.allow(0, false, v4([10, 0, 0, 1]), 32));
+    let q = ipv4([10, 0, 0, 2], [10, 0, 0, 1], 20);
+    assert_eq!(b.send_packet(&q).0, Action::None);
+    a.time += 200 * SECOND;
+    let (act, init) = a.send_packet(&p);
+    let n = sent(act, &b.at);
+    let (act, _) = b.receive(&a.at.clone(), &init[..n], false);
+    assert_eq!(act, Action::None);
+    // Added again, she takes the free slot and can talk again.
+    assert_eq!(b.dev.add_peer(&c, &pa, &[9u8; 32], 0), Some(0));
+    assert_eq!(b.dev.peer_count, 1);
+    assert!(b.dev.allow(0, false, v4([10, 0, 0, 1]), 32));
+    a.time += 10 * SECOND;
+    b.time = a.time;
+    handshake(&mut a, &mut b);
+    let (act, out) = data(&mut a, &mut b, &p);
+    assert_eq!(act, Action::Deliver(p.len()));
+    assert_eq!(&out[..p.len()], &p[..]);
+}

@@ -32,7 +32,7 @@ structure allowed_ips.AllowedIp where
     Source: 'crates/wireguard/src/allowed_ips.rs', lines 29:0-33:1
     Visibility: public -/
 structure allowed_ips.AllowedIps where
-  entries : Array allowed_ips.AllowedIp 64#usize
+  entries : Array allowed_ips.AllowedIp 1024#usize
   count : Std.Usize
 
 /-- Trait declaration: [wireguard::crypto::Crypto]
@@ -139,7 +139,7 @@ structure device.Handshake where
   state : noise.InitiatorState
 
 /-- [wireguard::device::Peer]
-    Source: 'crates/wireguard/src/device.rs', lines 176:0-213:1
+    Source: 'crates/wireguard/src/device.rs', lines 176:0-216:1
     Visibility: public -/
 structure device.Peer where
   «public» : Array Std.U8 32#usize
@@ -165,16 +165,17 @@ structure device.Peer where
   last_sent : Std.U64
   last_received : Std.U64
   keepalive_due : Bool
+  enabled : Bool
 
 /-- [wireguard::device::Device]
-    Source: 'crates/wireguard/src/device.rs', lines 257:0-272:1
+    Source: 'crates/wireguard/src/device.rs', lines 261:0-276:1
     Visibility: public -/
 structure device.Device where
   «private» : Array Std.U8 32#usize
   «public» : Array Std.U8 32#usize
   mac1_key : Array Std.U8 32#usize
   cookie_key : Array Std.U8 32#usize
-  peers : Array device.Peer 16#usize
+  peers : Array device.Peer 512#usize
   peer_count : Std.Usize
   allowed_ips : allowed_ips.AllowedIps
   cookie_secret : Array Std.U8 32#usize

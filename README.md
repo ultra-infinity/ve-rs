@@ -200,6 +200,10 @@ crate is extracted to Lean and has a proved spec (`make verify-wireguard`,
   below `REJECT_AFTER_MESSAGES`), and its counter then goes up by one.
   Initiations to a peer are at least `REKEY_TIMEOUT` apart, and the local
   indices of live sessions are distinct.
+- **Peers:** a device holds up to 512 peers and 1024 allowed IPs. Peers can
+  be added and removed while it runs. A removed peer's sessions, handshake
+  and allowed IPs go; its key no longer completes a handshake; and its slot is
+  reused by the next `add_peer`.
 
 The cryptographic primitives (X25519, BLAKE2s, ChaCha20-Poly1305,
 XChaCha20-Poly1305) come in through a `Crypto` trait. The proofs only assume

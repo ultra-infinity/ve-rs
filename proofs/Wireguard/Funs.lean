@@ -24,10 +24,10 @@ noncomputable section
 namespace wireguard
 
 /-- [wireguard::allowed_ips::MAX_ALLOWED_IPS]
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 14:0-14:38
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 14:0-14:40
     Visibility: public -/
 @[global_simps, irreducible]
-def allowed_ips.MAX_ALLOWED_IPS : Std.Usize := 64#usize
+def allowed_ips.MAX_ALLOWED_IPS : Std.Usize := 1024#usize
 
 /-- [wireguard::allowed_ips::width]:
     Source: 'crates/wireguard/src/allowed_ips.rs', lines 36:0-42:1 -/
@@ -84,12 +84,12 @@ def allowed_ips.matches
     Visibility: public -/
 def allowed_ips.AllowedIps.new : Result allowed_ips.AllowedIps := do
   let a :=
-    Array.repeat 64#usize
+    Array.repeat 1024#usize
       { v6 := false, addr := 0#u128, len := 0#u32, peer := 0#u16 }
   ok { entries := a, count := 0#usize }
 
 /-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::find]: loop 0:
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 124:8-130:9 -/
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 139:8-145:9 -/
 @[rust_loop]
 def allowed_ips.AllowedIps.find_loop
   (self : allowed_ips.AllowedIps) (v6 : Bool) (addr : Std.U128) (len : Std.U32)
@@ -118,7 +118,7 @@ def allowed_ips.AllowedIps.find_loop
 partial_fixpoint
 
 /-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::find]:
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 122:4-132:5 -/
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 137:4-147:5 -/
 @[reducible]
 def allowed_ips.AllowedIps.find
   (self : allowed_ips.AllowedIps) (v6 : Bool) (addr : Std.U128) (len : Std.U32)
@@ -156,8 +156,44 @@ def allowed_ips.AllowedIps.insert
         ok (true, { entries := a, count := i1 })
   else ok (false, self)
 
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::remove_peer]: loop 0:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 124:8-131:9
+    Visibility: public -/
+@[rust_loop]
+def allowed_ips.AllowedIps.remove_peer_loop
+  (self : allowed_ips.AllowedIps) (peer : Std.U16) (kept : Std.Usize)
+  (i : Std.Usize) :
+  Result ((Array allowed_ips.AllowedIp 1024#usize) × Std.Usize)
+  := do
+  if i < self.count
+  then
+    let e ← Array.index_usize self.entries i
+    if e.peer != peer
+    then
+      let a ← Array.update self.entries kept e
+      let kept1 ← kept + 1#usize
+      let i1 ← i + 1#usize
+      allowed_ips.AllowedIps.remove_peer_loop { self with entries := a } peer
+        kept1 i1
+    else
+      let i1 ← i + 1#usize
+      allowed_ips.AllowedIps.remove_peer_loop self peer kept i1
+  else ok (self.entries, kept)
+partial_fixpoint
+
+/-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::remove_peer]:
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 121:4-133:5
+    Visibility: public -/
+def allowed_ips.AllowedIps.remove_peer
+  (self : allowed_ips.AllowedIps) (peer : Std.U16) :
+  Result allowed_ips.AllowedIps
+  := do
+  let (a, kept) ←
+    allowed_ips.AllowedIps.remove_peer_loop self peer 0#usize 0#usize
+  ok { entries := a, count := kept }
+
 /-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::lookup]: loop 0:
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 138:8-147:9
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 153:8-162:9
     Visibility: public -/
 @[rust_loop]
 def allowed_ips.AllowedIps.lookup_loop
@@ -192,7 +228,7 @@ def allowed_ips.AllowedIps.lookup_loop
 partial_fixpoint
 
 /-- [wireguard::allowed_ips::{wireguard::allowed_ips::AllowedIps}::lookup]:
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 135:4-154:5
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 150:4-169:5
     Visibility: public -/
 def allowed_ips.AllowedIps.lookup
   (self : allowed_ips.AllowedIps) (v6 : Bool) (ip : Std.U128) :
@@ -204,14 +240,14 @@ def allowed_ips.AllowedIps.lookup
   | some b => ok (some b.peer)
 
 /-- [wireguard::allowed_ips::{impl core::default::Default for wireguard::allowed_ips::AllowedIps}::default]:
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 158:4-160:5
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 173:4-175:5
     Visibility: public -/
 def allowed_ips.AllowedIps.Insts.CoreDefaultDefault.default
   : Result allowed_ips.AllowedIps := do
   allowed_ips.AllowedIps.new
 
 /-- Trait implementation: [wireguard::allowed_ips::{impl core::default::Default for wireguard::allowed_ips::AllowedIps}]
-    Source: 'crates/wireguard/src/allowed_ips.rs', lines 157:0-161:1 -/
+    Source: 'crates/wireguard/src/allowed_ips.rs', lines 172:0-176:1 -/
 @[reducible]
 def allowed_ips.AllowedIps.Insts.CoreDefaultDefault : core.default.Default
   allowed_ips.AllowedIps := {
@@ -608,9 +644,9 @@ def crypto.kdf3
   ok (t1, t2, t3)
 
 /-- [wireguard::device::MAX_PEERS]
-    Source: 'crates/wireguard/src/device.rs', lines 44:0-44:32
+    Source: 'crates/wireguard/src/device.rs', lines 44:0-44:33
     Visibility: public -/
-@[global_simps, irreducible] def device.MAX_PEERS : Std.Usize := 16#usize
+@[global_simps, irreducible] def device.MAX_PEERS : Std.Usize := 512#usize
 
 /-- [wireguard::device::MAX_PACKET_LEN]
     Source: 'crates/wireguard/src/device.rs', lines 46:0-46:40
@@ -739,7 +775,7 @@ def device.Keypair.empty : Result device.Keypair := do
     }
 
 /-- [wireguard::device::{wireguard::device::Peer}::empty]:
-    Source: 'crates/wireguard/src/device.rs', lines 216:4-252:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 219:4-256:5 -/
 def device.Peer.empty : Result device.Peer := do
   let a := Array.repeat 32#usize 0#u8
   let a1 := Array.repeat 32#usize 0#u8
@@ -783,18 +819,19 @@ def device.Peer.empty : Result device.Peer := do
       rekey_wanted := false,
       last_sent := 0#u64,
       last_received := 0#u64,
-      keepalive_due := false
+      keepalive_due := false,
+      enabled := false
     }
 
 /-- [wireguard::device::elapsed]:
-    Source: 'crates/wireguard/src/device.rs', lines 277:0-283:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 281:0-287:1 -/
 def device.elapsed (since : Std.U64) (now : Std.U64) : Result Std.U64 := do
   if now >= since
   then now - since
   else ok 0#u64
 
 /-- [wireguard::device::keys_equal]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 289:4-294:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 301:4-306:5 -/
 @[rust_loop]
 def device.keys_equal_loop
   (a : Array Std.U8 32#usize) (b : Array Std.U8 32#usize) (equal : Bool)
@@ -814,14 +851,22 @@ def device.keys_equal_loop
 partial_fixpoint
 
 /-- [wireguard::device::keys_equal]:
-    Source: 'crates/wireguard/src/device.rs', lines 286:0-296:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 298:0-308:1 -/
 @[reducible]
 def device.keys_equal
   (a : Array Std.U8 32#usize) (b : Array Std.U8 32#usize) : Result Bool := do
   device.keys_equal_loop a b true 0#usize
 
+/-- [wireguard::device::is_peer]:
+    Source: 'crates/wireguard/src/device.rs', lines 290:0-295:1 -/
+def device.is_peer
+  (p : device.Peer) («public» : Array Std.U8 32#usize) : Result Bool := do
+  if p.enabled
+  then device.keys_equal p.public «public»
+  else ok false
+
 /-- [wireguard::device::can_receive]:
-    Source: 'crates/wireguard/src/device.rs', lines 300:0-302:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 312:0-314:1 -/
 def device.can_receive
   (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   if kp.valid
@@ -839,7 +884,7 @@ def device.can_receive
 def replay.REJECT_AFTER_MESSAGES : Std.U64 := 18446744073709543423#u64
 
 /-- [wireguard::device::can_send]:
-    Source: 'crates/wireguard/src/device.rs', lines 306:0-308:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 318:0-320:1 -/
 def device.can_send (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   let b ← device.can_receive kp now
   if b
@@ -847,7 +892,7 @@ def device.can_send (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   else ok false
 
 /-- [wireguard::device::session_slot]:
-    Source: 'crates/wireguard/src/device.rs', lines 312:0-322:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 324:0-334:1 -/
 def device.session_slot
   (p : device.Peer) (index : Std.U32) : Result Std.U8 := do
   if p.current.valid
@@ -890,7 +935,7 @@ def device.session_slot
       else ok 3#u8
 
 /-- [wireguard::device::keypair]:
-    Source: 'crates/wireguard/src/device.rs', lines 325:0-333:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 337:0-345:1 -/
 def device.keypair
   (p : device.Peer) (slot : Std.U8) : Result device.Keypair := do
   if slot = 0#u8
@@ -900,7 +945,7 @@ def device.keypair
        else ok p.next
 
 /-- [wireguard::device::set_keypair]:
-    Source: 'crates/wireguard/src/device.rs', lines 336:0-344:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 348:0-356:1 -/
 def device.set_keypair
   (p : device.Peer) (slot : Std.U8) (kp : device.Keypair) :
   Result device.Peer
@@ -913,7 +958,7 @@ def device.set_keypair
     else ok { p with next := kp }
 
 /-- [wireguard::device::uses_index]:
-    Source: 'crates/wireguard/src/device.rs', lines 348:0-350:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 360:0-362:1 -/
 def device.uses_index (p : device.Peer) (index : Std.U32) : Result Bool := do
   let i ← device.session_slot p index
   if i != 3#u8
@@ -924,7 +969,7 @@ def device.uses_index (p : device.Peer) (index : Std.U32) : Result Bool := do
     else ok false
 
 /-- [wireguard::device::expired]:
-    Source: 'crates/wireguard/src/device.rs', lines 353:0-355:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 365:0-367:1 -/
 def device.expired (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   if kp.valid
   then
@@ -933,13 +978,13 @@ def device.expired (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   else ok false
 
 /-- [wireguard::device::rotate]:
-    Source: 'crates/wireguard/src/device.rs', lines 359:0-363:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 371:0-375:1 -/
 def device.rotate (p : device.Peer) : Result device.Peer := do
   let k ← device.Keypair.empty
   ok { p with current := p.next, previous := p.current, next := k }
 
 /-- [wireguard::device::erase_old]:
-    Source: 'crates/wireguard/src/device.rs', lines 366:0-376:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 378:0-388:1 -/
 def device.erase_old
   (p : device.Peer) (now : Std.U64) : Result device.Peer := do
   let b ← device.expired p.current now
@@ -958,7 +1003,7 @@ def device.erase_old
   else ok { p with current := k, previous := k1 }
 
 /-- [wireguard::device::initiation_too_soon]:
-    Source: 'crates/wireguard/src/device.rs', lines 379:0-381:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 391:0-393:1 -/
 def device.initiation_too_soon
   (p : device.Peer) (now : Std.U64) : Result Bool := do
   if p.has_initiation
@@ -968,7 +1013,7 @@ def device.initiation_too_soon
   else ok false
 
 /-- [wireguard::device::wants_rekey]:
-    Source: 'crates/wireguard/src/device.rs', lines 386:0-389:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 398:0-401:1 -/
 def device.wants_rekey
   (kp : device.Keypair) (now : Std.U64) : Result Bool := do
   if kp.counter >= device.REKEY_AFTER_MESSAGES
@@ -981,7 +1026,7 @@ def device.wants_rekey
     else ok false
 
 /-- [wireguard::device::handshake_timer]:
-    Source: 'crates/wireguard/src/device.rs', lines 395:0-408:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 407:0-420:1 -/
 def device.handshake_timer
   (p : device.Peer) (now : Std.U64) : Result (Bool × device.Peer) := do
   if p.handshake.active
@@ -1004,7 +1049,7 @@ def device.handshake_timer
   else ok (p.rekey_wanted, p)
 
 /-- [wireguard::device::keepalive_timer]:
-    Source: 'crates/wireguard/src/device.rs', lines 414:0-422:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 426:0-434:1 -/
 def device.keepalive_timer
   (p : device.Peer) (now : Std.U64) : Result (Bool × device.Peer) := do
   if p.keepalive_due
@@ -1035,7 +1080,7 @@ def device.keepalive_timer
     else ok (false, p)
 
 /-- [wireguard::device::timers]:
-    Source: 'crates/wireguard/src/device.rs', lines 426:0-435:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 438:0-447:1 -/
 def device.timers
   (p : device.Peer) (now : Std.U64) : Result (Std.U8 × device.Peer) := do
   let p1 ← device.erase_old p now
@@ -1049,7 +1094,7 @@ def device.timers
     else ok (0#u8, p3)
 
 /-- [wireguard::device::copy_out]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 443:4-446:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 455:4-458:5 -/
 @[rust_loop]
 def device.copy_out_loop
   (out : Slice Std.U8) (src : Slice Std.U8) (i : Std.Usize) :
@@ -1066,7 +1111,7 @@ def device.copy_out_loop
 partial_fixpoint
 
 /-- [wireguard::device::copy_out]:
-    Source: 'crates/wireguard/src/device.rs', lines 438:0-448:1 -/
+    Source: 'crates/wireguard/src/device.rs', lines 450:0-460:1 -/
 def device.copy_out
   (out : Slice Std.U8) (src : Slice Std.U8) :
   Result (Bool × (Slice Std.U8))
@@ -1079,7 +1124,7 @@ def device.copy_out
        ok (true, out1)
 
 /-- [wireguard::device::{wireguard::device::Device}::new]:
-    Source: 'crates/wireguard/src/device.rs', lines 456:4-472:5
+    Source: 'crates/wireguard/src/device.rs', lines 468:4-484:5
     Visibility: public -/
 def device.Device.new
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C)
@@ -1091,7 +1136,7 @@ def device.Device.new
   let a ← cookie.mac1_key cryptoCryptoInst c public1
   let a1 ← cookie.cookie_key cryptoCryptoInst c public1
   let p ← device.Peer.empty
-  let a2 := Array.repeat 16#usize p
+  let a2 := Array.repeat 512#usize p
   let ai ← allowed_ips.AllowedIps.new
   let a3 := Array.repeat 32#usize 0#u8
   ok
@@ -1110,7 +1155,7 @@ def device.Device.new
     }
 
 /-- [wireguard::device::{wireguard::device::Device}::find_peer]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 531:8-533:9 -/
+    Source: 'crates/wireguard/src/device.rs', lines 572:8-574:9 -/
 @[rust_loop]
 def device.Device.find_peer_loop
   (self : device.Device) («public» : Array Std.U8 32#usize) (i : Std.Usize) :
@@ -1119,7 +1164,7 @@ def device.Device.find_peer_loop
   if i < self.peer_count
   then
     let p ← Array.index_usize self.peers i
-    let b ← device.keys_equal p.public «public»
+    let b ← device.is_peer p «public»
     if b
     then ok i
     else let i1 ← i + 1#usize
@@ -1128,7 +1173,7 @@ def device.Device.find_peer_loop
 partial_fixpoint
 
 /-- [wireguard::device::{wireguard::device::Device}::find_peer]:
-    Source: 'crates/wireguard/src/device.rs', lines 529:4-535:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 570:4-576:5 -/
 @[reducible]
 def device.Device.find_peer
   (self : device.Device) («public» : Array Std.U8 32#usize) :
@@ -1136,8 +1181,29 @@ def device.Device.find_peer
   := do
   device.Device.find_peer_loop self «public» 0#usize
 
+/-- [wireguard::device::{wireguard::device::Device}::free_slot]: loop 0:
+    Source: 'crates/wireguard/src/device.rs', lines 533:8-535:9 -/
+@[rust_loop]
+def device.Device.free_slot_loop
+  (self : device.Device) (i : Std.Usize) : Result Std.Usize := do
+  if i < self.peer_count
+  then
+    let p ← Array.index_usize self.peers i
+    if p.enabled
+    then let i1 ← i + 1#usize
+         device.Device.free_slot_loop self i1
+    else ok i
+  else ok i
+partial_fixpoint
+
+/-- [wireguard::device::{wireguard::device::Device}::free_slot]:
+    Source: 'crates/wireguard/src/device.rs', lines 531:4-537:5 -/
+@[reducible]
+def device.Device.free_slot (self : device.Device) : Result Std.Usize := do
+  device.Device.free_slot_loop self 0#usize
+
 /-- [wireguard::device::{wireguard::device::Device}::add_peer]:
-    Source: 'crates/wireguard/src/device.rs', lines 476:4-499:5
+    Source: 'crates/wireguard/src/device.rs', lines 489:4-515:5
     Visibility: public -/
 def device.Device.add_peer
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
@@ -1145,32 +1211,67 @@ def device.Device.add_peer
   (persistent_keepalive : Std.U64) :
   Result ((Option Std.Usize) × device.Device)
   := do
-  if self.peer_count = device.MAX_PEERS
+  let i ← device.Device.find_peer self «public»
+  if i < self.peer_count
   then ok (none, self)
   else
-    let i ← device.Device.find_peer self «public»
-    if i < self.peer_count
+    let i1 ← device.Device.free_slot self
+    if i1 = device.MAX_PEERS
     then ok (none, self)
     else
       let p ← device.Peer.empty
       let a ← cookie.mac1_key cryptoCryptoInst c «public»
       let a1 ← cookie.cookie_key cryptoCryptoInst c «public»
-      let a2 ←
-        Array.update self.peers self.peer_count
-          {
-            p
-              with
-              «public»,
-              psk,
-              mac1_key := a,
-              cookie_key := a1,
-              persistent_keepalive
-          }
-      let i1 ← self.peer_count + 1#usize
-      ok (some self.peer_count, { self with peers := a2, peer_count := i1 })
+      let (_, index_mut_back) ← Array.index_mut_usize self.peers i1
+      if i1 = self.peer_count
+      then
+        let i2 ← self.peer_count + 1#usize
+        let a2 :=
+          index_mut_back
+            {
+              p
+                with
+                «public»,
+                psk,
+                mac1_key := a,
+                cookie_key := a1,
+                persistent_keepalive,
+                enabled := true
+            }
+        ok (some i1, { self with peers := a2, peer_count := i2 })
+      else
+        let a2 :=
+          index_mut_back
+            {
+              p
+                with
+                «public»,
+                psk,
+                mac1_key := a,
+                cookie_key := a1,
+                persistent_keepalive,
+                enabled := true
+            }
+        ok (some i1, { self with peers := a2 })
+
+/-- [wireguard::device::{wireguard::device::Device}::remove_peer]:
+    Source: 'crates/wireguard/src/device.rs', lines 520:4-527:5
+    Visibility: public -/
+def device.Device.remove_peer
+  (self : device.Device) (peer : Std.Usize) :
+  Result (Bool × device.Device)
+  := do
+  if peer >= self.peer_count
+  then ok (false, self)
+  else
+    let p ← device.Peer.empty
+    let a ← Array.update self.peers peer p
+    let i ← lift (UScalar.cast .U16 peer)
+    let ai ← allowed_ips.AllowedIps.remove_peer self.allowed_ips i
+    ok (true, { self with peers := a, allowed_ips := ai })
 
 /-- [wireguard::device::{wireguard::device::Device}::set_endpoint]:
-    Source: 'crates/wireguard/src/device.rs', lines 502:4-509:5
+    Source: 'crates/wireguard/src/device.rs', lines 540:4-547:5
     Visibility: public -/
 def device.Device.set_endpoint
   (self : device.Device) (peer : Std.Usize) (endpoint : device.Endpoint) :
@@ -1185,7 +1286,7 @@ def device.Device.set_endpoint
   else ok self
 
 /-- [wireguard::device::{wireguard::device::Device}::allow]:
-    Source: 'crates/wireguard/src/device.rs', lines 512:4-517:5
+    Source: 'crates/wireguard/src/device.rs', lines 550:4-558:5
     Visibility: public -/
 def device.Device.allow
   (self : device.Device) (peer : Std.Usize) (v6 : Bool) (addr : Std.U128)
@@ -1195,13 +1296,17 @@ def device.Device.allow
   if peer >= self.peer_count
   then ok (false, self)
   else
-    let i ← lift (UScalar.cast .U16 peer)
-    let (b, ai) ←
-      allowed_ips.AllowedIps.insert self.allowed_ips v6 addr len i
-    ok (b, { self with allowed_ips := ai })
+    let p ← Array.index_usize self.peers peer
+    if p.enabled
+    then
+      let i ← lift (UScalar.cast .U16 peer)
+      let (b, ai) ←
+        allowed_ips.AllowedIps.insert self.allowed_ips v6 addr len i
+      ok (b, { self with allowed_ips := ai })
+    else ok (false, self)
 
 /-- [wireguard::device::{wireguard::device::Device}::clock]:
-    Source: 'crates/wireguard/src/device.rs', lines 520:4-525:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 561:4-566:5 -/
 def device.Device.clock
   (self : device.Device) (now : Std.U64) :
   Result (Std.U64 × device.Device)
@@ -1211,7 +1316,7 @@ def device.Device.clock
   else ok (self.now, self)
 
 /-- [wireguard::device::{wireguard::device::Device}::find_session]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 541:8-543:9 -/
+    Source: 'crates/wireguard/src/device.rs', lines 582:8-584:9 -/
 @[rust_loop]
 def device.Device.find_session_loop
   (self : device.Device) (index : Std.U32) (i : Std.Usize) :
@@ -1229,14 +1334,14 @@ def device.Device.find_session_loop
 partial_fixpoint
 
 /-- [wireguard::device::{wireguard::device::Device}::find_session]:
-    Source: 'crates/wireguard/src/device.rs', lines 539:4-545:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 580:4-586:5 -/
 @[reducible]
 def device.Device.find_session
   (self : device.Device) (index : Std.U32) : Result Std.Usize := do
   device.Device.find_session_loop self index 0#usize
 
 /-- [wireguard::device::{wireguard::device::Device}::find_handshake]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 551:8-555:9 -/
+    Source: 'crates/wireguard/src/device.rs', lines 592:8-596:9 -/
 @[rust_loop]
 def device.Device.find_handshake_loop
   (self : device.Device) (index : Std.U32) (i : Std.Usize) :
@@ -1258,14 +1363,14 @@ def device.Device.find_handshake_loop
 partial_fixpoint
 
 /-- [wireguard::device::{wireguard::device::Device}::find_handshake]:
-    Source: 'crates/wireguard/src/device.rs', lines 549:4-557:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 590:4-598:5 -/
 @[reducible]
 def device.Device.find_handshake
   (self : device.Device) (index : Std.U32) : Result Std.Usize := do
   device.Device.find_handshake_loop self index 0#usize
 
 /-- [wireguard::device::{wireguard::device::Device}::index_in_use]: loop 0:
-    Source: 'crates/wireguard/src/device.rs', lines 562:8-564:9 -/
+    Source: 'crates/wireguard/src/device.rs', lines 603:8-605:9 -/
 @[rust_loop]
 def device.Device.index_in_use_loop
   (self : device.Device) (index : Std.U32) (i : Std.Usize) :
@@ -1283,14 +1388,14 @@ def device.Device.index_in_use_loop
 partial_fixpoint
 
 /-- [wireguard::device::{wireguard::device::Device}::index_in_use]:
-    Source: 'crates/wireguard/src/device.rs', lines 560:4-566:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 601:4-607:5 -/
 def device.Device.index_in_use
   (self : device.Device) (index : Std.U32) : Result Bool := do
   let (i, i1) ← device.Device.index_in_use_loop self index 0#usize
   ok (i1 < i)
 
 /-- [wireguard::device::{wireguard::device::Device}::has_fresh_cookie]:
-    Source: 'crates/wireguard/src/device.rs', lines 570:4-572:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 611:4-613:5 -/
 def device.Device.has_fresh_cookie
   (p : device.Peer) (now : Std.U64) : Result Bool := do
   if p.has_cookie
@@ -1299,7 +1404,7 @@ def device.Device.has_fresh_cookie
   else ok false
 
 /-- [wireguard::device::{wireguard::device::Device}::finish_handshake_message]:
-    Source: 'crates/wireguard/src/device.rs', lines 576:4-591:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 617:4-632:5 -/
 def device.Device.finish_handshake_message
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (c : C) (p : device.Peer)
   (now : Std.U64) (msg : Slice Std.U8) (out : Slice Std.U8) :
@@ -1493,7 +1598,7 @@ def message.Initiation.encode
 def message.INITIATION_LEN : Std.Usize := 148#usize
 
 /-- [wireguard::device::{wireguard::device::Device}::begin_handshake]:
-    Source: 'crates/wireguard/src/device.rs', lines 595:4-644:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 636:4-685:5 -/
 def device.Device.begin_handshake
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
@@ -1680,7 +1785,7 @@ def transport.encrypt
       ok (some n, work1, out2)
 
 /-- [wireguard::device::{wireguard::device::Device}::send_data]:
-    Source: 'crates/wireguard/src/device.rs', lines 649:4-682:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 690:4-723:5 -/
 def device.Device.send_data
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
@@ -1723,7 +1828,7 @@ def device.Device.send_data
   else ok (device.Action.None, self, work, out)
 
 /-- [wireguard::device::{wireguard::device::Device}::send_keepalive]:
-    Source: 'crates/wireguard/src/device.rs', lines 685:4-696:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 726:4-737:5 -/
 def device.Device.send_keepalive
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
@@ -1784,7 +1889,7 @@ def transport.inner
       else ok none
 
 /-- [wireguard::device::{wireguard::device::Device}::handle_packet]:
-    Source: 'crates/wireguard/src/device.rs', lines 701:4-725:5
+    Source: 'crates/wireguard/src/device.rs', lines 742:4-766:5
     Visibility: public -/
 def device.Device.handle_packet
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
@@ -1813,7 +1918,7 @@ def device.Device.handle_packet
             work out
 
 /-- [wireguard::device::{wireguard::device::Device}::secret_stale]:
-    Source: 'crates/wireguard/src/device.rs', lines 729:4-731:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 770:4-772:5 -/
 def device.Device.secret_stale
   (self : device.Device) (now : Std.U64) : Result Bool := do
   if self.has_cookie_secret
@@ -1850,7 +1955,7 @@ def message.CookieReply.encode
   ok (to_slice_mut_back3 s9)
 
 /-- [wireguard::device::{wireguard::device::Device}::admit]:
-    Source: 'crates/wireguard/src/device.rs', lines 737:4-770:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 778:4-811:5 -/
 def device.Device.admit
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
@@ -2133,7 +2238,7 @@ def message.COOKIE_REPLY_LEN : Std.Usize := 64#usize
 @[global_simps, irreducible] def message.RESPONSE_LEN : Std.Usize := 92#usize
 
 /-- [wireguard::device::{wireguard::device::Device}::on_initiation]:
-    Source: 'crates/wireguard/src/device.rs', lines 775:4-857:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 816:4-898:5 -/
 def device.Device.on_initiation
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
@@ -2263,7 +2368,7 @@ def noise.consume_response
   else ok none
 
 /-- [wireguard::device::{wireguard::device::Device}::on_response]:
-    Source: 'crates/wireguard/src/device.rs', lines 862:4-919:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 903:4-960:5 -/
 def device.Device.on_response
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) («from» : device.Endpoint)
@@ -2324,7 +2429,7 @@ def device.Device.on_response
             { self1 with peers := a1 } c env now i2 out1
 
 /-- [wireguard::device::{wireguard::device::Device}::on_cookie_reply]:
-    Source: 'crates/wireguard/src/device.rs', lines 922:4-938:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 963:4-979:5 -/
 def device.Device.on_cookie_reply
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (now : Std.U64) (msg : message.CookieReply) :
@@ -2496,7 +2601,7 @@ def transport.receive
         ok (transport.Received.Drop, window, out1)
 
 /-- [wireguard::device::{wireguard::device::Device}::on_transport]:
-    Source: 'crates/wireguard/src/device.rs', lines 944:4-994:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 985:4-1035:5 -/
 def device.Device.on_transport
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (now : Std.U64) («from» : device.Endpoint) (receiver : Std.U32)
@@ -2969,7 +3074,7 @@ def message.Message.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [wireguard::device::{wireguard::device::Device}::handle_datagram]:
-    Source: 'crates/wireguard/src/device.rs', lines 999:4-1028:5
+    Source: 'crates/wireguard/src/device.rs', lines 1040:4-1069:5
     Visibility: public -/
 def device.Device.handle_datagram
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
@@ -3007,7 +3112,7 @@ def device.Device.handle_datagram
   | core.result.Result.Err _ => ok (device.Action.None, self1, out)
 
 /-- [wireguard::device::{wireguard::device::Device}::tick_peer]:
-    Source: 'crates/wireguard/src/device.rs', lines 1031:4-1049:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 1072:4-1090:5 -/
 def device.Device.tick_peer
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
@@ -3033,7 +3138,7 @@ def device.Device.tick_peer
       ok (device.Action.None, { self with peers := a }, out)
 
 /-- [wireguard::device::{wireguard::device::Device}::tick_from]:
-    Source: 'crates/wireguard/src/device.rs', lines 1054:4-1070:5 -/
+    Source: 'crates/wireguard/src/device.rs', lines 1095:4-1111:5 -/
 def device.Device.tick_from
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)
   (c : C) (env : device.Env) (now : Std.U64) (i : Std.Usize)
@@ -3058,7 +3163,7 @@ def device.Device.tick_from
 partial_fixpoint
 
 /-- [wireguard::device::{wireguard::device::Device}::tick]:
-    Source: 'crates/wireguard/src/device.rs', lines 1074:4-1077:5
+    Source: 'crates/wireguard/src/device.rs', lines 1115:4-1118:5
     Visibility: public -/
 def device.Device.tick
   {C : Type _} (cryptoCryptoInst : crypto.Crypto C) (self : device.Device)

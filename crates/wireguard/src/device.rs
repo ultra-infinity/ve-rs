@@ -41,7 +41,7 @@ use crate::transport::{self, Received};
 use untrusted::Untrusted;
 
 /// The number of peers a device can have.
-pub const MAX_PEERS: usize = 16;
+pub const MAX_PEERS: usize = 512;
 /// The largest IP packet the device sends.
 pub const MAX_PACKET_LEN: usize = 65535;
 
@@ -210,6 +210,9 @@ pub struct Peer {
     pub last_received: u64,
     /// Whether data was received and nothing sent since.
     pub keepalive_due: bool,
+    /// Whether the peer is configured: a removed peer's slot is not, and
+    /// waits to be reused.
+    pub enabled: bool,
 }
 
 impl Peer {
@@ -248,6 +251,7 @@ impl Peer {
             last_sent: 0,
             last_received: 0,
             keepalive_due: false,
+            enabled: false,
         }
     }
 }
@@ -280,6 +284,14 @@ fn elapsed(since: u64, now: u64) -> u64 {
     } else {
         0
     }
+}
+
+/// Whether `p` is the configured peer with static public key `public`.
+fn is_peer(p: &Peer, public: &[u8; KEY_LEN]) -> bool {
+    if !p.enabled {
+        return false;
+    }
+    keys_equal(&p.public, public)
 }
 
 /// Whether `a` and `b` are equal.
@@ -471,8 +483,9 @@ impl Device {
         }
     }
 
-    /// Adds the peer with static public key `public`; returns its number, or
-    /// `None` if the device is full or already has it.
+    /// Adds the peer with static public key `public`, in the slot of a removed
+    /// peer if any; returns its number, or `None` if the device is full or
+    /// already has it.
     pub fn add_peer<C: Crypto>(
         &mut self,
         c: &C,
@@ -480,22 +493,47 @@ impl Device {
         psk: &[u8; KEY_LEN],
         persistent_keepalive: u64,
     ) -> Option<usize> {
-        if self.peer_count == MAX_PEERS {
-            return None;
-        }
         if self.find_peer(public) < self.peer_count {
             return None;
         }
+        let i = self.free_slot();
+        if i == MAX_PEERS {
+            return None;
+        }
         let mut p = Peer::empty();
+        p.enabled = true;
         p.public = *public;
         p.psk = *psk;
         p.mac1_key = mac1_key(c, public);
         p.cookie_key = cookie_key(c, public);
         p.persistent_keepalive = persistent_keepalive;
-        let i = self.peer_count;
         self.peers[i] = p;
-        self.peer_count += 1;
+        if i == self.peer_count {
+            self.peer_count += 1;
+        }
         Some(i)
+    }
+
+    /// Removes peer `peer`: its sessions, handshake and allowed IPs go, and
+    /// its slot is free for [`Device::add_peer`]. Returns false if there is
+    /// no such peer.
+    pub fn remove_peer(&mut self, peer: usize) -> bool {
+        if peer >= self.peer_count {
+            return false;
+        }
+        self.peers[peer] = Peer::empty();
+        self.allowed_ips.remove_peer(peer as u16);
+        true
+    }
+
+    /// The first slot of a removed peer, else the next unused one, or
+    /// [`MAX_PEERS`] if the device is full.
+    fn free_slot(&self) -> usize {
+        let mut i = 0;
+        while i < self.peer_count && self.peers[i].enabled {
+            i += 1;
+        }
+        i
     }
 
     /// Sets the endpoint of peer `peer`.
@@ -513,6 +551,9 @@ impl Device {
         if peer >= self.peer_count {
             return false;
         }
+        if !self.peers[peer].enabled {
+            return false;
+        }
         self.allowed_ips.insert(v6, addr, len, peer as u16)
     }
 
@@ -524,11 +565,11 @@ impl Device {
         self.now
     }
 
-    /// The number of the peer with static public key `public`, or
-    /// `peer_count` if none.
+    /// The number of the (configured) peer with static public key `public`,
+    /// or `peer_count` if none.
     fn find_peer(&self, public: &[u8; KEY_LEN]) -> usize {
         let mut i = 0;
-        while i < self.peer_count && !keys_equal(&self.peers[i].public, public) {
+        while i < self.peer_count && !is_peer(&self.peers[i], public) {
             i += 1;
         }
         i

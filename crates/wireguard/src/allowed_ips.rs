@@ -11,7 +11,7 @@
 //! returns the peer of the longest matching prefix.
 
 /// The capacity of the table.
-pub const MAX_ALLOWED_IPS: usize = 64;
+pub const MAX_ALLOWED_IPS: usize = 1024;
 
 /// One allowed prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +117,21 @@ impl AllowedIps {
         true
     }
 
+    /// Removes every prefix of `peer`, keeping the others in order.
+    pub fn remove_peer(&mut self, peer: u16) {
+        let mut kept = 0;
+        let mut i = 0;
+        while i < self.count {
+            let e = self.entries[i];
+            if e.peer != peer {
+                self.entries[kept] = e;
+                kept += 1;
+            }
+            i += 1;
+        }
+        self.count = kept;
+    }
+
     /// The index of the prefix `addr/len` (canonical), or `count` if it is not
     /// in the table.
     fn find(&self, v6: bool, addr: u128, len: u32) -> usize {
@@ -211,5 +226,22 @@ mod tests {
         // Replacing still works when full.
         assert!(t.insert(true, 3 << 64, 64, 9));
         assert_eq!(t.lookup(true, (3 << 64) | 77), Some(9));
+    }
+
+    #[test]
+    fn removes_a_peers_prefixes() {
+        let mut t = AllowedIps::new();
+        assert!(t.insert(false, v4(10, 0, 0, 0), 8, 1));
+        assert!(t.insert(false, v4(10, 1, 0, 0), 16, 2));
+        assert!(t.insert(false, v4(10, 1, 2, 0), 24, 1));
+        assert!(t.insert(true, 0, 0, 3));
+        t.remove_peer(1);
+        assert_eq!(t.count, 2);
+        // The less specific prefix of another peer now matches.
+        assert_eq!(t.lookup(false, v4(10, 1, 2, 3)), Some(2));
+        assert_eq!(t.lookup(false, v4(10, 2, 0, 1)), None);
+        assert_eq!(t.lookup(true, 7), Some(3));
+        t.remove_peer(9);
+        assert_eq!(t.count, 2);
     }
 }

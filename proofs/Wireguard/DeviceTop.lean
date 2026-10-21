@@ -23,7 +23,7 @@ open wireguard.crypto wireguard.transport
 
 /-! ## Constants -/
 
-@[simp, scalar_tac_simps] theorem MAX_PEERS_val : MAX_PEERS.val = 16 := by simp [MAX_PEERS]
+@[simp, scalar_tac_simps] theorem MAX_PEERS_val : MAX_PEERS.val = 512 := by simp [MAX_PEERS]
 @[simp, scalar_tac_simps] theorem MAX_PACKET_LEN_val : MAX_PACKET_LEN.val = 65535 := by
   simp [MAX_PACKET_LEN]
 @[simp, scalar_tac_simps] theorem REKEY_AFTER_MESSAGES_val :
@@ -523,7 +523,7 @@ def Peer.Fresh (p : Peer) : Prop := p.Inv ∧ ∀ s, p.idx s = none
 /-- **Spec theorem for `Peer::empty`**. -/
 @[step]
 theorem Peer.empty.spec : Peer.empty ⦃ (p : Peer) =>
-    p.Fresh ∧ p.initiation_at.val = 0 ∧ p.has_endpoint = false ⦄ := by
+    p.Fresh ∧ p.initiation_at.val = 0 ∧ p.has_endpoint = false ∧ p.enabled = false ⦄ := by
   unfold Peer.empty
   step as ⟨e, he⟩
   step as ⟨k, hkv, hki⟩
@@ -539,7 +539,7 @@ theorem index_peer (d : Device) (j : Usize) (h : j.val < d.peers.val.length) :
     d.peers.val[j.val] = peer d j.val := by
   simp [peer, getElem!_pos d.peers.val j.val h]
 
-theorem peer_set (d : Device) (i j : Nat) (p : Peer) (hi : i < 16) :
+theorem peer_set (d : Device) (i j : Nat) (p : Peer) (hi : i < 512) :
     (d.peers.val.set i p)[j]! = if i = j then p else peer d j := by
   by_cases h : i = j
   · subst h; simp [hi]
@@ -553,14 +553,14 @@ def Distinct (d : Device) : Prop :=
 
 /-- The invariant of the device. -/
 def Device.Inv (d : Device) : Prop :=
-  d.peer_count.val ≤ 16 ∧ allowed_ips.Inv d.allowed_ips ∧ (∀ j < 16, (peer d j).Inv) ∧
-    Distinct d ∧ (∀ j < 16, (peer d j).initiation_at.val ≤ d.now.val)
+  d.peer_count.val ≤ 512 ∧ allowed_ips.Inv d.allowed_ips ∧ (∀ j < 512, (peer d j).Inv) ∧
+    Distinct d ∧ (∀ j < 512, (peer d j).initiation_at.val ≤ d.now.val)
 
 /-- Replacing peer `i` by `p'` keeps the indices distinct if each index of
     `p'` comes from a slot of the old peer `i` (by an injective map of slots),
     or is a new index `n`, in use nowhere, in one slot `snew`. -/
 theorem Distinct.replace {d : Device} (hd : Distinct d) {i : Usize}
-    (hi : i.val < d.peer_count.val) (h16 : d.peer_count.val ≤ 16) (p' : Peer) (n : U32)
+    (hi : i.val < d.peer_count.val) (h16 : d.peer_count.val ≤ 512) (p' : Peer) (n : U32)
     (hn : ∀ j < d.peer_count.val, ¬ Uses (peer d j) n) (σ : Slot → Slot)
     (hσ : ∀ s t, σ s = σ t → s = t) (snew : Slot)
     (hp : ∀ s x, p'.idx s = some x → (peer d i.val).idx (σ s) = some x ∨ (x = n ∧ s = snew)) :
@@ -588,7 +588,7 @@ theorem Distinct.replace {d : Device} (hd : Distinct d) {i : Usize}
 /-- Replacing peer `i` by `p'`, whose indices are the old peer's in the same
     slots, keeps them distinct. -/
 theorem Distinct.replace_sub {d : Device} (hd : Distinct d) {i : Usize}
-    (hi : i.val < d.peer_count.val) (h16 : d.peer_count.val ≤ 16) (p' : Peer)
+    (hi : i.val < d.peer_count.val) (h16 : d.peer_count.val ≤ 512) (p' : Peer)
     (hp : SubIdx (peer d i.val) p') :
     Distinct { d with peers := d.peers.set i p' } := by
   intro a b s t x ha hb hsa htb
@@ -604,12 +604,12 @@ theorem Distinct.replace_sub {d : Device} (hd : Distinct d) {i : Usize}
 /-- A device whose peers are all a fresh peer, with none in use, satisfies the
     invariant. -/
 theorem new_inv (d : Device) (p : Peer) (hp : p.Fresh) (hpi : p.initiation_at.val = 0)
-    (hpeers : d.peers = Array.repeat 16#usize p) (hc : d.peer_count.val = 0)
+    (hpeers : d.peers = Array.repeat 512#usize p) (hc : d.peer_count.val = 0)
     (hai : allowed_ips.Inv d.allowed_ips) : d.Inv := by
-  have hpj : ∀ j < 16, peer d j = p := by
+  have hpj : ∀ j < 512, peer d j = p := by
     intro j hj
     simp only [peer, hpeers, Array.repeat_val]
-    rw [getElem!_pos _ _ (by simp; omega), List.getElem_replicate]
+    rw [getElem!_pos _ _ (by rw [List.length_replicate]; scalar_tac), List.getElem_replicate]
   refine ⟨by omega, hai, fun j hj => hpj j hj ▸ hp.1, ?_, fun j hj => ?_⟩
   · intro a b s t x ha; omega
   · rw [hpj j hj, hpi]; omega
@@ -628,14 +628,25 @@ theorem Device.new.spec (priv : Key) :
   exact ⟨new_inv _ p p_post p_post1 rfl rfl ai_post, rfl⟩
 end
 
+/-- `p` is the configured peer with static public key `x`. -/
+def IsPeer (p : Peer) (x : Key) : Prop := p.enabled = true ∧ p.public = x
+
+/-- **Spec theorem for `is_peer`**. -/
+@[step]
+theorem is_peer.spec (p : Peer) (x : Key) : is_peer p x ⦃ (r : Bool) => (r = true ↔ IsPeer p x) ⦄ := by
+  unfold is_peer IsPeer
+  split
+  · step*
+  · rename_i h; simp [h]
+
 /-- **Spec theorem for `Device::find_peer`'s loop**. -/
 @[step]
 theorem Device.find_peer_loop.spec (d : Device) (x : Key) (i : Usize)
-    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 16)
-    (hpre : ∀ j < i.val, (peer d j).public ≠ x) :
+    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 512)
+    (hpre : ∀ j < i.val, ¬ IsPeer (peer d j) x) :
     Device.find_peer_loop d x i ⦃ (r : Usize) =>
-      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → (peer d r.val).public = x) ∧
-        ∀ j < r.val, (peer d j).public ≠ x ⦄ := by
+      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → IsPeer (peer d r.val) x) ∧
+        ∀ j < r.val, ¬ IsPeer (peer d j) x ⦄ := by
   unfold Device.find_peer_loop
   split
   · step as ⟨q, hq⟩
@@ -644,9 +655,9 @@ theorem Device.find_peer_loop.spec (d : Device) (x : Key) (i : Usize)
     split
     · rename_i hbt
       simp only [WP.spec_ok]
-      exact ⟨by scalar_tac, fun _ => by simpa [hbt] using hb, hpre⟩
+      exact ⟨by scalar_tac, fun _ => hb.1 hbt, hpre⟩
     · rename_i hbf
-      have hne : (peer d i.val).public ≠ x := by simpa [hbf] using hb
+      have hne : ¬ IsPeer (peer d i.val) x := fun h => hbf (hb.2 h)
       step as ⟨i1, hi1⟩
       apply WP.spec_mono (Device.find_peer_loop.spec d x i1 (by scalar_tac) hc ?_)
       · exact fun r hr => hr
@@ -659,13 +670,13 @@ theorem Device.find_peer_loop.spec (d : Device) (x : Key) (i : Usize)
 termination_by d.peer_count.val - i.val
 decreasing_by all_goals scalar_tac
 
-/-- **Spec theorem for `Device::find_peer`**: the number of the peer with
-    static public key `x`, or `peer_count` if none. -/
+/-- **Spec theorem for `Device::find_peer`**: the number of the configured
+    peer with static public key `x`, or `peer_count` if none. -/
 @[step]
-theorem Device.find_peer.spec (d : Device) (x : Key) (hc : d.peer_count.val ≤ 16) :
+theorem Device.find_peer.spec (d : Device) (x : Key) (hc : d.peer_count.val ≤ 512) :
     Device.find_peer d x ⦃ (r : Usize) =>
-      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → (peer d r.val).public = x) ∧
-        (r.val = d.peer_count.val → ∀ j < d.peer_count.val, (peer d j).public ≠ x) ⦄ := by
+      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → IsPeer (peer d r.val) x) ∧
+        (r.val = d.peer_count.val → ∀ j < d.peer_count.val, ¬ IsPeer (peer d j) x) ⦄ := by
   unfold Device.find_peer
   apply WP.spec_mono (Device.find_peer_loop.spec d x 0#usize (by simp) hc (by simp))
   rintro r ⟨h1, h2, h3⟩
@@ -674,7 +685,7 @@ theorem Device.find_peer.spec (d : Device) (x : Key) (hc : d.peer_count.val ≤ 
 /-- **Spec theorem for `Device::find_session`'s loop**. -/
 @[step]
 theorem Device.find_session_loop.spec (d : Device) (x : U32) (i : Usize)
-    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 16)
+    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 512)
     (hpre : ∀ j < i.val, slotOf (peer d j) x = 3) :
     Device.find_session_loop d x i ⦃ (r : Usize) =>
       r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → slotOf (peer d r.val) x ≠ 3) ∧
@@ -706,7 +717,7 @@ decreasing_by all_goals scalar_tac
 /-- **Spec theorem for `Device::find_session`**: the number of a peer with a
     session with local index `x`, or `peer_count` if none. -/
 @[step]
-theorem Device.find_session.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 16) :
+theorem Device.find_session.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 512) :
     Device.find_session d x ⦃ (r : Usize) =>
       r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → slotOf (peer d r.val) x ≠ 3) ∧
         (r.val = d.peer_count.val → ∀ j < d.peer_count.val, slotOf (peer d j) x = 3) ⦄ := by
@@ -722,7 +733,7 @@ def HasHandshake (p : Peer) (x : U32) : Prop :=
 /-- **Spec theorem for `Device::find_handshake`'s loop**. -/
 @[step]
 theorem Device.find_handshake_loop.spec (d : Device) (x : U32) (i : Usize)
-    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 16)
+    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 512)
     (hpre : ∀ j < i.val, ¬ HasHandshake (peer d j) x) :
     Device.find_handshake_loop d x i ⦃ (r : Usize) =>
       r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → HasHandshake (peer d r.val) x) ∧
@@ -760,7 +771,7 @@ decreasing_by all_goals scalar_tac
 /-- **Spec theorem for `Device::find_handshake`**: the number of a peer with a
     handshake in flight with local index `x`, or `peer_count` if none. -/
 @[step]
-theorem Device.find_handshake.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 16) :
+theorem Device.find_handshake.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 512) :
     Device.find_handshake d x ⦃ (r : Usize) =>
       r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → HasHandshake (peer d r.val) x) ∧
         (r.val = d.peer_count.val → ∀ j < d.peer_count.val, ¬ HasHandshake (peer d j) x) ⦄ := by
@@ -772,7 +783,7 @@ theorem Device.find_handshake.spec (d : Device) (x : U32) (hc : d.peer_count.val
 /-- **Spec theorem for `Device::index_in_use`'s loop**. -/
 @[step]
 theorem Device.index_in_use_loop.spec (d : Device) (x : U32) (i : Usize)
-    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 16)
+    (hi : i.val ≤ d.peer_count.val) (hc : d.peer_count.val ≤ 512)
     (hpre : ∀ j < i.val, ¬ Uses (peer d j) x) :
     Device.index_in_use_loop d x i ⦃ (n : Usize) (r : Usize) =>
       n = d.peer_count ∧ r.val ≤ d.peer_count.val ∧
@@ -802,7 +813,7 @@ decreasing_by all_goals scalar_tac
 
 /-- **Spec theorem for `Device::index_in_use`**. -/
 @[step]
-theorem Device.index_in_use.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 16) :
+theorem Device.index_in_use.spec (d : Device) (x : U32) (hc : d.peer_count.val ≤ 512) :
     Device.index_in_use d x ⦃ (r : Bool) =>
       (r = true ↔ ∃ j < d.peer_count.val, Uses (peer d j) x) ⦄ := by
   unfold Device.index_in_use
@@ -889,7 +900,7 @@ theorem Device.Inv.replace_fresh {d : Device} (hd : d.Inv) {i : Usize}
 
 
 theorem peer_replace {d' : Device} (d : Device) {i : Usize} {p' : Peer} (j : Nat)
-    (hi : i.val < 16) (h : d'.peers = d.peers.set i p') :
+    (hi : i.val < 512) (h : d'.peers = d.peers.set i p') :
     peer d' j = if i.val = j then p' else peer d j := by
   simp only [peer, h, Array.set_val_eq]
   exact peer_set d i.val j p' hi
@@ -903,7 +914,7 @@ theorem inv_of {p q : Peer} (hp : p.Inv) (h2 : q.current = p.current)
   rw [Peer.Inv, h2, h3, h4]; exact hp
 
 /-- Adding a peer with no indices in use, at the end, keeps the invariant. -/
-theorem Device.Inv.add {d : Device} (hd : d.Inv) (hlt : d.peer_count.val < 16) (p' : Peer)
+theorem Device.Inv.add {d : Device} (hd : d.Inv) (hlt : d.peer_count.val < 512) (p' : Peer)
     (hnone : ∀ s, p'.idx s = none) (hinv : p'.Inv) (hia : p'.initiation_at.val ≤ d.now.val)
     (n : Usize) (hn : n.val = d.peer_count.val + 1) :
     Device.Inv { d with peers := d.peers.set d.peer_count p', peer_count := n } := by
@@ -925,44 +936,144 @@ theorem Device.Inv.add {d : Device} (hd : d.Inv) (hlt : d.peer_count.val < 16) (
     · exact hia
     · exact hti j hj
 
+/-- **Spec theorem for `Device::free_slot`'s loop**. -/
+@[step]
+theorem Device.free_slot_loop.spec (d : Device) (i : Usize) (hi : i.val ≤ d.peer_count.val)
+    (hc : d.peer_count.val ≤ 512) (hpre : ∀ j < i.val, (peer d j).enabled = true) :
+    Device.free_slot_loop d i ⦃ (r : Usize) =>
+      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → (peer d r.val).enabled = false) ∧
+        ∀ j < r.val, (peer d j).enabled = true ⦄ := by
+  unfold Device.free_slot_loop
+  split
+  · step as ⟨q, hq⟩
+    rw [index_peer d i (by simp; scalar_tac)] at hq
+    split
+    · rename_i hen
+      step as ⟨i1, hi1⟩
+      apply Device.free_slot_loop.spec d i1 (by scalar_tac) hc
+      intro j hj
+      rcases Nat.lt_succ_iff_lt_or_eq.mp (hi1 ▸ hj) with hj | rfl
+      · exact hpre j hj
+      · rw [← hq]; exact hen
+    · rename_i hen
+      simp only [WP.spec_ok]
+      exact ⟨by scalar_tac, fun _ => by rw [← hq]; simpa using hen, hpre⟩
+  · simp only [WP.spec_ok]
+    exact ⟨hi, fun h => absurd h (by scalar_tac), hpre⟩
+termination_by d.peer_count.val - i.val
+decreasing_by all_goals scalar_tac
+
+/-- **Spec theorem for `Device::free_slot`**: the first slot of a removed
+    peer, or `peer_count` if none. -/
+@[step]
+theorem Device.free_slot.spec (d : Device) (hc : d.peer_count.val ≤ 512) :
+    Device.free_slot d ⦃ (r : Usize) =>
+      r.val ≤ d.peer_count.val ∧ (r.val < d.peer_count.val → (peer d r.val).enabled = false) ∧
+        ∀ j < r.val, (peer d j).enabled = true ⦄ := by
+  unfold Device.free_slot
+  exact Device.free_slot_loop.spec d 0#usize (by simp) hc (by simp)
+
+/-- A fresh peer's indices are a subset of any peer's. -/
+theorem SubIdx.of_fresh (p : Peer) {p' : Peer} (h : ∀ s, p'.idx s = none) : SubIdx p p' :=
+  fun s x hs => by rw [h s] at hs; cases hs
+
+/-- **Spec theorem for `Device::remove_peer`**: peer `i`'s slot becomes an
+    empty one, not configured, and its allowed IPs go. -/
+@[step]
+theorem Device.remove_peer.spec (d : Device) (hd : d.Inv) (i : Usize) :
+    Device.remove_peer d i ⦃ (r : Bool) (d' : Device) =>
+      d'.Inv ∧ d'.now = d.now ∧ d'.peer_count = d.peer_count ∧
+        (r = true ↔ i.val < d.peer_count.val) ∧
+        (r = false → d' = d) ∧
+        (r = true → (peer d' i.val).enabled = false ∧ (∀ s, (peer d' i.val).idx s = none) ∧
+          allowed_ips.inUse d'.allowed_ips =
+            allowed_ips.keep (UScalar.cast .U16 i) (allowed_ips.inUse d.allowed_ips) ∧
+          ∀ j < 512, j ≠ i.val → peer d' j = peer d j) ⦄ := by
+  unfold Device.remove_peer
+  split
+  · simp only [WP.spec_ok]
+    refine ⟨hd, rfl, rfl, ?_, fun _ => rfl, fun h => by cases h⟩
+    simp only [Bool.false_eq_true, false_iff]; scalar_tac
+  rename_i hlt
+  have hil : i.val < d.peer_count.val := by scalar_tac
+  have hc := hd.1
+  step as ⟨p, hfresh, hpi0, _hpe, hen⟩
+  step as ⟨a, ha⟩
+  step as ⟨q, hq⟩
+  step with allowed_ips.AllowedIps.remove_peer.spec d.allowed_ips hd.2.1 q as ⟨t, ht, htu⟩
+  have hinv1 := Device.Inv.replace hd hil p (SubIdx.of_fresh _ hfresh.2) hfresh.1 (by simp [hpi0])
+  have hinvD : Device.Inv { d with peers := a, allowed_ips := t } := by
+    rw [ha]; exact ⟨hinv1.1, ht, hinv1.2.2⟩
+  refine ⟨hinvD, by simp [hil], fun h => absurd h (by simp), fun _ => ?_⟩
+  have hp : peer { d with peers := a, allowed_ips := t } i.val = p := by
+    rw [peer_replace d i.val (by omega) ha]; simp
+  refine ⟨by rw [hp, hen], by rw [hp]; exact hfresh.2, by rw [htu, hq], fun j _ hj => ?_⟩
+  rw [peer_replace d j (by omega) ha, if_neg (by omega)]
+
+/-- `p`, configured as the peer with static public key `pub`. -/
+def withConfig (p : Peer) (pub psk m ck : Key) (ka : U64) : Peer :=
+  { p with «public» := pub, psk := psk, mac1_key := m, cookie_key := ck, persistent_keepalive := ka, enabled := true }
+
 /-! ## Configuration -/
 
 section
 variable {C : Type} {inst : Crypto C} {c : C} {P : Primitives} [h : Laws inst c P]
 include h
 
-/-- **Spec theorem for `Device::add_peer`**: adds a peer with no sessions, at
-    the end, unless the device is full or has it already. -/
+/-- **Spec theorem for `Device::add_peer`**: adds a configured peer with no
+    sessions, in the first slot of a removed peer or else at the end, unless
+    the device is full or has it already. -/
 @[step]
 theorem Device.add_peer.spec (d : Device) (hd : d.Inv) (pub psk : Key) (ka : U64) :
     Device.add_peer inst d c pub psk ka ⦃ (r : Option Usize) (d' : Device) =>
       d'.Inv ∧ d'.now = d.now ∧ d'.allowed_ips = d.allowed_ips ∧
         match r with
         | none => d' = d
-        | some i => i = d.peer_count ∧ d'.peer_count.val = d.peer_count.val + 1 ∧
-            (peer d' i.val).public = pub ∧
-            ∀ j < d.peer_count.val, peer d' j = peer d j ⦄ := by
+        | some i => i.val ≤ d.peer_count.val ∧ i.val < 512 ∧
+            d'.peer_count.val = max d.peer_count.val (i.val + 1) ∧
+            IsPeer (peer d' i.val) pub ∧
+            (i.val < d.peer_count.val → (peer d i.val).enabled = false) ∧
+            ∀ j < 512, j ≠ i.val → peer d' j = peer d j ⦄ := by
   unfold Device.add_peer
-  split
-  · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl⟩
-  rename_i hfull
-  have hlt : d.peer_count.val < 16 := by
-    have h1 := hd.1
-    have : d.peer_count.val ≠ 16 := fun h => hfull (by scalar_tac)
-    omega
+  have hc := hd.1
   step as ⟨i, hi1, hi2, hi3⟩
   split
   · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl⟩
-  step as ⟨p, hfresh, hpi0, _hpe⟩
-  step*
-  refine ⟨?_, i1_post, ?_, fun j hj => ?_⟩
-  · rw [a2_post]
-    apply Device.Inv.add hd hlt _ _ _ _ i1 i1_post
-    · intro s; rw [idx_eq_of rfl rfl rfl rfl]; exact hfresh.2 s
-    · exact inv_of hfresh.1 rfl rfl rfl
-    · simp [hpi0]
-  · rw [peer_replace d _ hlt a2_post]; simp
-  · rw [peer_replace d _ hlt a2_post, if_neg (by omega)]
+  step as ⟨k, hk1, hk2, hk3⟩
+  split
+  · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl⟩
+  rename_i hfull
+  have hk512 : k.val < 512 := by
+    have : k.val ≠ 512 := fun h => hfull (by scalar_tac)
+    omega
+  step as ⟨p, hfresh, hpi0, _hpe, _hen⟩
+  step as ⟨a, ha⟩
+  step as ⟨a1, ha1⟩
+  step as ⟨x, back, hx, hback⟩
+  rw [hback]
+  have hnone : ∀ s, (withConfig p pub psk a a1 ka).idx s = none := by
+    intro s; rw [idx_eq_of rfl rfl rfl rfl]; exact hfresh.2 s
+  have hpinv : (withConfig p pub psk a a1 ka).Inv := inv_of hfresh.1 rfl rfl rfl
+  split
+  · rename_i heq
+    have hkc : k.val = d.peer_count.val := by rw [heq]
+    step as ⟨n, hn⟩
+    refine ⟨?_, by omega, hk512, by omega, ?_, fun h => absurd h (by omega),
+      fun j _ hj => ?_⟩
+    · rw [show k = d.peer_count from heq]
+      exact Device.Inv.add hd (by omega) _ hnone hpinv (by simp [withConfig, hpi0]) n hn
+    · rw [peer_replace d _ hk512 rfl]; simp [IsPeer]
+    · rw [peer_replace d _ hk512 rfl, if_neg (by omega)]
+  · rename_i hne
+    have hkc : k.val < d.peer_count.val := by
+      have : k.val ≠ d.peer_count.val := fun h => hne (by scalar_tac)
+      omega
+    simp only [WP.spec_ok]
+    refine ⟨?_, rfl, rfl, by omega, hk512, by simp only; omega, ?_, hk2, fun j _ hj => ?_⟩
+    · exact Device.Inv.replace hd hkc _ (SubIdx.of_fresh _ hnone) hpinv (by simp [withConfig, hpi0])
+    · rw [peer_replace d _ hk512 rfl]; simp [IsPeer]
+    · rw [peer_replace d _ hk512 rfl, if_neg (by omega)]
+
 /-- **Spec theorem for `Device::set_endpoint`**. -/
 @[step]
 theorem Device.set_endpoint.spec (d : Device) (hd : d.Inv) (i : Usize) (e : Endpoint) :
@@ -971,7 +1082,7 @@ theorem Device.set_endpoint.spec (d : Device) (hd : d.Inv) (i : Usize) (e : Endp
   unfold Device.set_endpoint
   split
   · have hc := hd.1
-    have hi16 : i.val < 16 := by scalar_tac
+    have hi16 : i.val < 512 := by scalar_tac
     step as ⟨p, hp⟩
     rw [index_peer d i (by simp; omega)] at hp
     step as ⟨a, ha⟩
@@ -991,10 +1102,13 @@ theorem Device.allow.spec (d : Device) (hd : d.Inv) (i : Usize) (v6 : Bool) (add
   unfold Device.allow
   split
   · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl⟩
+  step as ⟨pp, hpp⟩
+  split
   · step as ⟨q, hq⟩
     step with allowed_ips.AllowedIps.insert.spec d.allowed_ips hd.2.1 v6 addr len q
       as ⟨b, t, ht, _ht⟩
     exact ⟨hd.1, ht, hd.2.2.1, hd.2.2.2.1, hd.2.2.2.2⟩
+  · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl⟩
 
 /-- **Spec theorem for `Device::finish_handshake_message`**: writes the
     message with its MACs to `out`, and records its `mac1`. -/
@@ -1067,7 +1181,7 @@ theorem Device.begin_handshake.spec (d : Device) (hd : d.Inv) (env : Env) (now :
         (∀ j, j ≠ i.val → peer d' j = peer d j) ∧
         (a = .None → d' = d) ∧ SendOnly P d d' i.val env now a out'.val (fun _ => False) ⦄ := by
   have hc := hd.1
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   unfold Device.begin_handshake
   step as ⟨p, hp⟩
   rw [index_peer d i (by simp; omega)] at hp
@@ -1163,7 +1277,7 @@ theorem Device.send_data.spec (d : Device) (hd : d.Inv) (env : Env) (now : U64)
           SendOnly P d d' i.val env now a out'.val
             (fun n => DataSent P d d' i.val now packet.val n out'.val) ⦄ := by
   have hc := hd.1
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   unfold Device.send_data
   step as ⟨p, hp⟩
   rw [index_peer d i (by simp; omega)] at hp
@@ -1327,7 +1441,7 @@ theorem Device.tick_peer.spec (d : Device) (hd : d.Inv) (env : Env) (now : U64)
         SendOnly P d d' i.val env now a out'.val
           (fun n => DataSent P d d' i.val now [] n out'.val) ⦄ := by
   have hc := hd.1
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   unfold Device.tick_peer
   step as ⟨p, hp⟩
   rw [index_peer d i (by simp; omega)] at hp
@@ -1636,7 +1750,7 @@ theorem Device.on_cookie_reply.spec (d : Device) (hd : d.Inv) (now : U64)
   split
   · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl, rfl⟩
   have hlt : i2.val < d.peer_count.val := by scalar_tac
-  have hi16 : i2.val < 16 := by omega
+  have hi16 : i2.val < 512 := by omega
   step as ⟨p, hp⟩
   rw [index_peer d i2 (by simp; omega)] at hp
   step as ⟨o, ho⟩
@@ -1686,7 +1800,7 @@ theorem Device.on_transport.spec (d : Device) (hd : d.Inv) (now : U64) (hnow : n
   split
   · simp only [WP.spec_ok]; exact ⟨hd, rfl, rfl, rfl, rfl, trivial⟩
   have hlt : i.val < d.peer_count.val := by scalar_tac
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   step as ⟨p, hp⟩
   rw [index_peer d i (by simp; omega)] at hp
   step as ⟨slot, hslot⟩
@@ -1844,13 +1958,13 @@ theorem Device.on_response.spec (d : Device) (hd : d.Inv) (env : Env) (now : U64
     have : ¬ (r != 0#u8) = true := hr0
     simp at this; rw [this]
   obtain ⟨hm1, -⟩ := hmac hr0'
-  have hc1 : d1.peer_count.val ≤ 16 := hinv1.1
+  have hc1 : d1.peer_count.val ≤ 512 := hinv1.1
   step as ⟨i, hi1, hi2, _hi3⟩
   split
   · simp only [WP.spec_ok]
     exact ⟨hinv1, hcnt1, hnow1, hai1, hol1, trivial⟩
   have hlt : i.val < d1.peer_count.val := by scalar_tac
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   step as ⟨p, hp⟩
   rw [index_peer d1 i (by simp; omega)] at hp
   step as ⟨o, ho⟩
@@ -1892,14 +2006,14 @@ theorem Device.on_response.spec (d : Device) (hd : d.Inv) (env : Env) (now : U64
     · rw [hpd, if_pos rfl]; rfl
 
 /-- Device `d'` answered the initiation `msg` from peer `i` with the response
-    `bytes`: the initiation is the paper's from that peer's static key, its
+    `bytes`: the initiation is the paper's from that (configured) peer's static key, its
     timestamp is later than the peer's previous one (and is now the latest),
     and the response is the paper's (with its MACs), whose session is now the
     peer's next one, with the new local index. -/
 def Answered (P : Primitives) (d d' : Device) (i : Nat) (env : Env) (msg : message.Initiation)
     (bytes : List U8) : Prop :=
   ∃ st, noise.Spec.consumeInitiationStatic P d.private d.public msg = some st ∧
-    (peer d i).public = st.initiator_static ∧
+    (peer d i).enabled = true ∧ (peer d i).public = st.initiator_static ∧
     ∃ chain ts, noise.Spec.consumeInitiationTimestamp P d.private st msg = some (chain, ts) ∧
       noise.Spec.after ts.val (peer d i).last_timestamp.val = true ∧
       (peer d' i).last_timestamp = ts ∧
@@ -1949,7 +2063,7 @@ theorem Device.on_initiation.spec (d : Device) (hd : d.Inv) (env : Env) (now : U
     have : ¬ (r != 0#u8) = true := hr0
     simp at this; rw [this]
   obtain ⟨hm1, -⟩ := hmac hr0'
-  have hc1 : d1.peer_count.val ≤ 16 := hinv1.1
+  have hc1 : d1.peer_count.val ≤ 512 := hinv1.1
   step as ⟨o, ho⟩
   rcases o with _ | st
   · simp only [WP.spec_ok]
@@ -1959,7 +2073,7 @@ theorem Device.on_initiation.spec (d : Device) (hd : d.Inv) (env : Env) (now : U
   · simp only [WP.spec_ok]
     exact ⟨hinv1, hcnt1, hnow1, hai1, hol1, trivial⟩
   have hlt : i.val < d1.peer_count.val := by scalar_tac
-  have hi16 : i.val < 16 := by omega
+  have hi16 : i.val < 512 := by omega
   step as ⟨used, hused⟩
   split
   · simp only [WP.spec_ok]
@@ -2007,7 +2121,7 @@ theorem Device.on_initiation.spec (d : Device) (hd : d.Inv) (env : Env) (now : U
   · refine Or.inr ⟨by simp, hm1, i.val, by rw [← hcnt1]; exact hlt, ?_⟩
     unfold Answered
     rw [← hpd1, ← hp, ← hpriv1, ← hpub1]
-    refine ⟨st, ho.symm, hp ▸ hi2 hlt, chain, ts, ho1.symm, by rw [← hb1]; exact hb1t, ?_,
+    refine ⟨st, ho.symm, hp ▸ (hi2 hlt).1, hp ▸ (hi2 hlt).2, chain, ts, ho1.symm, by rw [← hb1]; exact hb1t, ?_,
       resp, chain', ho2.symm, ?_, ?_, ?_, ?_, bytes1.val, tau, bytes1_post, ?_⟩
     · rw [hpd, if_pos rfl]
     · rw [hpd, if_pos rfl]

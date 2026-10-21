@@ -1,0 +1,4 @@
+# Test threads get 2 MiB stacks by default; a `wireguard::device::Device`
+# with room for 512 peers is about 2 MiB, and the tests build a few.
+[env]
+RUST_MIN_STACK = "33554432"

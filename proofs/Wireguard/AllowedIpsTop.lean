@@ -31,7 +31,7 @@ def key (e : AllowedIp) : Bool × Nat × Nat := (e.v6, e.len.val, e.addr.val)
 /-- The table's invariant: within capacity, prefixes valid and canonical, and
     no prefix twice. -/
 def Inv (t : AllowedIps) : Prop :=
-  t.count.val ≤ 64 ∧
+  t.count.val ≤ 1024 ∧
     (∀ e ∈ inUse t, e.len.val ≤ widthN e.v6 ∧ canon e.v6 e.addr.val e.len.val = e.addr.val) ∧
     (inUse t).Pairwise (fun a b => key a ≠ key b)
 
@@ -114,7 +114,7 @@ theorem Best.step {l : List AllowedIp} {v6 : Bool} {ip : Nat} {best : Option All
 
 /-! ## Specs -/
 
-@[simp, scalar_tac_simps] theorem MAX_ALLOWED_IPS_val : MAX_ALLOWED_IPS.val = 64 := by
+@[simp, scalar_tac_simps] theorem MAX_ALLOWED_IPS_val : MAX_ALLOWED_IPS.val = 1024 := by
   simp [MAX_ALLOWED_IPS]
 
 theorem widthN_le (v6 : Bool) : widthN v6 ≤ 128 := by cases v6 <;> simp [widthN]
@@ -165,7 +165,7 @@ theorem matches.spec (v6 : Bool) (addr : U128) (len : U32) (ip : U128) (h : len.
   unfold allowed_ips.matches
   step*
 
-theorem length_inUse (t : AllowedIps) (h : t.count.val ≤ 64) : (inUse t).length = t.count.val := by
+theorem length_inUse (t : AllowedIps) (h : t.count.val ≤ 1024) : (inUse t).length = t.count.val := by
   simp [inUse]; omega
 
 /-- **Spec theorem for the loop of `lookup`**: scans the entries from `i`. -/
@@ -252,7 +252,7 @@ theorem AllowedIps.lookup.spec (t : AllowedIps) (hinv : Inv t) (v6 : Bool) (ip :
 /-- **Spec theorem for the loop of `find`**: the first index from `i` holding
     the key `(v6, len, addr)`, or `count`. -/
 @[step]
-theorem AllowedIps.find_loop.spec (t : AllowedIps) (hc : t.count.val ≤ 64) (v6 : Bool) (addr : U128)
+theorem AllowedIps.find_loop.spec (t : AllowedIps) (hc : t.count.val ≤ 1024) (v6 : Bool) (addr : U128)
     (len : U32) (i : Usize) (hi : i.val ≤ t.count.val)
     (hpre : ∀ j (h : j < i.val), key ((inUse t)[j]'(by rw [length_inUse t hc]; omega)) ≠
       (v6, len.val, addr.val)) :
@@ -301,7 +301,7 @@ decreasing_by all_goals scalar_tac
 
 /-- **Spec theorem for `find`**. -/
 @[step]
-theorem AllowedIps.find.spec (t : AllowedIps) (hc : t.count.val ≤ 64) (v6 : Bool) (addr : U128)
+theorem AllowedIps.find.spec (t : AllowedIps) (hc : t.count.val ≤ 1024) (v6 : Bool) (addr : U128)
     (len : U32) :
     AllowedIps.find t v6 addr len ⦃ (r : Usize) =>
       ∃ hr : r.val ≤ t.count.val,
@@ -370,7 +370,7 @@ theorem AllowedIps.insert.spec (t : AllowedIps) (hinv : Inv t) (v6 : Bool) (addr
     AllowedIps.insert t v6 addr len peer ⦃ (b : Bool) (t' : AllowedIps) =>
       Inv t' ∧ (b = false → t' = t) ∧
       (b = true ↔ Valid v6 addr.val len.val ∧
-        ((∃ x ∈ inUse t, key x = (v6, len.val, canon v6 addr.val len.val)) ∨ t.count.val < 64)) ∧
+        ((∃ x ∈ inUse t, key x = (v6, len.val, canon v6 addr.val len.val)) ∨ t.count.val < 1024)) ∧
       (b = true → ∃ a : U128, a.val = canon v6 addr.val len.val ∧
         inUse t' = insertSpec (inUse t) { v6, addr := a, len, peer }) ⦄ := by
   unfold AllowedIps.insert
@@ -434,7 +434,7 @@ theorem AllowedIps.insert.spec (t : AllowedIps) (hinv : Inv t) (v6 : Bool) (addr
         · simp
       · step*
         have hc64 := hinv.1
-        have hcl : t.count.val < 64 := by scalar_tac
+        have hcl : t.count.val < 1024 := by scalar_tac
         have hnew : inUse { entries := a, count := i1 } = inUse t ++ [{ v6, addr := ca, len, peer }] := by
           simp only [inUse]
           rw [a_post, Array.set_val_eq, i1_post, take_set_succ'' _ _ _ (by simp; omega)]
@@ -469,5 +469,88 @@ theorem AllowedIps.Insts.CoreDefaultDefault.default.spec :
     AllowedIps.Insts.CoreDefaultDefault.default ⦃ (t : AllowedIps) => Inv t ∧ inUse t = [] ⦄ := by
   unfold AllowedIps.Insts.CoreDefaultDefault.default
   step*
+
+/-! ## Removing a peer -/
+
+deriving instance Inhabited for AllowedIp
+
+/-- The prefixes not of `peer`. -/
+def keep (peer : U16) (l : List AllowedIp) : List AllowedIp := l.filter (fun e => e.peer != peer)
+
+theorem set_ne! {α : Type} [Inhabited α] (l : List α) (i j : Nat) (v : α) (h : j ≠ i) :
+    (l.set i v)[j]! = l[j]! := by simp [Ne.symm h]
+
+theorem inUse_getElem! (t : AllowedIps) (j : Nat) (hj : j < t.count.val) (hc : t.count.val ≤ 1024) :
+    (inUse t)[j]! = t.entries.val[j]! := by
+  unfold inUse
+  rw [getElem!_pos _ _ (by simp; omega), getElem!_pos _ _ (by simp; omega)]
+  simp
+
+/-- **Spec theorem for `AllowedIps::remove_peer`'s loop**: `entries[..kept]`
+    holds the prefixes not of `peer` among the first `i` of `orig`, and the
+    rest of `orig` is still in place. -/
+@[step]
+theorem AllowedIps.remove_peer_loop.spec (t : AllowedIps) (peer : U16) (kept i : Usize)
+    (orig : List AllowedIp) (hc : t.count.val ≤ 1024) (hlen : orig.length = t.count.val)
+    (hk : kept.val ≤ i.val) (hi : i.val ≤ t.count.val)
+    (hpre : t.entries.val.take kept.val = keep peer (orig.take i.val))
+    (hrest : ∀ j, i.val ≤ j → j < t.count.val → t.entries.val[j]! = orig[j]!) :
+    AllowedIps.remove_peer_loop t peer kept i ⦃ (r : Array AllowedIp 1024#usize × Usize) =>
+      r.2.val ≤ t.count.val ∧ r.1.val.take r.2.val = keep peer orig ⦄ := by
+  unfold AllowedIps.remove_peer_loop
+  have hel : t.entries.val.length = 1024 := by simp
+  split
+  · step as ⟨e, he⟩
+    have hic : i.val < t.count.val := by scalar_tac
+    have heo : e = orig[i.val]! := by
+      rw [he, ← hrest i.val (le_refl _) (by scalar_tac), getElem!_pos _ _ (by omega)]
+    have htake : orig.take (i.val + 1) = orig.take i.val ++ [e] := by
+      rw [heo, getElem!_pos _ _ (by omega), List.take_add_one, List.getElem?_eq_getElem (by omega)]; rfl
+    split
+    · rename_i hne
+      step as ⟨a, ha⟩
+      step as ⟨k1, hk1⟩
+      step as ⟨i1, hi1⟩
+      have hpre' : a.val.take k1.val = keep peer (orig.take i1.val) := by
+        rw [ha, Array.set_val_eq, hk1, take_set_succ'' _ _ _ (by omega), hpre, hi1, htake]
+        simp [keep, hne]
+      have hrest' : ∀ j, i1.val ≤ j → j < t.count.val → a.val[j]! = orig[j]! := by
+        intro j hj1 hj2
+        rw [ha, Array.set_val_eq, set_ne! _ _ _ _ (by omega)]
+        exact hrest j (by omega) hj2
+      exact AllowedIps.remove_peer_loop.spec { t with entries := a } peer k1 i1 orig hc hlen
+        (by scalar_tac) (by simp only; scalar_tac) hpre' hrest'
+    · rename_i heq
+      step as ⟨i1, hi1⟩
+      have hpre' : t.entries.val.take kept.val = keep peer (orig.take i1.val) := by
+        rw [hpre, hi1, htake]
+        simp only [bne_iff_ne, ne_eq, Decidable.not_not] at heq
+        simp [keep, heq]
+      exact AllowedIps.remove_peer_loop.spec t peer kept i1 orig hc hlen (by scalar_tac)
+        (by scalar_tac) hpre' (fun j hj1 hj2 => hrest j (by omega) hj2)
+  · simp only [WP.spec_ok]
+    have : i.val = t.count.val := by scalar_tac
+    refine ⟨by omega, ?_⟩
+    rw [hpre, this, ← hlen, List.take_length]
+termination_by t.count.val - i.val
+decreasing_by all_goals scalar_tac
+
+/-- **Spec theorem for `AllowedIps::remove_peer`**: the prefixes of `peer`
+    go, the others stay, in order. -/
+@[step]
+theorem AllowedIps.remove_peer.spec (t : AllowedIps) (hinv : Inv t) (peer : U16) :
+    AllowedIps.remove_peer t peer ⦃ (t' : AllowedIps) =>
+      Inv t' ∧ inUse t' = keep peer (inUse t) ⦄ := by
+  unfold AllowedIps.remove_peer
+  have hc := hinv.1
+  step with AllowedIps.remove_peer_loop.spec t peer 0#usize 0#usize (inUse t) hc
+    (length_inUse t hc) (by simp) (by simp) (by simp [keep])
+    (fun j _ hj => (inUse_getElem! t j hj hc).symm)
+    as ⟨a, kept, hk, hka⟩
+  have hu : inUse { entries := a, count := kept } = keep peer (inUse t) := hka
+  refine ⟨⟨by simp only; omega, fun e he => ?_, ?_⟩, hu⟩
+  · rw [hu] at he
+    exact hinv.2.1 e (List.mem_of_mem_filter he)
+  · rw [hu]; exact hinv.2.2.filter _
 
 end wireguard.allowed_ips
