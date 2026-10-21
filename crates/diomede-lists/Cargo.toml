@@ -1,0 +1,10 @@
+[package]
+name = "diomede-lists"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Hosts files and domain lists, parsed and laid out for the verified `diomede` blocklist"
+
+[dev-dependencies]
+diomede = { path = "../diomede" }

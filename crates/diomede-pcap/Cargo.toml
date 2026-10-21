@@ -8,5 +8,6 @@ description = "Runs a pcap capture through the verified `diomede` filter and rep
 
 [dependencies]
 diomede = { path = "../diomede" }
+diomede-lists = { path = "../diomede-lists" }
 net = { path = "../net" }
 untrusted = { path = "../untrusted" }

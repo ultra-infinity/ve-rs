@@ -117,10 +117,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "diomede-lists"
+version = "0.1.0"
+dependencies = [
+ "diomede",
+]
+
+[[package]]
 name = "diomede-pcap"
 version = "0.1.0"
 dependencies = [
  "diomede",
+ "diomede-lists",
  "net",
  "untrusted",
 ]
@@ -612,6 +620,18 @@ dependencies = [
  "net",
  "wg-runtime",
  "wireguard",
+]
+
+[[package]]
+name = "ultranet-admin"
+version = "0.1.0"
+dependencies = [
+ "diomede",
+ "diomede-lists",
+ "ultranet",
+ "wg-runtime",
+ "wireguard",
+ "wireguard-libcrux",
 ]
 
 [[package]]
