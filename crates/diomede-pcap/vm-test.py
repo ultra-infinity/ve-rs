@@ -61,11 +61,11 @@ assert "example.org" not in out, "example.org was blocked"
 replies = server.succeed("tcpdump -n -r /tmp/kept.pcap udp src port 53")
 print(replies)
 assert replies.count("NXDomain") == 2, "expected two NXDOMAIN replies"
-resets = server.succeed("tcpdump -n -r /tmp/kept.pcap 'tcp[tcpflags] & tcp-rst != 0'")
+# (Not `tcp[tcpflags]`: tcpdump applies it to IPv4 only.)
+tcp = server.succeed("tcpdump -n -r /tmp/kept.pcap tcp")
+resets = "\n".join(l for l in tcp.splitlines() if "Flags [R.]" in l)
 print(resets)
-# (The ClientHello above spans two segments: the tool drops them; resets for
-# reassembled streams come from the stream table.)
-assert "853 >" in resets, "expected a reset from port 853"
+assert "443 >" in resets and "853 >" in resets, "expected resets from ports 443 and 853"
 kept = server.succeed("diomede-pcap --list /tmp/hosts /tmp/kept.pcap")
 print(kept)
 assert " 0 dropped" in kept, "blocked traffic was kept"

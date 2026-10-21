@@ -18,4 +18,5 @@ pub mod blocklist;
 pub mod dns;
 pub mod filter;
 pub mod name;
+pub mod stream;
 pub mod tls;

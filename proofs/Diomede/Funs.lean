@@ -772,29 +772,29 @@ def dns.answer
       ok (some n, out2)
 
 /-- [diomede::filter::MAX_ANSWER_LEN]
-    Source: 'crates/diomede/src/filter.rs', lines 31:0-31:38
+    Source: 'crates/diomede/src/filter.rs', lines 32:0-32:38
     Visibility: public -/
 @[global_simps, irreducible] def filter.MAX_ANSWER_LEN : Std.Usize := 512#usize
 
 /-- [diomede::filter::DOT_PORT]
-    Source: 'crates/diomede/src/filter.rs', lines 33:0-33:30
+    Source: 'crates/diomede/src/filter.rs', lines 34:0-34:30
     Visibility: public -/
 @[global_simps, irreducible] def filter.DOT_PORT : Std.U16 := 853#u16
 
 /-- [diomede::filter::RST_ACK]
-    Source: 'crates/diomede/src/filter.rs', lines 35:0-35:29
+    Source: 'crates/diomede/src/filter.rs', lines 36:0-36:29
     Visibility: public -/
 @[global_simps, irreducible] def filter.RST_ACK : Std.U8 := 20#u8
 
 /-- [diomede::filter::STRICT]
-    Source: 'crates/diomede/src/filter.rs', lines 51:0-55:2
+    Source: 'crates/diomede/src/filter.rs', lines 52:0-56:2
     Visibility: public -/
 @[global_simps, irreducible]
 def filter.STRICT : filter.Policy :=
   { block_quic := true, block_dot := true, strip_https_rr := true }
 
 /-- [diomede::filter::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::filter::Data<'a>}::validate]:
-    Source: 'crates/diomede/src/filter.rs', lines 75:4-77:5
+    Source: 'crates/diomede/src/filter.rs', lines 76:4-78:5
     Visibility: public -/
 def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
   (input : Slice Std.U8) :
@@ -803,7 +803,7 @@ def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
   ok (core.result.Result.Ok input)
 
 /-- Trait implementation: [diomede::filter::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for diomede::filter::Data<'a>}]
-    Source: 'crates/diomede/src/filter.rs', lines 73:0-78:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 74:0-79:1 -/
 @[reducible]
 def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate filter.Data (Slice Std.U8) untrusted.ValidationError := {
@@ -812,7 +812,7 @@ def filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [diomede::filter::https_type]:
-    Source: 'crates/diomede/src/filter.rs', lines 81:0-86:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 82:0-87:1 -/
 def filter.https_type (qtype : Std.U16) : Result Bool := do
   if qtype = dns.TYPE_HTTPS
   then ok true
@@ -827,7 +827,7 @@ def name.Name.as_bytes (self : name.Name) : Result (Slice Std.U8) := do
     { «end» := self.len }
 
 /-- [diomede::filter::dns_answer]:
-    Source: 'crates/diomede/src/filter.rs', lines 92:0-112:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 93:0-113:1 -/
 def filter.dns_answer
   (msg : untrusted.Untrusted (Slice Std.U8)) (list : blocklist.Blocklist)
   (policy : filter.Policy) (answer : Array Std.U8 512#usize) :
@@ -866,7 +866,7 @@ def filter.dns_answer
 @[global_simps, irreducible] def tls.PORT : Std.U16 := 443#u16
 
 /-- [diomede::filter::udp_dropped]:
-    Source: 'crates/diomede/src/filter.rs', lines 115:0-123:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 116:0-124:1 -/
 def filter.udp_dropped
   (policy : filter.Policy) (port : Std.U16) : Result Bool := do
   if port = tls.PORT
@@ -876,7 +876,7 @@ def filter.udp_dropped
        else ok false
 
 /-- [diomede::filter::udp_ipv4]:
-    Source: 'crates/diomede/src/filter.rs', lines 126:0-148:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 127:0-149:1 -/
 def filter.udp_ipv4
   (u : net.udp.Ipv4Udp) (list : blocklist.Blocklist) (policy : filter.Policy)
   (out : Slice Std.U8) :
@@ -911,7 +911,7 @@ def filter.udp_ipv4
         | some m => ok (filter.Verdict.Reply m, out1)
 
 /-- [diomede::filter::udp_ipv6]:
-    Source: 'crates/diomede/src/filter.rs', lines 151:0-173:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 152:0-174:1 -/
 def filter.udp_ipv6
   (u : net.udp.Ipv6Udp) (list : blocklist.Blocklist) (policy : filter.Policy)
   (out : Slice Std.U8) :
@@ -1241,7 +1241,7 @@ def tls.ClientHello.Insts.UntrustedValidateShared0SliceU8ValidationError :
 }
 
 /-- [diomede::filter::hello_blocked]:
-    Source: 'crates/diomede/src/filter.rs', lines 176:0-184:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 177:0-185:1 -/
 def filter.hello_blocked
   (stream : Slice Std.U8) (list : blocklist.Blocklist) : Result Bool := do
   let u ← untrusted.Untrusted.new stream
@@ -1258,7 +1258,7 @@ def filter.hello_blocked
   | core.result.Result.Err _ => ok false
 
 /-- [diomede::filter::tcp_reset]:
-    Source: 'crates/diomede/src/filter.rs', lines 188:0-196:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 189:0-197:1 -/
 def filter.tcp_reset
   (port : Std.U16) (data : Slice Std.U8) (list : blocklist.Blocklist)
   (policy : filter.Policy) :
@@ -1271,7 +1271,7 @@ def filter.tcp_reset
        else ok false
 
 /-- [diomede::filter::reset_numbers]:
-    Source: 'crates/diomede/src/filter.rs', lines 201:0-205:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 202:0-206:1 -/
 def filter.reset_numbers
   (h : net.tcp.TcpHeader) (len : Std.Usize) : Result (Std.U32 × Std.U32) := do
   let i := h.flags
@@ -1286,7 +1286,7 @@ def filter.reset_numbers
   ok (i6, ack)
 
 /-- [diomede::filter::tcp_ipv4]:
-    Source: 'crates/diomede/src/filter.rs', lines 208:0-225:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 209:0-226:1 -/
 def filter.tcp_ipv4
   (t : net.tcp.Ipv4Tcp) (list : blocklist.Blocklist) (policy : filter.Policy)
   (out : Slice Std.U8) :
@@ -1315,7 +1315,7 @@ def filter.tcp_ipv4
   | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
 
 /-- [diomede::filter::tcp_ipv6]:
-    Source: 'crates/diomede/src/filter.rs', lines 228:0-245:1 -/
+    Source: 'crates/diomede/src/filter.rs', lines 229:0-246:1 -/
 def filter.tcp_ipv6
   (t : net.tcp.Ipv6Tcp) (list : blocklist.Blocklist) (policy : filter.Policy)
   (out : Slice Std.U8) :
@@ -1344,7 +1344,7 @@ def filter.tcp_ipv6
   | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
 
 /-- [diomede::filter::classify]:
-    Source: 'crates/diomede/src/filter.rs', lines 249:0-263:1
+    Source: 'crates/diomede/src/filter.rs', lines 250:0-264:1
     Visibility: public -/
 def filter.classify
   (packet : Slice Std.U8) (list : blocklist.Blocklist) (policy : filter.Policy)
@@ -1380,10 +1380,556 @@ def filter.classify
         | core.result.Result.Err _ => ok (filter.Verdict.Pass, out)
 
 /-- [diomede::filter::classify_stream]:
-    Source: 'crates/diomede/src/filter.rs', lines 268:0-270:1
+    Source: 'crates/diomede/src/filter.rs', lines 269:0-271:1
     Visibility: public -/
 def filter.classify_stream
   (stream : Slice Std.U8) (list : blocklist.Blocklist) : Result Bool := do
   filter.hello_blocked stream list
+
+/-- [diomede::stream::COLLECTING]
+    Source: 'crates/diomede/src/stream.rs', lines 29:0-29:29
+    Visibility: public -/
+@[global_simps, irreducible] def stream.COLLECTING : Std.U8 := 1#u8
+
+/-- [diomede::stream::fresh]:
+    Source: 'crates/diomede/src/stream.rs', lines 338:0-346:1 -/
+def stream.fresh
+  (k : stream.Key) (first : Std.U32) (now : Std.U64) : Result stream.Flow := do
+  ok
+    {
+      key := k,
+      state := stream.COLLECTING,
+      next_seq := first,
+      len := 0#usize,
+      last := now
+    }
+
+/-- [diomede::stream::MAX_FLOWS]
+    Source: 'crates/diomede/src/stream.rs', lines 22:0-22:33
+    Visibility: public -/
+@[global_simps, irreducible] def stream.MAX_FLOWS : Std.Usize := 256#usize
+
+/-- [diomede::stream::least_recent]: loop 0:
+    Source: 'crates/diomede/src/stream.rs', lines 152:4-157:5 -/
+@[rust_loop]
+def stream.least_recent_loop
+  (flows : Array stream.Flow 256#usize) (oldest : Std.Usize) (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < stream.MAX_FLOWS
+  then
+    let f ← Array.index_usize flows i
+    let f1 ← Array.index_usize flows oldest
+    let oldest1 ← if f.last < f1.last
+                    then ok i
+                    else ok oldest
+    let i1 ← i + 1#usize
+    stream.least_recent_loop flows oldest1 i1
+  else ok oldest
+partial_fixpoint
+
+/-- [diomede::stream::least_recent]:
+    Source: 'crates/diomede/src/stream.rs', lines 149:0-159:1 -/
+@[reducible]
+def stream.least_recent
+  (flows : Array stream.Flow 256#usize) : Result Std.Usize := do
+  stream.least_recent_loop flows 0#usize 1#usize
+
+/-- [diomede::stream::FREE]
+    Source: 'crates/diomede/src/stream.rs', lines 27:0-27:23
+    Visibility: public -/
+@[global_simps, irreducible] def stream.FREE : Std.U8 := 0#u8
+
+/-- [diomede::stream::first_free]: loop 0:
+    Source: 'crates/diomede/src/stream.rs', lines 138:4-144:5 -/
+@[rust_loop]
+def stream.first_free_loop
+  (flows : Array stream.Flow 256#usize) (free : Std.Usize) (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < stream.MAX_FLOWS
+  then
+    let f ← Array.index_usize flows i
+    let free1 ←
+      if free = stream.MAX_FLOWS
+      then if f.state = stream.FREE
+           then ok i
+           else ok free
+      else ok free
+    let i1 ← i + 1#usize
+    stream.first_free_loop flows free1 i1
+  else ok free
+partial_fixpoint
+
+/-- [diomede::stream::first_free]:
+    Source: 'crates/diomede/src/stream.rs', lines 135:0-146:1 -/
+@[reducible]
+def stream.first_free
+  (flows : Array stream.Flow 256#usize) : Result Std.Usize := do
+  stream.first_free_loop flows stream.MAX_FLOWS 0#usize
+
+/-- [diomede::stream::slot]:
+    Source: 'crates/diomede/src/stream.rs', lines 163:0-170:1 -/
+def stream.slot (flows : Array stream.Flow 256#usize) : Result Std.Usize := do
+  let free ← stream.first_free flows
+  if free < stream.MAX_FLOWS
+  then ok free
+  else stream.least_recent flows
+
+/-- [diomede::stream::place]:
+    Source: 'crates/diomede/src/stream.rs', lines 315:0-320:1 -/
+def stream.place
+  (flows : Array stream.Flow 256#usize) (found : Std.Usize) (k : stream.Key)
+  (first : Std.U32) (now : Std.U64) :
+  Result (Std.Usize × stream.Flow)
+  := do
+  if found = stream.MAX_FLOWS
+  then let i ← stream.slot flows
+       let f ← stream.fresh k first now
+       ok (i, f)
+  else let f ← Array.index_usize flows found
+       ok (found, f)
+
+/-- [diomede::stream::touched]:
+    Source: 'crates/diomede/src/stream.rs', lines 349:0-357:1 -/
+def stream.touched
+  (f : stream.Flow) (state : Std.U8) (now : Std.U64) : Result stream.Flow := do
+  ok { f with state, last := now }
+
+/-- [diomede::stream::BLOCKED]
+    Source: 'crates/diomede/src/stream.rs', lines 33:0-33:26
+    Visibility: public -/
+@[global_simps, irreducible] def stream.BLOCKED : Std.U8 := 3#u8
+
+/-- [diomede::stream::next_flow]:
+    Source: 'crates/diomede/src/stream.rs', lines 324:0-335:1 -/
+def stream.next_flow
+  (f : stream.Flow) (first : Std.U32) (syn : Bool) («end» : Bool)
+  (now : Std.U64) :
+  Result stream.Flow
+  := do
+  if «end»
+  then stream.touched f stream.FREE now
+  else
+    if f.state = stream.BLOCKED
+    then stream.touched f stream.BLOCKED now
+    else
+      if syn
+      then stream.fresh f.key first now
+      else stream.touched f f.state now
+
+/-- [diomede::stream::PASSED]
+    Source: 'crates/diomede/src/stream.rs', lines 31:0-31:25
+    Visibility: public -/
+@[global_simps, irreducible] def stream.PASSED : Std.U8 := 2#u8
+
+/-- [diomede::stream::MAX_RECORD]
+    Source: 'crates/diomede/src/stream.rs', lines 24:0-24:35
+    Visibility: public -/
+@[global_simps, irreducible] def stream.MAX_RECORD : Std.Usize := 8192#usize
+
+/-- [diomede::stream::decide]:
+    Source: 'crates/diomede/src/stream.rs', lines 186:0-205:1 -/
+def stream.decide
+  (buf : Array Std.U8 8192#usize) (len : Std.Usize)
+  (list : blocklist.Blocklist) :
+  Result Std.U8
+  := do
+  if len < 5#usize
+  then ok stream.COLLECTING
+  else
+    let i ← Array.index_usize buf 0#usize
+    if i != 22#u8
+    then ok stream.PASSED
+    else
+      let i1 ← Array.index_usize buf 3#usize
+      let i2 ← lift (UScalar.cast .Usize i1)
+      let i3 ← i2 * 256#usize
+      let i4 ← 5#usize + i3
+      let i5 ← Array.index_usize buf 4#usize
+      let i6 ← lift (UScalar.cast .Usize i5)
+      let need ← i4 + i6
+      if need > stream.MAX_RECORD
+      then ok stream.PASSED
+      else
+        if len < need
+        then ok stream.COLLECTING
+        else
+          let s ←
+            core.array.Array.index (core.ops.index.IndexSlice
+              (core.slice.index.SliceIndexRangeToUsizeSlice Std.U8)) buf
+              { «end» := need }
+          let b ← filter.classify_stream s list
+          if b
+          then ok stream.BLOCKED
+          else ok stream.PASSED
+
+/-- [diomede::stream::append]: loop 0:
+    Source: 'crates/diomede/src/stream.rs', lines 177:4-181:5 -/
+@[rust_loop]
+def stream.append_loop
+  (buf : Array Std.U8 8192#usize) (data : Slice Std.U8) (n : Std.Usize)
+  (j : Std.Usize) :
+  Result (Std.Usize × (Array Std.U8 8192#usize))
+  := do
+  let i := Slice.len data
+  if j < i
+  then
+    if n < stream.MAX_RECORD
+    then
+      let i1 ← Slice.index_usize data j
+      let a ← Array.update buf n i1
+      let n1 ← n + 1#usize
+      let j1 ← j + 1#usize
+      stream.append_loop a data n1 j1
+    else ok (n, buf)
+  else ok (n, buf)
+partial_fixpoint
+
+/-- [diomede::stream::append]:
+    Source: 'crates/diomede/src/stream.rs', lines 174:0-183:1 -/
+@[reducible]
+def stream.append
+  (buf : Array Std.U8 8192#usize) (len : Std.Usize) (data : Slice Std.U8)
+  («from» : Std.Usize) :
+  Result (Std.Usize × (Array Std.U8 8192#usize))
+  := do
+  stream.append_loop buf data len «from»
+
+/-- [diomede::stream::{diomede::stream::Streams}::collect]:
+    Source: 'crates/diomede/src/stream.rs', lines 227:4-252:5 -/
+def stream.Streams.collect
+  (self : stream.Streams) (slot : Std.Usize) (first : Std.U32)
+  (data : Slice Std.U8) (list : blocklist.Blocklist) :
+  Result (stream.Step × stream.Streams)
+  := do
+  let flow ← Array.index_usize self.flows slot
+  let offset ← lift (core.num.U32.wrapping_sub flow.next_seq first)
+  let i ← lift (UScalar.cast .Usize offset)
+  let i1 := Slice.len data
+  if i >= i1
+  then
+    let b ← core.slice.Slice.is_empty data
+    if b
+    then ok (stream.Step.Pass, self)
+    else
+      if offset < 2147483648#u32
+      then ok (stream.Step.Pass, self)
+      else ok (stream.Step.Drop, self)
+  else
+    let (a, index_mut_back) ← Array.index_mut_usize self.data slot
+    let i2 ← lift (UScalar.cast .Usize offset)
+    let (len, a1) ← stream.append a flow.len data i2
+    let a2 := index_mut_back a1
+    let a3 ← Array.index_usize a2 slot
+    let state ← stream.decide a3 len list
+    let i3 := Slice.len data
+    let i4 ← lift (UScalar.cast .U32 i3)
+    let i5 ← lift (core.num.U32.wrapping_add first i4)
+    let (_, index_mut_back1) ← Array.index_mut_usize self.flows slot
+    if state = stream.BLOCKED
+    then
+      let a4 := index_mut_back1 { flow with state, next_seq := i5, len }
+      ok (stream.Step.Reset, { flows := a4, data := a2 })
+    else
+      let a4 := index_mut_back1 { flow with state, next_seq := i5, len }
+      ok (stream.Step.Pass, { flows := a4, data := a2 })
+
+/-- [diomede::stream::{diomede::stream::Streams}::track]:
+    Source: 'crates/diomede/src/stream.rs', lines 256:4-280:5 -/
+def stream.Streams.track
+  (self : stream.Streams) (slot : Std.Usize) (first : Std.U32) (syn : Bool)
+  (rst : Bool) («end» : Bool) (data : Slice Std.U8) (now : Std.U64)
+  (list : blocklist.Blocklist) :
+  Result (stream.Step × stream.Streams)
+  := do
+  let flow ← Array.index_usize self.flows slot
+  let next ← stream.next_flow flow first syn «end» now
+  let (_, index_mut_back) ← Array.index_mut_usize self.flows slot
+  if flow.state = stream.BLOCKED
+  then
+    if rst
+    then
+      let a := index_mut_back next
+      ok (stream.Step.Drop, { self with flows := a })
+    else
+      let a := index_mut_back next
+      ok (stream.Step.Reset, { self with flows := a })
+  else
+    if next.state != stream.COLLECTING
+    then
+      let a := index_mut_back next
+      ok (stream.Step.Pass, { self with flows := a })
+    else
+      let a := index_mut_back next
+      stream.Streams.collect { self with flows := a } slot first data list
+
+/-- [diomede::stream::data_start]:
+    Source: 'crates/diomede/src/stream.rs', lines 216:0-222:1 -/
+def stream.data_start (seq : Std.U32) (syn : Bool) : Result Std.U32 := do
+  if syn
+  then ok (core.num.U32.wrapping_add seq 1#u32)
+  else ok seq
+
+/-- [diomede::stream::ends]:
+    Source: 'crates/diomede/src/stream.rs', lines 208:0-213:1 -/
+def stream.ends (flags : Std.U8) : Result Bool := do
+  let i ← flags % 2#u8
+  if i = 1#u8
+  then ok true
+  else let i1 ← flags / 4#u8
+       let i2 ← i1 % 2#u8
+       ok (i2 = 1#u8)
+
+/-- [diomede::stream::same]:
+    Source: 'crates/diomede/src/stream.rs', lines 96:0-110:1 -/
+def stream.same (a : stream.Key) (b : stream.Key) : Result Bool := do
+  if a.v6 != b.v6
+  then ok false
+  else
+    if a.src != b.src
+    then ok false
+    else
+      if a.dst != b.dst
+      then ok false
+      else
+        if a.src_port != b.src_port
+        then ok false
+        else ok (a.dst_port = b.dst_port)
+
+/-- [diomede::stream::tracks]:
+    Source: 'crates/diomede/src/stream.rs', lines 113:0-118:1 -/
+def stream.tracks (f : stream.Flow) (k : stream.Key) : Result Bool := do
+  if f.state = stream.FREE
+  then ok false
+  else stream.same f.key k
+
+/-- [diomede::stream::find]: loop 0:
+    Source: 'crates/diomede/src/stream.rs', lines 124:4-130:5 -/
+@[rust_loop]
+def stream.find_loop
+  (flows : Array stream.Flow 256#usize) (k : stream.Key) (found : Std.Usize)
+  (i : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < stream.MAX_FLOWS
+  then
+    let f ← Array.index_usize flows i
+    let found1 ←
+      if found = stream.MAX_FLOWS
+      then do
+           let b ← stream.tracks f k
+           if b
+           then ok i
+           else ok found
+      else ok found
+    let i1 ← i + 1#usize
+    stream.find_loop flows k found1 i1
+  else ok found
+partial_fixpoint
+
+/-- [diomede::stream::find]:
+    Source: 'crates/diomede/src/stream.rs', lines 121:0-132:1 -/
+@[reducible]
+def stream.find
+  (flows : Array stream.Flow 256#usize) (k : stream.Key) :
+  Result Std.Usize
+  := do
+  stream.find_loop flows k stream.MAX_FLOWS 0#usize
+
+/-- [diomede::stream::{diomede::stream::Streams}::segment]:
+    Source: 'crates/diomede/src/stream.rs', lines 284:4-310:5
+    Visibility: public -/
+def stream.Streams.segment
+  (self : stream.Streams) (k : stream.Key) (seq : Std.U32) (flags : Std.U8)
+  (data : Slice Std.U8) (now : Std.U64) (list : blocklist.Blocklist) :
+  Result (stream.Step × stream.Streams)
+  := do
+  let i ← flags / 2#u8
+  let i1 ← i % 2#u8
+  let i2 ← flags / 4#u8
+  let i3 ← i2 % 2#u8
+  let «end» ← stream.ends flags
+  let first ← stream.data_start seq (i1 = 1#u8)
+  let found ← stream.find self.flows k
+  if found = stream.MAX_FLOWS
+  then
+    if «end»
+    then ok (stream.Step.Pass, self)
+    else
+      if i1 = 1#u8
+      then
+        let (i4, f) ← stream.place self.flows found k first now
+        let a ← Array.update self.flows i4 f
+        stream.Streams.track { self with flows := a } i4 first (i1 = 1#u8) (i3
+          = 1#u8) «end» data now list
+      else
+        let b ← core.slice.Slice.is_empty data
+        if b
+        then ok (stream.Step.Pass, self)
+        else
+          let (i4, f) ← stream.place self.flows found k first now
+          let a ← Array.update self.flows i4 f
+          stream.Streams.track { self with flows := a } i4 first (i1 = 1#u8)
+            (i3 = 1#u8) «end» data now list
+  else
+    let (i4, f) ← stream.place self.flows found k first now
+    let a ← Array.update self.flows i4 f
+    stream.Streams.track { self with flows := a } i4 first (i1 = 1#u8) (i3 =
+      1#u8) «end» data now list
+
+/-- [diomede::filter::stream_ipv4]:
+    Source: 'crates/diomede/src/filter.rs', lines 275:0-296:1 -/
+def filter.stream_ipv4
+  (t : net.tcp.Ipv4Tcp) (streams : stream.Streams) (now : Std.U64)
+  (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  Result (filter.Verdict × stream.Streams × (Slice Std.U8))
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError
+      t.payload
+  match r with
+  | core.result.Result.Ok d =>
+    let dst_port := t.header.dst_port
+    let src_port := t.header.src_port
+    let i := t.ip.header.src
+    let i1 ← lift (UScalar.cast .U128 i)
+    let i2 := t.ip.header.dst
+    let i3 ← lift (UScalar.cast .U128 i2)
+    let i4 := t.header.seq
+    let i5 := t.header.flags
+    let (s, streams1) ←
+      stream.Streams.segment streams
+        { v6 := false, src := i1, dst := i3, src_port, dst_port } i4 i5 d now
+        list
+    match s with
+    | stream.Step.Pass => ok (filter.Verdict.Pass, streams1, out)
+    | stream.Step.Drop => ok (filter.Verdict.Drop, streams1, out)
+    | stream.Step.Reset =>
+      let i6 := Slice.len d
+      let (seq, ack) ← filter.reset_numbers t.header i6
+      let (o, out1) ←
+        net.tcp.encode_ipv4 t.ip.header.dst t.ip.header.src dst_port src_port
+          seq ack filter.RST_ACK out
+      match o with
+      | none => ok (filter.Verdict.Drop, streams1, out1)
+      | some n => ok (filter.Verdict.Reset n, streams1, out1)
+  | core.result.Result.Err _ => ok (filter.Verdict.Pass, streams, out)
+
+/-- [diomede::filter::stream_ipv6]:
+    Source: 'crates/diomede/src/filter.rs', lines 300:0-321:1 -/
+def filter.stream_ipv6
+  (t : net.tcp.Ipv6Tcp) (streams : stream.Streams) (now : Std.U64)
+  (list : blocklist.Blocklist) (out : Slice Std.U8) :
+  Result (filter.Verdict × stream.Streams × (Slice Std.U8))
+  := do
+  let r ←
+    untrusted.Untrusted.validate
+      filter.Data.Insts.UntrustedValidateSharedASliceU8ValidationError
+      t.payload
+  match r with
+  | core.result.Result.Ok d =>
+    let dst_port := t.header.dst_port
+    let src_port := t.header.src_port
+    let i := t.ip.header.src
+    let i1 := t.ip.header.dst
+    let i2 := t.header.seq
+    let i3 := t.header.flags
+    let (s, streams1) ←
+      stream.Streams.segment streams
+        { v6 := true, src := i, dst := i1, src_port, dst_port } i2 i3 d now
+        list
+    match s with
+    | stream.Step.Pass => ok (filter.Verdict.Pass, streams1, out)
+    | stream.Step.Drop => ok (filter.Verdict.Drop, streams1, out)
+    | stream.Step.Reset =>
+      let i4 := Slice.len d
+      let (seq, ack) ← filter.reset_numbers t.header i4
+      let (o, out1) ←
+        net.tcp.encode_ipv6 t.ip.header.dst t.ip.header.src dst_port src_port
+          seq ack filter.RST_ACK out
+      match o with
+      | none => ok (filter.Verdict.Drop, streams1, out1)
+      | some n => ok (filter.Verdict.Reset n, streams1, out1)
+  | core.result.Result.Err _ => ok (filter.Verdict.Pass, streams, out)
+
+/-- [diomede::filter::filter]:
+    Source: 'crates/diomede/src/filter.rs', lines 327:0-346:1
+    Visibility: public -/
+def filter.filter
+  (packet : Slice Std.U8) (streams : stream.Streams) (now : Std.U64)
+  (list : blocklist.Blocklist) (policy : filter.Policy) (out : Slice Std.U8) :
+  Result (filter.Verdict × stream.Streams × (Slice Std.U8))
+  := do
+  let u ← untrusted.Untrusted.new packet
+  let r ←
+    untrusted.Untrusted.validate
+      net.tcp.Ipv4Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError u
+  match r with
+  | core.result.Result.Ok it =>
+    let i := it.header.dst_port
+    if i = tls.PORT
+    then filter.stream_ipv4 it streams now list out
+    else
+      let r1 ←
+        untrusted.Untrusted.validate
+          net.tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError
+          u
+      match r1 with
+      | core.result.Result.Ok it1 =>
+        let i1 := it1.header.dst_port
+        if i1 = tls.PORT
+        then filter.stream_ipv6 it1 streams now list out
+        else
+          let (v, out1) ← filter.classify packet list policy out
+          ok (v, streams, out1)
+      | core.result.Result.Err _ =>
+        let (v, out1) ← filter.classify packet list policy out
+        ok (v, streams, out1)
+  | core.result.Result.Err _ =>
+    let r1 ←
+      untrusted.Untrusted.validate
+        net.tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError u
+    match r1 with
+    | core.result.Result.Ok it =>
+      let i := it.header.dst_port
+      if i = tls.PORT
+      then filter.stream_ipv6 it streams now list out
+      else
+        let (v, out1) ← filter.classify packet list policy out
+        ok (v, streams, out1)
+    | core.result.Result.Err _ =>
+      let (v, out1) ← filter.classify packet list policy out
+      ok (v, streams, out1)
+
+/-- [diomede::stream::NO_FLOW]
+    Source: 'crates/diomede/src/stream.rs', lines 59:0-71:2 -/
+@[global_simps, irreducible]
+def stream.NO_FLOW : stream.Flow :=
+  {
+    key :=
+      {
+        v6 := false,
+        src := 0#u128,
+        dst := 0#u128,
+        src_port := 0#u16,
+        dst_port := 0#u16
+      },
+    state := stream.FREE,
+    next_seq := 0#u32,
+    len := 0#usize,
+    last := 0#u64
+  }
+
+/-- [diomede::stream::EMPTY]
+    Source: 'crates/diomede/src/stream.rs', lines 90:0-93:2
+    Visibility: public -/
+@[global_simps, irreducible]
+def stream.EMPTY : stream.Streams :=
+  let a := Array.repeat 256#usize stream.NO_FLOW
+  let a1 := Array.repeat 8192#usize 0#u8
+  let a2 := Array.repeat 256#usize a1
+  { flows := a, data := a2 }
 
 end diomede

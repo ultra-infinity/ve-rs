@@ -6,11 +6,12 @@
 //!   NXDOMAIN, and a query for HTTPS or SVCB records of any other name with
 //!   no records: the report shows the name, and `--out` writes the answer in
 //!   place of the query.
-//! - A TLS ClientHello to port 443 for a listed server name is reset, and the
-//!   rest of that TCP connection dropped. A ClientHello may span several
-//!   segments (browsers' post-quantum key shares make it longer than one), so
-//!   the start of each connection is reassembled and checked with
-//!   `classify_stream`.
+//! - A TLS ClientHello to port 443 for a listed server name is reset, and so
+//!   is the rest of that TCP connection. A ClientHello may span several
+//!   segments (browsers' post-quantum key shares make it longer than one),
+//!   so connections to port 443 go through the verified stream table
+//!   (`diomede::filter::filter`), which collects the start of each in order
+//!   (dropping segments past a gap, which the client sends again).
 //! - QUIC (UDP to port 443) and DNS over QUIC (UDP to 853) are dropped, and
 //!   DNS over TLS (TCP to 853) is reset.
 //!
@@ -21,9 +22,9 @@
 //! `#` starts a comment, and `localhost` and the like are skipped. The tool
 //! sorts them; `Blocklist::new` (verified) checks the result.
 //!
-//! This harness is not verified: it reads lists and captures, reassembles
-//! TCP and prints, with plain `std` code. The verdicts come from the
-//! verified `classify` and `classify_stream`.
+//! This harness is not verified: it reads lists and captures and
+//! prints, with plain `std` code. The verdicts come from the verified
+//! `filter`.
 //!
 //! Captures may be Ethernet (link type 1) or raw IP (101). Exits with status
 //! 2 on a malformed capture or list.
@@ -31,36 +32,15 @@
 use diomede::blocklist::Blocklist;
 use diomede::dns::Query;
 use diomede::dns;
-use diomede::filter::{classify, classify_stream, Policy, Verdict, DOT_PORT, STRICT};
+use diomede::filter::{filter, Policy, Verdict, DOT_PORT, STRICT};
+use diomede::stream::{self, Key, Streams, BLOCKED};
 use diomede::tls::{self, ClientHello};
-use net::tcp::{Ipv4Tcp, Ipv6Tcp, TcpHeader};
+use net::tcp::{Ipv4Tcp, Ipv6Tcp};
 use net::udp::{Ipv4Udp, Ipv6Udp};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashSet;
 use std::net::IpAddr;
 use std::process::exit;
-use untrusted::{Decode, Reader, Untrusted, ValidationError};
-
-/// The longest stream start reassembled: a whole TLS record.
-const MAX_RECORD: usize = 5 + 16384 + 2048;
-/// The TCP SYN flag.
-const SYN: u8 = 0x02;
-
-/// The bytes left in an `Untrusted` slice.
-struct Bytes(Vec<u8>);
-
-impl Decode for Bytes {
-    fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
-        let mut v = Vec::with_capacity(r.remaining());
-        while !r.at_end() {
-            v.push(r.read_byte()?);
-        }
-        Ok(Bytes(v))
-    }
-}
-
-fn contents(u: Untrusted<&[u8]>) -> Vec<u8> {
-    u.read_all::<Bytes>().map(|b| b.0).unwrap_or_default()
-}
+use untrusted::Untrusted;
 
 /// Names that hosts files map to themselves rather than block.
 const NOT_BLOCKED: &[&str] = &[
@@ -207,94 +187,41 @@ fn server_name(stream: &[u8]) -> String {
     }
 }
 
-/// A TCP segment: its connection (addresses and ports), header and data.
+/// A TCP segment's connection: its addresses and ports.
 struct Segment {
     flow: (Vec<u8>, u16, Vec<u8>, u16),
-    header: TcpHeader,
-    data: Vec<u8>,
 }
 
 fn tcp_segment(ip: &[u8]) -> Option<Segment> {
     if let Ok(t) = Untrusted::new(ip).validate::<Ipv4Tcp>() {
         let (src, dst) = (t.ip.header.src.0.to_be_bytes(), t.ip.header.dst.0.to_be_bytes());
         let flow = (src.to_vec(), t.header.src_port.0, dst.to_vec(), t.header.dst_port.0);
-        return Some(Segment { flow, header: t.header, data: contents(t.payload) });
+        return Some(Segment { flow });
     }
     if let Ok(t) = Untrusted::new(ip).validate::<Ipv6Tcp>() {
         let (src, dst) = (t.ip.header.src.0.to_be_bytes(), t.ip.header.dst.0.to_be_bytes());
         let flow = (src.to_vec(), t.header.src_port.0, dst.to_vec(), t.header.dst_port.0);
-        return Some(Segment { flow, header: t.header, data: contents(t.payload) });
+        return Some(Segment { flow });
     }
     None
 }
 
-/// The start of a TCP connection, reassembled until it holds a TLS record.
-#[derive(Default)]
-struct Stream {
-    /// The sequence number of the first byte of data.
-    start: Option<u32>,
-    /// Data by offset from `start`.
-    pieces: BTreeMap<u32, Vec<u8>>,
-    /// The packets carrying data, by index.
-    packets: Vec<usize>,
-    /// Whether it was checked (or cannot be).
-    done: bool,
-    /// The server name, if the connection is blocked.
-    blocked: Option<String>,
-}
-
-impl Stream {
-    /// The data received without gaps from the start.
-    fn prefix(&self) -> Vec<u8> {
-        let mut out = Vec::new();
-        for (&off, piece) in &self.pieces {
-            let off = off as usize;
-            if off > out.len() {
-                break;
-            }
-            if off + piece.len() > out.len() {
-                out.extend_from_slice(&piece[out.len() - off..]);
-            }
+/// The server name of the connection of `s`, blocked in the table.
+fn blocked_name(streams: &Streams, s: &Segment) -> String {
+    let number = |b: &[u8]| b.iter().fold(0u128, |a, &x| (a << 8) | x as u128);
+    let key = Key {
+        v6: s.flow.0.len() == 16,
+        src: number(&s.flow.0),
+        dst: number(&s.flow.2),
+        src_port: s.flow.1,
+        dst_port: s.flow.3,
+    };
+    for (f, data) in streams.flows.iter().zip(streams.data.iter()) {
+        if f.state == BLOCKED && f.key == key {
+            return server_name(&data[..f.len]);
         }
-        out
     }
-
-    /// Adds the segment `s` (packet `index`); checks the ClientHello once
-    /// its record is complete. Returns whether the check just found it
-    /// blocked.
-    fn add(&mut self, index: usize, s: &Segment, list: &Blocklist) -> bool {
-        let seq = s.header.seq.0;
-        if s.header.flags.0 & SYN != 0 {
-            self.start = Some(seq.wrapping_add(1));
-        }
-        if s.data.is_empty() || self.done {
-            return false;
-        }
-        self.packets.push(index);
-        let start = *self.start.get_or_insert(seq);
-        let off = seq.wrapping_sub(start);
-        if (off as usize) < MAX_RECORD {
-            self.pieces.insert(off, s.data.clone());
-        }
-        let prefix = self.prefix();
-        if prefix.len() < 5 {
-            return false;
-        }
-        if prefix[0] != 22 {
-            self.done = true;
-            return false;
-        }
-        let need = 5 + u16::from_be_bytes([prefix[3], prefix[4]]) as usize;
-        if prefix.len() < need {
-            return false;
-        }
-        self.done = true;
-        if classify_stream(&prefix[..need], list) {
-            self.blocked = Some(server_name(&prefix[..need]));
-            return true;
-        }
-        false
-    }
+    "?".into()
 }
 
 /// The destination port of the UDP datagram in `ip`, if it is one.
@@ -392,7 +319,9 @@ fn main() {
     });
 
     let mut actions: Vec<Action> = Vec::with_capacity(cap.records.len());
-    let mut streams: HashMap<(Vec<u8>, u16, Vec<u8>, u16), Stream> = HashMap::new();
+    // The verified table of TLS connections being checked.
+    let mut streams: Box<Streams> = Box::new(stream::EMPTY);
+    let mut reported = HashSet::new();
     let mut out = vec![0u8; 65535];
     let mut counts = Counts::default();
     for (index, &(_, frame)) in cap.records.iter().enumerate() {
@@ -401,10 +330,13 @@ fn main() {
             continue;
         };
         let ip = &frame[link_len..];
-        let action = match classify(ip, &list, &policy, &mut out) {
+        let action = match filter(ip, &mut streams, index as u64, &list, &policy, &mut out) {
             Verdict::Pass => Action::Keep,
             Verdict::Drop => {
                 match (tcp_segment(ip), udp_dst_port(ip)) {
+                    (Some(s), _) if s.flow.3 == tls::PORT => {
+                        println!("#{index:<6} tls  {:<40} dropped (out of order)", "")
+                    }
                     (Some(s), _) => {
                         println!("#{index:<6} tcp  port {:<35} dropped (no room to reset)", s.flow.3)
                     }
@@ -434,11 +366,12 @@ fn main() {
             Verdict::Reset(n) => {
                 if let Some(s) = tcp_segment(ip) {
                     if s.flow.3 == tls::PORT {
-                        let name = server_name(&s.data);
-                        println!("#{index:<6} tls  {name:<40} reset");
-                        counts.tls += 1;
-                        // The rest of the connection goes too.
-                        streams.entry(s.flow).or_default().blocked = Some(name);
+                        // Reported once per connection; the rest of it is reset too.
+                        if reported.insert(s.flow.clone()) {
+                            let name = blocked_name(&streams, &s);
+                            println!("#{index:<6} tls  {name:<40} reset");
+                            counts.tls += 1;
+                        }
                     } else {
                         println!("#{index:<6} dot  {:<40} reset", "");
                         counts.dot += 1;
@@ -448,27 +381,6 @@ fn main() {
             }
         };
         actions.push(action);
-        // TLS connections: reassemble the start of each one.
-        if let Some(s) = tcp_segment(ip) {
-            if s.flow.3 == tls::PORT {
-                let stream = streams.entry(s.flow.clone()).or_default();
-                if stream.blocked.is_some() {
-                    if !s.data.is_empty() && matches!(actions[index], Action::Keep) {
-                        actions[index] = Action::Drop;
-                    }
-                } else if stream.add(index, &s, &list) {
-                    let name = stream.blocked.clone().unwrap_or_default();
-                    println!(
-                        "#{index:<6} tls  {name:<40} reset (ClientHello in {} segments)",
-                        stream.packets.len()
-                    );
-                    counts.tls += 1;
-                    for &i in &stream.packets {
-                        actions[i] = Action::Drop;
-                    }
-                }
-            }
-        }
     }
 
     let dropped = actions.iter().filter(|a| !matches!(a, Action::Keep)).count();
@@ -537,16 +449,5 @@ mod tests {
         let list = Blocklist::new(&data, &ends).unwrap();
         assert_eq!(list.len(), 3);
         assert!(list.blocked(b"x.ab.com"));
-    }
-
-    #[test]
-    fn reassembles_out_of_order_data() {
-        let mut s = Stream { start: Some(100), ..Stream::default() };
-        s.pieces.insert(4, b"efg".to_vec());
-        s.pieces.insert(0, b"abcd".to_vec());
-        s.pieces.insert(9, b"xyz".to_vec());
-        assert_eq!(s.prefix(), b"abcdefg");
-        s.pieces.insert(7, b"hi".to_vec());
-        assert_eq!(s.prefix(), b"abcdefghixyz");
     }
 }

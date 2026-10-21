@@ -21,6 +21,7 @@
 
 use crate::blocklist::Blocklist;
 use crate::dns::{self, Query};
+use crate::stream::{Key, Step, Streams};
 use crate::tls::{self, ClientHello};
 use net::tcp::{self, Ipv4Tcp, Ipv6Tcp, TcpHeader};
 use net::udp::{self, Ipv4Udp, Ipv6Udp};
@@ -269,6 +270,81 @@ pub fn classify_stream(stream: &[u8], list: &Blocklist) -> bool {
     hello_blocked(stream, list)
 }
 
+/// The verdict on the TCP segment `t` to port 443 over IPv4, tracked in
+/// `streams`.
+fn stream_ipv4(t: Ipv4Tcp, streams: &mut Streams, now: u64, list: &Blocklist, out: &mut [u8]) -> Verdict {
+    let header = t.header;
+    let client = t.ip.header.src;
+    let server = t.ip.header.dst;
+    let data = match t.payload.validate::<Data>() {
+        Ok(d) => d.0,
+        Err(_) => return Verdict::Pass,
+    };
+    let (dst_port, src_port) = (header.dst_port.0, header.src_port.0);
+    let k = Key { v6: false, src: client.0 as u128, dst: server.0 as u128, src_port, dst_port };
+    match streams.segment(k, header.seq.0, header.flags.0, data, now, list) {
+        Step::Pass => Verdict::Pass,
+        Step::Drop => Verdict::Drop,
+        Step::Reset => {
+            let (seq, ack) = reset_numbers(&header, data.len());
+            match tcp::encode_ipv4(server, client, dst_port, src_port, seq, ack, RST_ACK, out) {
+                Some(n) => Verdict::Reset(n),
+                None => Verdict::Drop,
+            }
+        }
+    }
+}
+
+/// The verdict on the TCP segment `t` to port 443 over IPv6, tracked in
+/// `streams`.
+fn stream_ipv6(t: Ipv6Tcp, streams: &mut Streams, now: u64, list: &Blocklist, out: &mut [u8]) -> Verdict {
+    let header = t.header;
+    let client = t.ip.header.src;
+    let server = t.ip.header.dst;
+    let data = match t.payload.validate::<Data>() {
+        Ok(d) => d.0,
+        Err(_) => return Verdict::Pass,
+    };
+    let (dst_port, src_port) = (header.dst_port.0, header.src_port.0);
+    let k = Key { v6: true, src: client.0, dst: server.0, src_port, dst_port };
+    match streams.segment(k, header.seq.0, header.flags.0, data, now, list) {
+        Step::Pass => Verdict::Pass,
+        Step::Drop => Verdict::Drop,
+        Step::Reset => {
+            let (seq, ack) = reset_numbers(&header, data.len());
+            match tcp::encode_ipv6(server, client, dst_port, src_port, seq, ack, RST_ACK, out) {
+                Some(n) => Verdict::Reset(n),
+                None => Verdict::Drop,
+            }
+        }
+    }
+}
+
+/// What to do with the IP packet `packet` seen at `now`, as [`classify`]
+/// says, except that TCP connections to port 443 are tracked in `streams`:
+/// a ClientHello for a blocked name is reset even when it spans several
+/// segments, and so is the rest of its connection.
+pub fn filter(
+    packet: &[u8],
+    streams: &mut Streams,
+    now: u64,
+    list: &Blocklist,
+    policy: &Policy,
+    out: &mut [u8],
+) -> Verdict {
+    if let Ok(t) = Untrusted::new(packet).validate::<Ipv4Tcp>() {
+        if t.header.dst_port.0 == tls::PORT {
+            return stream_ipv4(t, streams, now, list, out);
+        }
+    }
+    if let Ok(t) = Untrusted::new(packet).validate::<Ipv6Tcp>() {
+        if t.header.dst_port.0 == tls::PORT {
+            return stream_ipv6(t, streams, now, list, out);
+        }
+    }
+    classify(packet, list, policy, out)
+}
+
 #[cfg(test)]
 mod tests {
     extern crate std;
@@ -331,9 +407,14 @@ mod tests {
 
     /// An IPv4 packet with a TCP segment to `dst_port` carrying `data`.
     fn tcp4(dst_port: u16, data: &[u8]) -> Vec<u8> {
+        tcp4_seq(dst_port, 1, 0x18, data)
+    }
+
+    fn tcp4_seq(dst_port: u16, seq: u32, flags: u8, data: &[u8]) -> Vec<u8> {
         let mut seg = std::vec![0xC0, 0x01];
         seg.extend_from_slice(&dst_port.to_be_bytes());
-        seg.extend_from_slice(&[0, 0, 0, 1, 0, 0, 0, 0, 0x50, 0x18, 0xFF, 0xFF, 0, 0, 0, 0]);
+        seg.extend_from_slice(&seq.to_be_bytes());
+        seg.extend_from_slice(&[0, 0, 0, 9, 0x50, flags, 0xFF, 0xFF, 0, 0, 0, 0]);
         seg.extend_from_slice(data);
         let mut pseudo = CLIENT.to_vec();
         pseudo.extend_from_slice(&SERVER);
@@ -414,13 +495,13 @@ mod tests {
         let p = tcp4(443, &hello(b"x.tracker.io"));
         let v = classify(&p, &list, &STRICT, &mut out);
         let Verdict::Reset(n) = v else { panic!("{v:?}") };
-        // From the server to the client: seq is the segment's ack (0), ack its
+        // From the server to the client: seq is the segment's ack (9), ack its
         // seq (1) past its data.
         let t = Untrusted::new(&out[..n]).validate::<Ipv4Tcp>().ok().unwrap();
         assert_eq!(t.ip.header.src, Ipv4Addr(u32::from_be_bytes(SERVER)));
         assert_eq!((t.header.src_port.0, t.header.dst_port.0), (443, 0xC001));
         let data_len = (p.len() - 40) as u32;
-        assert_eq!((t.header.seq.0, t.header.ack.0, t.header.flags.0), (0, 1 + data_len, RST_ACK));
+        assert_eq!((t.header.seq.0, t.header.ack.0, t.header.flags.0), (9, 1 + data_len, RST_ACK));
         assert_eq!(classify(&tcp4(443, &hello(b"example.org")), &list, &STRICT, &mut out), Verdict::Pass);
         assert_eq!(classify(&tcp4(80, &hello(b"tracker.io")), &list, &STRICT, &mut out), Verdict::Pass);
         assert!(classify_stream(&hello(b"TRACKER.io"), &list));
@@ -457,5 +538,38 @@ mod tests {
         // No room for the reset.
         let p = tcp4(853, b"");
         assert_eq!(classify(&p, &list, &STRICT, &mut out[..39]), Verdict::Drop);
+    }
+
+    #[test]
+    fn resets_hellos_spanning_segments() {
+        let (mut data, mut ends) = (Vec::new(), Vec::new());
+        let list = list(&mut data, &mut ends);
+        let mut out = [0u8; 1500];
+        // Too large for a test thread's stack.
+        let mut streams: std::boxed::Box<Streams> =
+            unsafe { std::boxed::Box::new_zeroed().assume_init() };
+        let mut h = hello(b"ads.example");
+        let n = h.len();
+        // Pad the record with a 1200-byte extension so it takes two segments.
+        h[3..5].copy_from_slice(&((n - 5 + 1204) as u16).to_be_bytes());
+        h[7..9].copy_from_slice(&((n - 9 + 1204) as u16).to_be_bytes());
+        let ext_len = u16::from_be_bytes([h[n - 22], h[n - 21]]) as usize;
+        h.splice(n - 22..n - 20, ((ext_len + 1204) as u16).to_be_bytes());
+        h.extend_from_slice(&[0, 21, 4, 176]);
+        h.resize(h.len() + 1200, 0);
+        assert!(classify_stream(&h, &list));
+        let syn = tcp4_seq(443, 100, 0x02, &[]);
+        assert_eq!(filter(&syn, &mut streams, 1, &list, &STRICT, &mut out), Verdict::Pass);
+        let p1 = tcp4_seq(443, 101, 0x18, &h[..1000]);
+        assert_eq!(filter(&p1, &mut streams, 2, &list, &STRICT, &mut out), Verdict::Pass);
+        let p2 = tcp4_seq(443, 1101, 0x18, &h[1000..]);
+        let v = filter(&p2, &mut streams, 3, &list, &STRICT, &mut out);
+        let Verdict::Reset(m) = v else { panic!("{v:?}") };
+        let t = Untrusted::new(&out[..m]).validate::<Ipv4Tcp>().ok().unwrap();
+        let ack = 1101 + (h.len() - 1000) as u32;
+        assert_eq!((t.header.seq.0, t.header.ack.0, t.header.flags.0), (9, ack, RST_ACK));
+        // Other packets go through `classify`.
+        assert_eq!(filter(&tcp4(80, b"x"), &mut streams, 4, &list, &STRICT, &mut out), Verdict::Pass);
+        assert_eq!(filter(&udp4(443, b"q"), &mut streams, 5, &list, &STRICT, &mut out), Verdict::Drop);
     }
 }

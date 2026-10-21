@@ -62,7 +62,7 @@ structure dns.Query where
   query : dns.DnsQuery
 
 /-- [diomede::filter::Policy]
-    Source: 'crates/diomede/src/filter.rs', lines 39:0-48:1
+    Source: 'crates/diomede/src/filter.rs', lines 40:0-49:1
     Visibility: public -/
 structure filter.Policy where
   block_quic : Bool
@@ -70,7 +70,7 @@ structure filter.Policy where
   strip_https_rr : Bool
 
 /-- [diomede::filter::Verdict]
-    Source: 'crates/diomede/src/filter.rs', lines 59:0-68:1
+    Source: 'crates/diomede/src/filter.rs', lines 60:0-69:1
     Visibility: public -/
 @[discriminant isize]
 inductive filter.Verdict where
@@ -80,7 +80,7 @@ inductive filter.Verdict where
 | Reset : Std.Usize → filter.Verdict
 
 /-- [diomede::filter::Data]
-    Source: 'crates/diomede/src/filter.rs', lines 71:0-71:26 -/
+    Source: 'crates/diomede/src/filter.rs', lines 72:0-72:26 -/
 @[reducible]
 def filter.Data := Slice Std.U8
 
@@ -89,5 +89,41 @@ def filter.Data := Slice Std.U8
     Visibility: public -/
 structure tls.ClientHello where
   server_name : Option name.Name
+
+/-- [diomede::stream::Key]
+    Source: 'crates/diomede/src/stream.rs', lines 38:0-44:1
+    Visibility: public -/
+structure stream.Key where
+  v6 : Bool
+  src : Std.U128
+  dst : Std.U128
+  src_port : Std.U16
+  dst_port : Std.U16
+
+/-- [diomede::stream::Flow]
+    Source: 'crates/diomede/src/stream.rs', lines 48:0-57:1
+    Visibility: public -/
+structure stream.Flow where
+  key : stream.Key
+  state : Std.U8
+  next_seq : Std.U32
+  len : Std.Usize
+  last : Std.U64
+
+/-- [diomede::stream::Streams]
+    Source: 'crates/diomede/src/stream.rs', lines 82:0-85:1
+    Visibility: public -/
+structure stream.Streams where
+  flows : Array stream.Flow 256#usize
+  data : Array (Array Std.U8 8192#usize) 256#usize
+
+/-- [diomede::stream::Step]
+    Source: 'crates/diomede/src/stream.rs', lines 75:0-79:1
+    Visibility: public -/
+@[discriminant isize]
+inductive stream.Step where
+| Pass : stream.Step
+| Drop : stream.Step
+| Reset : stream.Step
 
 end diomede

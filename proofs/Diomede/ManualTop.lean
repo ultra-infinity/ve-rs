@@ -5,3 +5,4 @@ import Diomede.BlocklistTop
 import Diomede.DnsTop
 import Diomede.TlsTop
 import Diomede.FilterTop
+import Diomede.StreamTop

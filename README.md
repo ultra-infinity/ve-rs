@@ -268,12 +268,18 @@ match diomede::filter::classify(ip_packet, &list, &filter::STRICT, &mut out) {
   - A reply or reset that does not fit in `out` gets `Drop`. Everything else
     gets `Pass`.
 
-  `classify_stream` checks a reassembled stream start, for ClientHellos that
-  span several segments.
+- **Streams:** a ClientHello often spans several TCP segments. `filter`
+  sends TCP to port 443 through `stream::Streams`, a fixed table of 256
+  connections that collects the start of each in order (up to 8 KiB, segments
+  past a gap dropped for the client to send again) and checks its first
+  record once complete. The table keeps an invariant: every tracked
+  connection's state is the decision on the bytes collected for it. So a
+  reset (`Reset`, then for the rest of the connection) happens only for a
+  connection whose first record is a ClientHello for a blocked name.
+  Everything else goes to `classify`.
 
 `crates/diomede-pcap` is an unverified harness around it. It loads hosts
-files or domain lists and runs a capture through `classify`, reassembling the
-start of each TLS connection for `classify_stream`. It reports what would be
+files or domain lists and runs a capture through `filter`. It reports what would be
 blocked, and `--out` writes the capture without the blocked packets and with
 the replies and resets. `make diomede-vm-test` checks it in two VMs: `dig`,
 `openssl s_client` and `socat` against dnsmasq and `openssl s_server`, for ad
