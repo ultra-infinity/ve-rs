@@ -1,7 +1,7 @@
 # NixOS VM test: the client looks up and connects to listed (ad) domains and
 # a normal one, over IPv4 and IPv6; the server (dnsmasq and an `openssl
 # s_server`) captures what it receives and runs it through `diomede-pcap`.
-# See `packages.diomede-vm-test` in flake.nix.
+# See `diomede-vm-test` in nix/modules/diomede.nix.
 
 start_all()
 for m in (client, server):

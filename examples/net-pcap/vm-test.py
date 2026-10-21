@@ -1,7 +1,7 @@
 # NixOS VM test: the client sends ARP, ICMP and UDP over IPv4 and IPv6 to the
 # server, which captures the frames it receives and runs them through the
-# verified `net` decoders (`net-pcap`). See `packages.net-vm-test` in
-# flake.nix.
+# verified `net` decoders (`net-pcap`). See `net-vm-test` in
+# nix/modules/net.nix.
 
 start_all()
 for m in (client, server):

@@ -1,5 +1,5 @@
 # NixOS VM test of `wg-userspace`, the no_std runner whose UDP goes through
-# the verified `net` encoders and decoders (see `wg-vm-test` in flake.nix).
+# the verified `net` encoders and decoders (see nix/modules/wireguard.nix).
 #
 # 1. Interop: `a` runs wg-userspace, `b` the Linux kernel's WireGuard. Each
 #    side initiates a handshake; IPv4 and IPv6 pings and TCP transfers of a

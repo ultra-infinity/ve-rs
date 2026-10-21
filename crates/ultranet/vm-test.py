@@ -1,7 +1,7 @@
 # NixOS VM test of the ultranet VPN: `client` connects with kernel WireGuard
 # to `server` (the services.ultranet module), and browses `internet`
 # (dnsmasq answering every name, TLS servers on 443 and 853, a UDP 443
-# listener) through it. See `packages.ultranet-vm-test` in flake.nix.
+# listener) through it. See nix/modules/ultranet/vm-test.nix.
 
 import re
 

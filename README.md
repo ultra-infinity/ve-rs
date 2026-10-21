@@ -501,7 +501,8 @@ exits with an error if anything is unproved.
 | `crates/diomede-pcap` | Runs a capture through the filter with hosts-file lists; unverified. |
 | `crates/ultranet` | The ad-blocking VPN server: `wireguard` on `wg-runtime`, every client packet through `diomede`. |
 | `crates/ultranet-admin` | Compiles blocklists, manages clients and their configurations; unverified. |
-| `nix/ultranet.nix` | The NixOS module `services.ultranet`: interface, NAT, DNS redirection, unbound, list updates, `ultranet-ctl`. |
+| `flake.nix`, `nix/modules/` | The flake, as flake-parts modules in the dendritic pattern: one file per feature (packages, VM tests, checks, dev shell), all imported by `import-tree`. |
+| `nix/modules/ultranet/nixos.nix` | The NixOS module `services.ultranet` (`nixosModules.ultranet`, `modules.nixos.ultranet`): interface, NAT, DNS redirection, unbound, list updates, `ultranet-ctl`. |
 | `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |
 | `proofs/Net/`, `proofs/Wireguard/`, `proofs/Diomede/` | The Lean models and proofs of `net`, `wireguard` and `diomede`. |
 | `examples/derive-demo` | An example user crate, verified by `make verify-demo`. |
