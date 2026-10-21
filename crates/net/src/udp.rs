@@ -563,7 +563,8 @@ pub(crate) mod tests {
 }
 
 #[cfg(test)]
-mod encode_tests {
+pub(crate) mod encode_tests {
+    extern crate std;
     use super::*;
 
     /// The bytes themselves, accepted as they are.
@@ -632,5 +633,25 @@ mod encode_tests {
             ),
             None
         );
+    }
+
+    /// `bytes` as lowercase hex.
+    pub(crate) fn hex(bytes: &[u8]) -> std::string::String {
+        bytes.iter().map(|b| std::format!("{b:02x}")).collect()
+    }
+
+    /// The exact bytes the encoders write: the wire format must not change
+    /// when the encoders are rebuilt.
+    #[test]
+    fn golden_datagrams() {
+        let mut out = [0u8; 64];
+        let (a, b) = (ipv4::Ipv4Addr(0xC0A8_0001), ipv4::Ipv4Addr(0x0A00_0002));
+        let n = encode_ipv4(a, b, 51820, 53, b"golden", &mut out).unwrap();
+        assert_eq!(hex(&out[..n]), "450000220000400040117020c0a800010a000002ca6c0035000e3143676f6c64656e");
+        let n = encode_ipv4(a, b, 1, 2, b"", &mut out).unwrap();
+        assert_eq!(hex(&out[..n]), "4500001c0000400040117026c0a800010a0000020001000200083530");
+        let (a, b) = (ipv6::Ipv6Addr(0xfd00 << 112 | 1), ipv6::Ipv6Addr(0x2001_0db8 << 96 | 0xabcd));
+        let n = encode_ipv6(a, b, 51820, 53, b"golden!", &mut out).unwrap();
+        assert_eq!(hex(&out[..n]), "60000000000f1140fd00000000000000000000000000000120010db800000000000000000000abcdca6c0035000f0464676f6c64656e21");
     }
 }

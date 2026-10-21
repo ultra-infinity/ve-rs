@@ -215,6 +215,7 @@ impl TransportHeader {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use super::*;
 
     fn decode(bytes: &[u8]) -> Result<Message<'_>, ValidationError> {
@@ -327,5 +328,29 @@ mod tests {
             decode(&bytes[..3]),
             Err(ValidationError::EndOfInput)
         ));
+    }
+
+    fn hex(bytes: &[u8]) -> std::string::String {
+        bytes.iter().map(|b| std::format!("{b:02x}")).collect()
+    }
+
+    /// The exact bytes the encoders write: the wire format must not change
+    /// when the encoders are rebuilt.
+    #[test]
+    fn golden_messages() {
+        assert_eq!(hex(&initiation().encode()), "0100000001020304e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e05a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b1111111111111111111111111111111122222222222222222222222222222222");
+        let r = Response {
+            sender: LittleEndian(0x0102_0304),
+            receiver: LittleEndian(0xa0b0_c0d0),
+            ephemeral: [0x33; 32],
+            encrypted_nothing: [0x44; 16],
+            mac1: [0x55; 16],
+            mac2: [0x66; 16],
+        };
+        assert_eq!(hex(&r.encode()), "0200000004030201d0c0b0a03333333333333333333333333333333333333333333333333333333333333333444444444444444444444444444444445555555555555555555555555555555566666666666666666666666666666666");
+        let c = CookieReply { receiver: LittleEndian(9), nonce: [0x77; 24], encrypted_cookie: [0x88; 32] };
+        assert_eq!(hex(&c.encode()), "03000000090000007777777777777777777777777777777777777777777777778888888888888888888888888888888888888888888888888888888888888888");
+        let t = TransportHeader { receiver: LittleEndian(0xdead_beef), counter: LittleEndian(0x0102_0304_0506_0708) };
+        assert_eq!(hex(&t.encode()), "04000000efbeadde0807060504030201");
     }
 }

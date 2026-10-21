@@ -386,4 +386,21 @@ mod tests {
         assert!(encode_ipv4(Ipv4Addr(1), Ipv4Addr(2), 1, 2, 0, 0, 0, &mut out[..39]).is_none());
         assert!(encode_ipv6(Ipv6Addr(1), Ipv6Addr(2), 1, 2, 0, 0, 0, &mut out[..59]).is_none());
     }
+
+    /// The exact bytes the encoders write: the wire format must not change
+    /// when the encoders are rebuilt.
+    #[test]
+    fn golden_segments() {
+        use crate::ipv4::Ipv4Addr;
+        use crate::ipv6::Ipv6Addr;
+        use crate::udp::encode_tests::hex;
+        let mut out = [0u8; 64];
+        let flags = FLAG_RST | FLAG_ACK;
+        let n = encode_ipv4(Ipv4Addr(0x0a4d_0001), Ipv4Addr(0x0a4d_0002), 443, 40000, 0x1234_5678, 0x9abc_def0, flags, &mut out)
+            .unwrap();
+        assert_eq!(hex(&out[..n]), "4500002800004000400626340a4d00010a4d000201bb9c40123456789abcdef0501400001adf0000");
+        let n = encode_ipv6(Ipv6Addr(0xfd77 << 112 | 1), Ipv6Addr(0xfd77 << 112 | 2), 443, 40000, u32::MAX, 7, flags, &mut out)
+            .unwrap();
+        assert_eq!(hex(&out[..n]), "6000000000140640fd770000000000000000000000000001fd77000000000000000000000000000201bb9c40ffffffff000000075014000016dc0000");
+    }
 }
