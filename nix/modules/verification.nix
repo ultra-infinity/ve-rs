@@ -6,6 +6,7 @@
     {
       pkgs,
       root,
+      craneLib,
       aeneasPkg,
       rustToolchain,
       aeneasRev,
@@ -26,8 +27,9 @@
 
         # Re-run the extraction and make sure the committed Lean files are
         # up to date with the Rust sources.
-        extraction = pkgs.stdenv.mkDerivation {
-          name = "untrusted-check-extraction";
+        extraction = (craneLib.overrideToolchain rustToolchain).mkCargoDerivation {
+          pname = "untrusted-check-extraction";
+          version = "0.1.0";
           src = pkgs.lib.fileset.toSource {
             inherit root;
             fileset = pkgs.lib.fileset.unions [
@@ -44,15 +46,15 @@
               (root + "/proofs/lakefile.toml")
             ];
           };
-          # The sandbox has no network access: vendor the crates.io deps.
-          cargoDeps = pkgs.rustPlatform.importCargoLock { lockFile = root + "/Cargo.lock"; };
+          # crane vendors the crates.io dependencies (the sandbox has no
+          # network); nothing is built ahead of the extraction.
+          cargoArtifacts = null;
+          doInstallCargoArtifacts = false;
           nativeBuildInputs = [
             aeneasPkg
-            rustToolchain
             pkgs.gnumake
-            pkgs.rustPlatform.cargoSetupHook
           ];
-          buildPhase = ''
+          buildPhaseCargoCommand = ''
             export HOME=$TMPDIR
             cp -r proofs proofs-committed
             make extract
@@ -86,7 +88,7 @@
               exit 1
             }
           '';
-          installPhase = "touch $out";
+          installPhaseCommand = "touch $out";
         };
       };
     };

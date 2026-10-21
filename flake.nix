@@ -7,6 +7,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
     import-tree.url = "github:vic/import-tree";
+    crane.url = "github:ipetkov/crane";
 
     aeneas.url = "github:AeneasVerif/aeneas";
     # Charon is pinned by Aeneas; reuse it so the LLBC format always matches.

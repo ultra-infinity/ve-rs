@@ -466,7 +466,7 @@ make verify-demo          # verify the example user crate
 make verify-net           # verify the `net` crate (Ethernet up to UDP)
 make verify-wireguard     # verify the `wireguard` crate
 make verify-diomede       # verify the `diomede` crate
-nix flake check           # extraction up to date, Aeneas pin consistent
+nix flake check           # tests and clippy (crane), extraction up to date, Aeneas pin consistent
 make vm-test              # real traffic through `net` in two VMs (needs KVM)
 make wg-vm-test           # wg-userspace against the kernel's WireGuard (needs KVM)
 make diomede-vm-test      # DNS and TLS to ad domains through diomede-pcap (needs KVM)
@@ -501,7 +501,7 @@ exits with an error if anything is unproved.
 | `crates/diomede-pcap` | Runs a capture through the filter with hosts-file lists; unverified. |
 | `crates/ultranet` | The ad-blocking VPN server: `wireguard` on `wg-runtime`, every client packet through `diomede`. |
 | `crates/ultranet-admin` | Compiles blocklists, manages clients and their configurations; unverified. |
-| `flake.nix`, `nix/modules/` | The flake, as flake-parts modules in the dendritic pattern: one file per feature (packages, VM tests, checks, dev shell), all imported by `import-tree`. |
+| `flake.nix`, `nix/modules/` | The flake, as flake-parts modules in the dendritic pattern: one file per feature (packages, VM tests, checks, dev shell), all imported by `import-tree`; the crates are built with crane, on dependencies built once. |
 | `nix/modules/ultranet/nixos.nix` | The NixOS module `services.ultranet` (`nixosModules.ultranet`, `modules.nixos.ultranet`): interface, NAT, DNS redirection, unbound, list updates, `ultranet-ctl`. |
 | `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |
 | `proofs/Net/`, `proofs/Wireguard/`, `proofs/Diomede/` | The Lean models and proofs of `net`, `wireguard` and `diomede`. |
