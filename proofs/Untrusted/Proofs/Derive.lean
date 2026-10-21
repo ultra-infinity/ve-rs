@@ -54,6 +54,33 @@ theorem ValidationError.Insts.CoreFmtDebug.fmt.spec (self : ValidationError) (f 
 theorem ValidationError.Insts.CoreMarkerCopy.cloneInst_eq :
     ValidationError.Insts.CoreMarkerCopy.cloneInst = ValidationError.Insts.CoreCloneClone := rfl
 
+/-! ## `EncodeError` -/
+
+/-- **Spec theorem for `<EncodeError as Clone>::clone`** -/
+@[step]
+theorem writer.EncodeError.Insts.CoreCloneClone.clone.spec (self : writer.EncodeError) :
+    writer.EncodeError.Insts.CoreCloneClone.clone self ⦃ (r : writer.EncodeError) => r = self ⦄ := by
+  simp [writer.EncodeError.Insts.CoreCloneClone.clone]
+
+/-- **Spec theorem for `<EncodeError as PartialEq>::eq`**: structural equality. -/
+@[step]
+theorem writer.EncodeError.Insts.CoreCmpPartialEqEncodeError.eq.spec
+    (self other : writer.EncodeError) :
+    writer.EncodeError.Insts.CoreCmpPartialEqEncodeError.eq self other
+      ⦃ (b : Bool) => (b = true ↔ self = other) ⦄ := by
+  cases self; cases other
+  simp [writer.EncodeError.Insts.CoreCmpPartialEqEncodeError.eq]
+
+/-- **Spec theorem for `<EncodeError as Debug>::fmt`**: never fails. -/
+@[step]
+theorem writer.EncodeError.Insts.CoreFmtDebug.fmt.spec (self : writer.EncodeError)
+    (f : core.fmt.Formatter) :
+    writer.EncodeError.Insts.CoreFmtDebug.fmt self f
+      ⦃ (r : core.result.Result Unit core.fmt.Error) (f' : core.fmt.Formatter) =>
+        r = .Ok () ∧ f' = f ⦄ := by
+  unfold writer.EncodeError.Insts.CoreFmtDebug.fmt
+  simp [core.fmt.Formatter.write_str]
+
 /-! ## `BigEndian<T>` and `LittleEndian<T>`
 
 These newtypes forward every derived method to `T`'s impl. -/

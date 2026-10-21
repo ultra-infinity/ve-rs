@@ -327,4 +327,62 @@ import Untrusted.Proofs.ReadTyped" untrusted.reader
   printf '\nend untrusted.reader\n'
 } > "$out_dir/DecodesInt.lean"
 
-echo "Wrote Int.lean, Bytes.lean, ReadTyped.lean and DecodesInt.lean in $out_dir"
+
+# --- `EncodesAs` and `RoundTrip` instances for the integer `Encode` impls ---------
+
+encodes_as_instance() {
+  local order=$1 t=$2 n=$3 bytes write num value cast fix="" what="$3 bytes"
+  [[ $n == 1 ]] && what="byte"
+  if [[ $order == BigEndian ]]; then bytes=beBytes write=write_be num=beNat_beBytes
+  else bytes=leBytes write=write_le num=leNat_leBytes; fi
+  local enc="$order$t.Insts.UntrustedWriterEncode" dec="$order$t.Insts.UntrustedReaderDecode"
+  if is_signed "$t"; then
+    value="(x : $t).bv.toNat"
+    if [[ $n == 16 ]]; then cast="(IScalar.hcast .U128 v)"
+    else cast="(UScalar.cast .U128 (IScalar.hcast .U$((8 * n)) v))"; fi
+    fix="
+    have : $cast.val = (v : $t).bv.toNat := by
+      have hb := (v : $t).bv.isLt
+      simp [UScalar.val, IScalar.hcast_bv_eq] <;> omega"
+    bound="(by simpa using (x : $t).bv.isLt)"
+  else
+    value="(x : $t).val"
+    bound="(by simpa using (x : $t).hBounds)"
+  fi
+  cat <<EOF
+
+/-- **Spec theorem for \`<$order<${t,,}> as Encode>::encode\`**: the $what it is
+    decoded from. -/
+instance _root_.untrusted.bytes.$enc.encode.spec :
+    EncodesAs $enc (fun x => $bytes $n $value) where
+  spec v w hinv := by
+    simp only [$enc.encode, lift, bind_ok]
+    apply WP.spec_bind (Writer.$write.spec w _ $n#usize hinv)
+    rintro ⟨r, w1, b⟩ hw
+    simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢$fix
+    simpa ${fix:+[this] }using hw.wrap
+
+/-- \`$order<${t,,}>\` round-trips every value. -/
+instance _root_.untrusted.bytes.$order$t.roundtrip :
+    RoundTrip $enc $dec (fun _ => True) where
+  roundtrip x rest _ := by
+    refine ⟨by simp, by simp, ?_⟩
+    rw [List.take_left' (by simp), $num, Nat.mod_eq_of_lt $bound]${fix:+
+    simp}
+EOF
+}
+
+{
+  header "import Untrusted.Proofs.EncodesAs
+import Untrusted.Proofs.DecodesInt" untrusted.writer
+  printf '\nset_option linter.unusedSimpArgs false\n\nopen reader bytes\n'
+  for order in BigEndian LittleEndian; do
+    for spec in U8:1 I8:1 U16:2 U32:4 U64:8 U128:16 I16:2 I32:4 I64:8 I128:16; do
+      IFS=: read -r t n <<< "$spec"
+      encodes_as_instance "$order" "$t" "$n"
+    done
+  done
+  printf '\nend untrusted.writer\n'
+} > "$out_dir/EncodesInt.lean"
+
+echo "Wrote Int.lean, Bytes.lean, ReadTyped.lean, DecodesInt.lean and EncodesInt.lean in $out_dir"

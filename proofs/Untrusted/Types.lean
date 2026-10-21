@@ -39,7 +39,7 @@ structure bytes.FixedLen (Self : Type _) where
   LEN : Result Std.Usize
 
 /-- [untrusted::ValidationError]
-    Source: 'crates/untrusted/src/lib.rs', lines 92:0-103:1
+    Source: 'crates/untrusted/src/lib.rs', lines 94:0-105:1
     Visibility: public -/
 @[discriminant isize]
 inductive ValidationError where
@@ -50,7 +50,7 @@ inductive ValidationError where
 | ChecksumMismatch : ValidationError
 
 /-- Trait declaration: [untrusted::Validate]
-    Source: 'crates/untrusted/src/lib.rs', lines 86:0-89:1
+    Source: 'crates/untrusted/src/lib.rs', lines 88:0-91:1
     Visibility: public -/
 structure Validate (Self : Type _) (Input : Type _) (Self_Err : Type _) where
   validate : Input → Result (core.result.Result Self Self_Err)
@@ -70,9 +70,30 @@ structure reader.Decode (Self : Type _) where
     × reader.Reader)
 
 /-- [untrusted::Untrusted]
-    Source: 'crates/untrusted/src/lib.rs', lines 72:0-72:27
+    Source: 'crates/untrusted/src/lib.rs', lines 74:0-74:27
     Visibility: public -/
 @[reducible]
 def Untrusted (T : Type _) := T
+
+/-- [untrusted::writer::EncodeError]
+    Source: 'crates/untrusted/src/writer.rs', lines 16:0-19:1
+    Visibility: public -/
+@[discriminant isize]
+inductive writer.EncodeError where
+| NoRoom : writer.EncodeError
+
+/-- [untrusted::writer::Writer]
+    Source: 'crates/untrusted/src/writer.rs', lines 24:0-27:1
+    Visibility: public -/
+structure writer.Writer where
+  out : Slice Std.U8
+  pos : Std.Usize
+
+/-- Trait declaration: [untrusted::writer::Encode]
+    Source: 'crates/untrusted/src/writer.rs', lines 33:0-35:1
+    Visibility: public -/
+structure writer.Encode (Self : Type _) where
+  encode : Self → writer.Writer → Result ((core.result.Result Unit
+    writer.EncodeError) × writer.Writer × (writer.Writer → writer.Writer))
 
 end untrusted

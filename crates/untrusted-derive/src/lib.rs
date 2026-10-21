@@ -82,3 +82,87 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         }
     })
 }
+
+/// Derives `untrusted::Encode` by encoding every field in declaration order.
+///
+/// Supported: structs with named fields, tuple structs and unit structs, with
+/// lifetime parameters but no type or const parameters (so a field may borrow
+/// a payload, `&'a [u8]`). Enums and unions are rejected. As with `Decode`,
+/// the generated code always has the same shape, one `w.encode(&self.field)?`
+/// per field and then `Ok(())`, which `derive_encode_spec` proves in Lean.
+#[proc_macro_derive(Encode)]
+pub fn derive_encode(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    expand_encode(&input)
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
+}
+
+fn expand_encode(input: &DeriveInput) -> syn::Result<TokenStream2> {
+    let name = &input.ident;
+    let only_lifetimes = input
+        .generics
+        .params
+        .iter()
+        .all(|p| matches!(p, syn::GenericParam::Lifetime(_)));
+    if !only_lifetimes || input.generics.where_clause.is_some() {
+        return Err(Error::new_spanned(
+            &input.generics,
+            "#[derive(Encode)] supports lifetime parameters only",
+        ));
+    }
+    let data = match &input.data {
+        Data::Struct(data) => data,
+        Data::Enum(e) => {
+            return Err(Error::new_spanned(
+                e.enum_token,
+                "#[derive(Encode)] supports structs only",
+            ))
+        }
+        Data::Union(u) => {
+            return Err(Error::new_spanned(
+                u.union_token,
+                "#[derive(Encode)] supports structs only",
+            ))
+        }
+    };
+
+    let types = data.fields.iter().map(|f| &f.ty);
+    let accesses: Vec<TokenStream2> = match &data.fields {
+        Fields::Named(fields) => fields
+            .named
+            .iter()
+            .map(|f| {
+                let n = f.ident.as_ref().unwrap();
+                quote!(#n)
+            })
+            .collect(),
+        Fields::Unnamed(fields) => (0..fields.unnamed.len())
+            .map(|i| {
+                let i = syn::Index::from(i);
+                quote!(#i)
+            })
+            .collect(),
+        Fields::Unit => Vec::new(),
+    };
+    // The writer is `w`: it may not be named `writer`, which would shadow the
+    // `writer` namespace in the generated Lean.
+    let writer = if data.fields.is_empty() {
+        quote!(_w)
+    } else {
+        quote!(w)
+    };
+    let (impl_generics, ty_generics, _) = input.generics.split_for_impl();
+
+    Ok(quote! {
+        impl #impl_generics ::untrusted::Encode for #name #ty_generics {
+            fn encode(
+                &self,
+                #writer: &mut ::untrusted::Writer<'_>,
+            ) -> ::core::result::Result<(), ::untrusted::EncodeError> {
+                #( w.encode::<#types>(&self.#accesses)?; )*
+                ::core::result::Result::Ok(())
+            }
+        }
+    })
+}

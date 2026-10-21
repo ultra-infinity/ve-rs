@@ -59,10 +59,12 @@
 mod bytes;
 mod int;
 mod reader;
+mod writer;
 
 pub use bytes::{BigEndian, FixedLen, LittleEndian};
 pub use reader::{Decode, Reader};
-pub use untrusted_derive::Decode;
+pub use writer::{encode_into, Encode, EncodeError, Writer};
+pub use untrusted_derive::{Decode, Encode};
 
 /// A value that came from an untrusted source.
 ///

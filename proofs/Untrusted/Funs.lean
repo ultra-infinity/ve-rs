@@ -4790,13 +4790,13 @@ def I128.Insts.UntrustedValidateIsizeValidationError : Validate Std.I128
 }
 
 /-- [untrusted::{untrusted::Untrusted<T>}::new]:
-    Source: 'crates/untrusted/src/lib.rs', lines 75:4-77:5
+    Source: 'crates/untrusted/src/lib.rs', lines 77:4-79:5
     Visibility: public -/
 def Untrusted.new {T : Type _} (inner : T) : Result (Untrusted T) := do
   ok inner
 
 /-- [untrusted::{untrusted::Untrusted<T>}::validate]:
-    Source: 'crates/untrusted/src/lib.rs', lines 80:4-82:5
+    Source: 'crates/untrusted/src/lib.rs', lines 82:4-84:5
     Visibility: public -/
 def Untrusted.validate
   {T : Type _} {U : Type _} {Clause0_Err : Type _} (ValidateInst : Validate U T
@@ -4806,7 +4806,7 @@ def Untrusted.validate
   ValidateInst.validate self
 
 /-- [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}::fmt]:
-    Source: 'crates/untrusted/src/lib.rs', lines 91:9-91:14
+    Source: 'crates/untrusted/src/lib.rs', lines 93:9-93:14
     Visibility: public -/
 def ValidationError.Insts.CoreFmtDebug.fmt
   (self : ValidationError) (f : core.fmt.Formatter) :
@@ -4829,21 +4829,21 @@ def ValidationError.Insts.CoreFmtDebug.fmt
     core.fmt.Formatter.write_str f (toStr "ChecksumMismatch")
 
 /-- Trait implementation: [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:9-91:14 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:9-93:14 -/
 @[reducible]
 def ValidationError.Insts.CoreFmtDebug : core.fmt.Debug ValidationError := {
   fmt := ValidationError.Insts.CoreFmtDebug.fmt
 }
 
 /-- [untrusted::{impl core::clone::Clone for untrusted::ValidationError}::clone]:
-    Source: 'crates/untrusted/src/lib.rs', lines 91:16-91:21
+    Source: 'crates/untrusted/src/lib.rs', lines 93:16-93:21
     Visibility: public -/
 def ValidationError.Insts.CoreCloneClone.clone
   (self : ValidationError) : Result ValidationError := do
   ok self
 
 /-- Trait implementation: [untrusted::{impl core::clone::Clone for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:16-91:21 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:16-93:21 -/
 @[reducible]
 def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
   := {
@@ -4851,7 +4851,7 @@ def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::Copy for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:23-91:27 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:23-93:27 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
   := {
@@ -4859,14 +4859,14 @@ def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::StructuralPartialEq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerStructuralPartialEq :
   core.marker.StructuralPartialEq ValidationError := {
 }
 
 /-- [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}::eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38
+    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38
     Visibility: public -/
 def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   (self : ValidationError) (other : ValidationError) : Result Bool := do
@@ -4893,7 +4893,7 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   else ok false
 
 /-- Trait implementation: [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:29-91:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
   ValidationError ValidationError := {
@@ -4901,14 +4901,14 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
 }
 
 /-- [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}::assert_fields_are_eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 91:40-91:42
+    Source: 'crates/untrusted/src/lib.rs', lines 93:40-93:42
     Visibility: public -/
 def ValidationError.Insts.CoreCmpEq.assert_fields_are_eq
   (self : ValidationError) : Result Unit := do
   ok ()
 
 /-- Trait implementation: [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 91:40-91:42 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 93:40-93:42 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpEq : core.cmp.Eq ValidationError := {
   partialEqInst := ValidationError.Insts.CoreCmpPartialEqValidationError
@@ -5028,5 +5028,748 @@ def reader.Reader.decode
   match r with
   | core.result.Result.Ok _ => ok (r, self1)
   | core.result.Result.Err _ => ok (r, { self with input := self1.input })
+
+/-- [untrusted::writer::{impl core::fmt::Debug for untrusted::writer::EncodeError}::fmt]:
+    Source: 'crates/untrusted/src/writer.rs', lines 15:9-15:14
+    Visibility: public -/
+def writer.EncodeError.Insts.CoreFmtDebug.fmt
+  (self : writer.EncodeError) (f : core.fmt.Formatter) :
+  Result ((core.result.Result Unit core.fmt.Error) × core.fmt.Formatter)
+  := do
+  core.fmt.Formatter.write_str f (toStr "NoRoom")
+
+/-- Trait implementation: [untrusted::writer::{impl core::fmt::Debug for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:9-15:14 -/
+@[reducible]
+def writer.EncodeError.Insts.CoreFmtDebug : core.fmt.Debug writer.EncodeError
+  := {
+  fmt := writer.EncodeError.Insts.CoreFmtDebug.fmt
+}
+
+/-- [untrusted::writer::{impl core::clone::Clone for untrusted::writer::EncodeError}::clone]:
+    Source: 'crates/untrusted/src/writer.rs', lines 15:16-15:21
+    Visibility: public -/
+def writer.EncodeError.Insts.CoreCloneClone.clone
+  (self : writer.EncodeError) : Result writer.EncodeError := do
+  ok self
+
+/-- Trait implementation: [untrusted::writer::{impl core::clone::Clone for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:16-15:21 -/
+@[reducible]
+def writer.EncodeError.Insts.CoreCloneClone : core.clone.Clone
+  writer.EncodeError := {
+  clone := writer.EncodeError.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [untrusted::writer::{impl core::marker::Copy for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:23-15:27 -/
+@[reducible]
+def writer.EncodeError.Insts.CoreMarkerCopy : core.marker.Copy
+  writer.EncodeError := {
+  cloneInst := writer.EncodeError.Insts.CoreCloneClone
+}
+
+/-- Trait implementation: [untrusted::writer::{impl core::marker::StructuralPartialEq for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:29-15:38 -/
+@[reducible]
+def writer.EncodeError.Insts.CoreMarkerStructuralPartialEq :
+  core.marker.StructuralPartialEq writer.EncodeError := {
+}
+
+/-- [untrusted::writer::{impl core::cmp::PartialEq<untrusted::writer::EncodeError> for untrusted::writer::EncodeError}::eq]:
+    Source: 'crates/untrusted/src/writer.rs', lines 15:29-15:38
+    Visibility: public -/
+def writer.EncodeError.Insts.CoreCmpPartialEqEncodeError.eq
+  (self : writer.EncodeError) (other : writer.EncodeError) : Result Bool := do
+  ok true
+
+/-- Trait implementation: [untrusted::writer::{impl core::cmp::PartialEq<untrusted::writer::EncodeError> for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:29-15:38 -/
+@[reducible]
+def writer.EncodeError.Insts.CoreCmpPartialEqEncodeError : core.cmp.PartialEq
+  writer.EncodeError writer.EncodeError := {
+  eq := writer.EncodeError.Insts.CoreCmpPartialEqEncodeError.eq
+}
+
+/-- Trait implementation: [untrusted::writer::{impl core::cmp::Eq for untrusted::writer::EncodeError}]
+    Source: 'crates/untrusted/src/writer.rs', lines 15:40-15:42 -/
+@[reducible]
+impl_def writer.EncodeError.Insts.CoreCmpEq : core.cmp.Eq writer.EncodeError
+  := {
+  partialEqInst := writer.EncodeError.Insts.CoreCmpPartialEqEncodeError
+  assert_fields_are_eq := core.cmp.Eq.assert_fields_are_eq.default
+    writer.EncodeError.Insts.CoreCmpEq
+}
+
+/-- [untrusted::writer::encode_into]:
+    Source: 'crates/untrusted/src/writer.rs', lines 57:0-63:1
+    Visibility: public -/
+def writer.encode_into
+  {T : Type _} (EncodeInst : writer.Encode T) (v : T) (out : Slice Std.U8) :
+  Result ((core.result.Result Std.Usize writer.EncodeError) × (Slice Std.U8))
+  := do
+  let (r, cursor, encode_back) ← EncodeInst.encode v { out, pos := 0#usize }
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    ok (core.result.Result.Ok cursor.pos, (encode_back cursor).out)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame writer.EncodeError) residual
+    ok (r1, (encode_back cursor).out)
+
+/-- [untrusted::writer::put_bytes]: loop 0:
+    Source: 'crates/untrusted/src/writer.rs', lines 68:4-71:5 -/
+@[rust_loop]
+def writer.put_bytes_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  let i1 := Slice.len src
+  if i < i1
+  then
+    let i2 ← Slice.index_usize src i
+    let i3 ← pos + i
+    let s ← Slice.update out i3 i2
+    let i4 ← i + 1#usize
+    writer.put_bytes_loop s pos src i4
+  else ok out
+partial_fixpoint
+
+/-- [untrusted::writer::put_bytes]:
+    Source: 'crates/untrusted/src/writer.rs', lines 66:0-72:1 -/
+@[reducible]
+def writer.put_bytes
+  (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
+  Result (Slice Std.U8)
+  := do
+  writer.put_bytes_loop out pos src 0#usize
+
+/-- [untrusted::writer::put_be]: loop 0:
+    Source: 'crates/untrusted/src/writer.rs', lines 79:4-83:5 -/
+@[rust_loop]
+def writer.put_be_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U128) (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  if i > 0#usize
+  then
+    let i1 ← i - 1#usize
+    let i2 ← v % 256#u128
+    let i3 ← pos + i1
+    let i4 ← lift (UScalar.cast .U8 i2)
+    let s ← Slice.update out i3 i4
+    let v1 ← v / 256#u128
+    writer.put_be_loop s pos v1 i1
+  else ok out
+partial_fixpoint
+
+/-- [untrusted::writer::put_be]:
+    Source: 'crates/untrusted/src/writer.rs', lines 76:0-84:1 -/
+@[reducible]
+def writer.put_be
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U128) (n : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  writer.put_be_loop out pos v n
+
+/-- [untrusted::writer::put_le]: loop 0:
+    Source: 'crates/untrusted/src/writer.rs', lines 91:4-95:5 -/
+@[rust_loop]
+def writer.put_le_loop
+  (out : Slice Std.U8) (pos : Std.Usize) (n : Std.Usize) (v : Std.U128)
+  (i : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  if i < n
+  then
+    let i1 ← v % 256#u128
+    let i2 ← pos + i
+    let i3 ← lift (UScalar.cast .U8 i1)
+    let s ← Slice.update out i2 i3
+    let v1 ← v / 256#u128
+    let i4 ← i + 1#usize
+    writer.put_le_loop s pos n v1 i4
+  else ok out
+partial_fixpoint
+
+/-- [untrusted::writer::put_le]:
+    Source: 'crates/untrusted/src/writer.rs', lines 88:0-96:1 -/
+@[reducible]
+def writer.put_le
+  (out : Slice Std.U8) (pos : Std.Usize) (v : Std.U128) (n : Std.Usize) :
+  Result (Slice Std.U8)
+  := do
+  writer.put_le_loop out pos n v 0#usize
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::remaining]:
+    Source: 'crates/untrusted/src/writer.rs', lines 100:4-102:5
+    Visibility: public -/
+def writer.Writer.remaining (self : writer.Writer) : Result Std.Usize := do
+  let i := Slice.len self.out
+  i - self.pos
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::write_byte]:
+    Source: 'crates/untrusted/src/writer.rs', lines 105:4-113:5
+    Visibility: public -/
+def writer.Writer.write_byte
+  (self : writer.Writer) (b : Std.U8) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i := Slice.len self.out
+  if self.pos < i
+  then
+    let s ← Slice.update self.out self.pos b
+    let i1 ← self.pos + 1#usize
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Ok (), { out := s, pos := i1 }, back'a)
+  else
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Err writer.EncodeError.NoRoom, self, back'a)
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::write_bytes]:
+    Source: 'crates/untrusted/src/writer.rs', lines 116:4-125:5
+    Visibility: public -/
+def writer.Writer.write_bytes
+  (self : writer.Writer) (b : Slice Std.U8) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i := Slice.len b
+  let i1 ← writer.Writer.remaining self
+  if i > i1
+  then
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Err writer.EncodeError.NoRoom, self, back'a)
+  else
+    let s ← writer.put_bytes self.out self.pos b
+    let i2 := Slice.len b
+    let i3 ← self.pos + i2
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Ok (), { out := s, pos := i3 }, back'a)
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::write_be]:
+    Source: 'crates/untrusted/src/writer.rs', lines 128:4-135:5 -/
+def writer.Writer.write_be
+  (self : writer.Writer) (v : Std.U128) (n : Std.Usize) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← writer.Writer.remaining self
+  if n > i
+  then
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Err writer.EncodeError.NoRoom, self, back'a)
+  else
+    let s ← writer.put_be self.out self.pos v n
+    let i1 ← self.pos + n
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Ok (), { out := s, pos := i1 }, back'a)
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::write_le]:
+    Source: 'crates/untrusted/src/writer.rs', lines 138:4-145:5 -/
+def writer.Writer.write_le
+  (self : writer.Writer) (v : Std.U128) (n : Std.Usize) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← writer.Writer.remaining self
+  if n > i
+  then
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Err writer.EncodeError.NoRoom, self, back'a)
+  else
+    let s ← writer.put_le self.out self.pos v n
+    let i1 ← self.pos + n
+    let back'a := fun self1 => { self with out := self1.out }
+    ok (core.result.Result.Ok (), { out := s, pos := i1 }, back'a)
+
+/-- [untrusted::writer::{untrusted::writer::Writer<'a>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 149:4-158:5
+    Visibility: public -/
+def writer.Writer.encode
+  {T : Type _} (EncodeInst : writer.Encode T) (self : writer.Writer) (v : T) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let (r, self1, encode_back) ← EncodeInst.encode v self
+  match r with
+  | core.result.Result.Ok _ =>
+    let back'a := fun self2 => { self with out := (encode_back self2).out }
+    ok (core.result.Result.Ok (), self1, back'a)
+  | core.result.Result.Err _ =>
+    let back'a :=
+      fun self2 =>
+        { self with out := (encode_back { self1 with out := self2.out }).out }
+    ok (r, { self with out := self1.out }, back'a)
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u8>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.U8) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i 1#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u8>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianU8.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.U8) := {
+  encode := bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u8>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianU8.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.U8) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i 1#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u8>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianU8.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.U8) := {
+  encode := bytes.LittleEndianU8.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u16>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.U16) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i 2#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u16>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianU16.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.U16) := {
+  encode := bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u16>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianU16.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.U16) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i 2#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u16>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianU16.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.U16) := {
+  encode := bytes.LittleEndianU16.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u32>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.U32) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i 4#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u32>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianU32.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.U32) := {
+  encode := bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u32>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.U32) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i 4#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u32>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianU32.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.U32) := {
+  encode := bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u64>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianU64.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.U64) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i 8#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u64>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianU64.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.U64) := {
+  encode := bytes.BigEndianU64.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u64>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianU64.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.U64) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U128 self)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i 8#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u64>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianU64.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.U64) := {
+  encode := bytes.LittleEndianU64.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u128>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianU128.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.U128) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let (r, w1, write_be_back) ← writer.Writer.write_be w self 16#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<u128>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianU128.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.U128) := {
+  encode := bytes.BigEndianU128.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u128>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianU128.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.U128) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let (r, w1, write_le_back) ← writer.Writer.write_le w self 16#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<u128>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianU128.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.U128) := {
+  encode := bytes.LittleEndianU128.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i8>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianI8.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.I8) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U8 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i1 1#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i8>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianI8.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.I8) := {
+  encode := bytes.BigEndianI8.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i8>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianI8.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.I8) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U8 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i1 1#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i8>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianI8.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.I8) := {
+  encode := bytes.LittleEndianI8.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i16>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianI16.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.I16) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U16 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i1 2#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i16>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianI16.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.I16) := {
+  encode := bytes.BigEndianI16.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i16>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianI16.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.I16) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U16 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i1 2#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i16>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianI16.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.I16) := {
+  encode := bytes.LittleEndianI16.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i32>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianI32.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.I32) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U32 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i1 4#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i32>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianI32.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.I32) := {
+  encode := bytes.BigEndianI32.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i32>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianI32.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.I32) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U32 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i1 4#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i32>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianI32.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.I32) := {
+  encode := bytes.LittleEndianI32.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i64>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianI64.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.I64) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U64 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i1 8#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i64>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianI64.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.I64) := {
+  encode := bytes.BigEndianI64.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i64>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianI64.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.I64) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U64 self)
+  let i1 ← lift (UScalar.cast .U128 i)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i1 8#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i64>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianI64.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.I64) := {
+  encode := bytes.LittleEndianI64.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i128>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 168:12-170:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.BigEndianI128.Insts.UntrustedWriterEncode.encode
+  (self : bytes.BigEndian Std.I128) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U128 self)
+  let (r, w1, write_be_back) ← writer.Writer.write_be w i 16#usize
+  let back := fun w2 => { w with out := (write_be_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::BigEndian<i128>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 167:8-171:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.BigEndianI128.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.BigEndian Std.I128) := {
+  encode := bytes.BigEndianI128.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i128>}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 174:12-176:13; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1
+    Visibility: public -/
+def bytes.LittleEndianI128.Insts.UntrustedWriterEncode.encode
+  (self : bytes.LittleEndian Std.I128) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let i ← lift (IScalar.hcast .U128 self)
+  let (r, w1, write_le_back) ← writer.Writer.write_le w i 16#usize
+  let back := fun w2 => { w with out := (write_le_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for untrusted::bytes::LittleEndian<i128>}]
+    Source: 'crates/untrusted/src/writer.rs', lines 173:8-177:9; this code is generated from a macro invocation at: 'crates/untrusted/src/writer.rs', lines 181:0-192:1 -/
+@[reducible]
+def bytes.LittleEndianI128.Insts.UntrustedWriterEncode : writer.Encode
+  (bytes.LittleEndian Std.I128) := {
+  encode := bytes.LittleEndianI128.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for [u8; N]}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 196:4-198:5
+    Visibility: public -/
+def ArrayU8N.Insts.UntrustedWriterEncode.encode
+  {N : Std.Usize} (self : Array Std.U8 N) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let s ← lift (Array.to_slice self)
+  let (r, w1, write_bytes_back) ← writer.Writer.write_bytes w s
+  let back := fun w2 => { w with out := (write_bytes_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for [u8; N]}]
+    Source: 'crates/untrusted/src/writer.rs', lines 195:0-199:1 -/
+@[reducible]
+def ArrayU8N.Insts.UntrustedWriterEncode (N : Std.Usize) : writer.Encode (Array
+  Std.U8 N) := {
+  encode := ArrayU8N.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [untrusted::writer::{impl untrusted::writer::Encode for &'_0 [u8]}::encode]:
+    Source: 'crates/untrusted/src/writer.rs', lines 203:4-205:5
+    Visibility: public -/
+def Shared0SliceU8.Insts.UntrustedWriterEncode.encode
+  (self : Slice Std.U8) (w : writer.Writer) :
+  Result ((core.result.Result Unit writer.EncodeError) × writer.Writer ×
+    (writer.Writer → writer.Writer))
+  := do
+  let (r, w1, write_bytes_back) ← writer.Writer.write_bytes w self
+  let back := fun w2 => { w with out := (write_bytes_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [untrusted::writer::{impl untrusted::writer::Encode for &'_0 [u8]}]
+    Source: 'crates/untrusted/src/writer.rs', lines 202:0-206:1 -/
+@[reducible]
+def Shared0SliceU8.Insts.UntrustedWriterEncode : writer.Encode (Slice Std.U8)
+  := {
+  encode := Shared0SliceU8.Insts.UntrustedWriterEncode.encode
+}
 
 end untrusted

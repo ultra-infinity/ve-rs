@@ -7,3 +7,6 @@ import Untrusted.Proofs.ReadTyped
 import Untrusted.Proofs.DecodesAs
 import Untrusted.Proofs.DecodesInt
 import Untrusted.Proofs.DecodesArray
+import Untrusted.Proofs.Writer
+import Untrusted.Proofs.EncodesAs
+import Untrusted.Proofs.EncodesInt
