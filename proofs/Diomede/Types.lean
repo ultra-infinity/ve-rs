@@ -61,6 +61,12 @@ structure dns.Query where
   msg : Slice Std.U8
   query : dns.DnsQuery
 
+/-- [diomede::dns::Answer]
+    Source: 'crates/diomede/src/dns.rs', lines 163:0-166:1 -/
+structure dns.Answer where
+  header : dns.DnsHeader
+  question : Slice Std.U8
+
 /-- [diomede::filter::Policy]
     Source: 'crates/diomede/src/filter.rs', lines 40:0-49:1
     Visibility: public -/

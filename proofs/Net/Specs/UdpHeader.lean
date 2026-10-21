@@ -9,3 +9,5 @@ import Net.Specs.Ipv6Header
 import Net.Specs.TcpHeader
 
 derive_decode_spec net.udp.UdpHeader
+derive_encode_spec net.udp.UdpHeader
+derive_roundtrip_spec net.udp.UdpHeader

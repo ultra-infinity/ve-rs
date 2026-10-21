@@ -32,7 +32,7 @@ def arp.EthernetIpv4 := Unit
 def arp.Operation := Std.U16
 
 /-- [net::ipv4::Ipv4Addr]
-    Source: 'crates/net/src/ipv4.rs', lines 30:0-30:29
+    Source: 'crates/net/src/ipv4.rs', lines 32:0-32:29
     Visibility: public -/
 @[reducible]
 def ipv4.Ipv4Addr := Std.U32
@@ -112,7 +112,7 @@ structure icmp.IcmpHeader where
   rest : untrusted.bytes.BigEndian Std.U32
 
 /-- [net::ipv4::Fragment]
-    Source: 'crates/net/src/ipv4.rs', lines 64:0-69:1
+    Source: 'crates/net/src/ipv4.rs', lines 79:0-84:1
     Visibility: public -/
 structure ipv4.Fragment where
   dont_fragment : Bool
@@ -120,13 +120,13 @@ structure ipv4.Fragment where
   offset : Std.U16
 
 /-- [net::ipv4::VersionIhl]
-    Source: 'crates/net/src/ipv4.rs', lines 40:0-43:1
+    Source: 'crates/net/src/ipv4.rs', lines 48:0-51:1
     Visibility: public -/
 structure ipv4.VersionIhl where
   ihl : Std.U8
 
 /-- [net::ipv4::Ipv4Header]
-    Source: 'crates/net/src/ipv4.rs', lines 94:0-105:1
+    Source: 'crates/net/src/ipv4.rs', lines 123:0-134:1
     Visibility: public -/
 structure ipv4.Ipv4Header where
   version_ihl : ipv4.VersionIhl
@@ -141,7 +141,7 @@ structure ipv4.Ipv4Header where
   dst : ipv4.Ipv4Addr
 
 /-- [net::ipv4::Ipv4Packet]
-    Source: 'crates/net/src/ipv4.rs', lines 108:0-116:1
+    Source: 'crates/net/src/ipv4.rs', lines 137:0-145:1
     Visibility: public -/
 structure ipv4.Ipv4Packet where
   header : ipv4.Ipv4Header
@@ -158,20 +158,20 @@ structure icmp.Icmpv4 where
   body : untrusted.Untrusted (Slice Std.U8)
 
 /-- [net::ipv6::VersionClassFlow]
-    Source: 'crates/net/src/ipv6.rs', lines 37:0-41:1
+    Source: 'crates/net/src/ipv6.rs', lines 45:0-49:1
     Visibility: public -/
 structure ipv6.VersionClassFlow where
   traffic_class : Std.U8
   flow_label : Std.U32
 
 /-- [net::ipv6::Ipv6Addr]
-    Source: 'crates/net/src/ipv6.rs', lines 27:0-27:30
+    Source: 'crates/net/src/ipv6.rs', lines 29:0-29:30
     Visibility: public -/
 @[reducible]
 def ipv6.Ipv6Addr := Std.U128
 
 /-- [net::ipv6::Ipv6Header]
-    Source: 'crates/net/src/ipv6.rs', lines 58:0-65:1
+    Source: 'crates/net/src/ipv6.rs', lines 74:0-81:1
     Visibility: public -/
 structure ipv6.Ipv6Header where
   version_class_flow : ipv6.VersionClassFlow
@@ -182,7 +182,7 @@ structure ipv6.Ipv6Header where
   dst : ipv6.Ipv6Addr
 
 /-- [net::ipv6::Ipv6Packet]
-    Source: 'crates/net/src/ipv6.rs', lines 68:0-74:1
+    Source: 'crates/net/src/ipv6.rs', lines 84:0-90:1
     Visibility: public -/
 structure ipv6.Ipv6Packet where
   header : ipv6.Ipv6Header

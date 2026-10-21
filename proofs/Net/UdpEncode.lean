@@ -152,9 +152,6 @@ def be128N (v : Nat) : List Nat :=
   be32N (v / 79228162514264337593543950336) ++ be32N (v / 18446744073709551616 % 4294967296) ++
     be32N (v / 4294967296 % 4294967296) ++ be32N (v % 4294967296)
 
-theorem get_of_map {l : List U8} {ns : List Nat} (h : l.map (·.val) = ns) (i : Nat)
-    (hi : i < l.length) : l[i].val = ns[i]! := by
-  subst h; simp [hi]
 
 theorem cast_u8 {ty : UScalarTy} (x : UScalar ty) :
     (UScalar.cast .U8 x).val = x.val % 256 := by
@@ -164,78 +161,136 @@ theorem cast_u8 {ty : UScalarTy} (x : UScalar ty) :
 @[simp, scalar_tac_simps] theorem MAX_PACKET_LEN_val : MAX_PACKET_LEN.val = 65535 := by
   simp [MAX_PACKET_LEN]
 
-/-- **Spec theorem for `be32`**. -/
-@[step]
-theorem be32.spec (v : U32) : be32 v ⦃ (r : Array U8 4#usize) => r.val.map (·.val) = be32N v.val ⦄ := by
-  unfold be32
-  step*
-  have hv := v.hBounds
-  simp only [UScalarTy.U32_numBits_eq] at hv
-  simp [Array.make, be32N, cast_u8, *]
-  omega
+/-! ## Headers, through their `Encode` impls -/
 
-/-- **Spec theorem for `be128`**. -/
-@[step]
-theorem be128.spec (v : U128) :
-    be128 v ⦃ (r : Array U8 16#usize) => r.val.map (·.val) = be128N v.val ⦄ := by
-  unfold be128
-  have hv := v.hBounds
-  simp only [UScalarTy.U128_numBits_eq] at hv
-  step*
-  have ga := get_of_map a_post
-  have gb := get_of_map b_post
-  have gc := get_of_map c_post
-  have gd := get_of_map d_post
-  simp only [Array.length_eq, List.Vector.length_val] at ga gb gc gd
-  simp [Array.make, be128N, be32N, *, UScalar.cast_val_eq] at *
-  omega
+section
+open untrusted.writer
 
-/-- **Spec theorem for `ipv4_header`**. -/
+theorem eq_of_vals {l1 l2 : List U8} (h : l1.map (·.val) = l2.map (·.val)) : l1 = l2 := by
+  refine List.map_injective_iff.mpr ?_ h
+  intro a b hab; exact (UScalar.eq_equiv a b).mpr hab
+
+theorem beBytes_vals1 (x : Nat) (h : x < 256) : (beBytes 1 x).map (·.val) = [x] := by
+  simp [beBytes]; omega
+
+theorem beBytes_vals2 (x : Nat) (h : x < 65536) : (beBytes 2 x).map (·.val) = be16N x := by
+  simp [beBytes, be16N]; omega
+
+theorem beBytes_vals4 (x : Nat) (h : x < 4294967296) : (beBytes 4 x).map (·.val) = be32N x := by
+  simp [beBytes, be32N, Nat.div_div_eq_div_mul]; omega
+
+theorem beBytes_vals16 (x : Nat) (h : x < 2 ^ 128) : (beBytes 16 x).map (·.val) = be128N x := by
+  simp [beBytes, be128N, be32N, Nat.div_div_eq_div_mul]; omega
+
+/-- Bytes with the values of `v`'s encoding decode back to `v`, consuming
+    them all. -/
+theorem decodes_of_vals {T : Type} (enc : untrusted.writer.Encode T) (dec : Decode T)
+    {E : T → List U8} {D : List U8 → T → Nat → Prop} {F : List U8 → Prop} [EncodesAs enc E]
+    [DecodesAs dec D F] {V : T → Prop} [h : RoundTrip enc dec V] (v : T) (hv : V v)
+    (l : List U8) (hl : l.map (·.val) = (E v).map (·.val)) : D l v l.length := by
+  rw [eq_of_vals hl]
+  simpa using h.roundtrip v [] hv
+
+/-- The IPv4 header the encoders write. -/
+def hdr4 (src dst : U32) (total : U16) (proto : U8) (checksum : U16) : ipv4.Ipv4Header :=
+  { version_ihl := { ihl := 5#u8 }, tos := 0#u8, total_len := total, ident := 0#u16,
+    fragment := { dont_fragment := true, more_fragments := false, offset := 0#u16 }, ttl := TTL,
+    protocol := proto, checksum := checksum, src := src, dst := dst }
+
+theorem hdr4_vals (src dst : U32) (total : U16) (proto : U8) (checksum : U16) :
+    (FmtE ipv4.Ipv4Header.Insts.UntrustedWriterEncode (hdr4 src dst total proto checksum)).map
+      (·.val) = [69, 0] ++ be16N total.val ++ [0, 0, 64, 0, 64, proto.val] ++
+        be16N checksum.val ++ be32N src.val ++ be32N dst.val := by
+  have h1 := total.hBounds; have h2 := checksum.hBounds; have h3 := src.hBounds
+  have h4 := dst.hBounds; have h5 := proto.hBounds
+  simp only [UScalarTy.U16_numBits_eq, UScalarTy.U32_numBits_eq, UScalarTy.U8_numBits_eq] at *
+  simp only [FmtE, hdr4, Eseq, Enil, ipv4.Ipv4Header.fields, ipv4.Fragment.word, List.map_append,
+    List.append_nil, List.append_assoc, beBytes_vals2 _ (by simpa using h1),
+    beBytes_vals2 _ (by simpa using h2), beBytes_vals4 _ (by simpa using h3),
+    beBytes_vals4 _ (by simpa using h4), beBytes_vals1 _ (by simpa using h5)]
+  simp [beBytes, be16N]
+
+/-- `hdr4` is a header the decoder accepts. -/
+theorem hdr4_valid (src dst : U32) (total : U16) (proto : U8) (checksum : U16) :
+    FmtV ipv4.Ipv4Header.Insts.UntrustedWriterEncode ipv4.Ipv4Header.Insts.UntrustedReaderDecode
+      (hdr4 src dst total proto checksum) := by
+  unfold FmtV
+  simp only [Vseq, Vnil, ipv4.Ipv4Header.fields, hdr4]
+  simp
+
+/-- **Spec theorem for `ipv4_header`**: the bytes of `hdr4`. -/
 @[step]
 theorem ipv4_header.spec (src dst : U32) (total : U16) (proto : U8) (checksum : U16) :
     ipv4_header src dst total proto checksum ⦃ (r : Array U8 20#usize) =>
       r.val.map (·.val) = [69, 0] ++ be16N total.val ++ [0, 0, 64, 0, 64, proto.val] ++
         be16N checksum.val ++ be32N src.val ++ be32N dst.val ⦄ := by
   unfold ipv4_header
-  step*
-  have gs := get_of_map s_post
-  have gd := get_of_map d_post
-  have ht := total.hBounds
-  have hc := checksum.hBounds
-  simp only [UScalarTy.U16_numBits_eq] at ht hc
-  simp [Array.make, be16N, be32N, *, cast_u8] at *
-  omega
+  apply WP.spec_mono (encode_into_fresh _ _ 20#usize (by simp [Eseq, Enil, ipv4.Ipv4Header.fields]))
+  intro r hr
+  rw [hr]
+  exact hdr4_vals src dst total proto checksum
 
-/-- **Spec theorem for `ipv6_header`**. -/
+/-- The IPv6 header the encoders write. -/
+def hdr6 (src dst : U128) (len : U16) (next : U8) : ipv6.Ipv6Header :=
+  { version_class_flow := { traffic_class := 0#u8, flow_label := 0#u32 }, payload_len := len,
+    next_header := next, hop_limit := TTL, src := src, dst := dst }
+
+theorem hdr6_vals (src dst : U128) (len : U16) (next : U8) :
+    (FmtE ipv6.Ipv6Header.Insts.UntrustedWriterEncode (hdr6 src dst len next)).map (·.val) =
+      [96, 0, 0, 0] ++ be16N len.val ++ [next.val, 64] ++ be128N src.val ++ be128N dst.val := by
+  have h1 := len.hBounds; have h3 := src.hBounds; have h4 := dst.hBounds; have h5 := next.hBounds
+  simp only [UScalarTy.U16_numBits_eq, UScalarTy.U128_numBits_eq, UScalarTy.U8_numBits_eq] at *
+  simp only [FmtE, hdr6, Eseq, Enil, ipv6.Ipv6Header.fields, ipv6.VersionClassFlow.word,
+    List.map_append, List.append_nil, List.append_assoc, beBytes_vals2 _ (by simpa using h1),
+    beBytes_vals16 _ (by simpa using h3), beBytes_vals16 _ (by simpa using h4),
+    beBytes_vals1 _ (by simpa using h5)]
+  simp [beBytes]
+
+/-- `hdr6` is a header the decoder accepts. -/
+theorem hdr6_valid (src dst : U128) (len : U16) (next : U8) :
+    FmtV ipv6.Ipv6Header.Insts.UntrustedWriterEncode ipv6.Ipv6Header.Insts.UntrustedReaderDecode
+      (hdr6 src dst len next) := by
+  unfold FmtV
+  simp only [Vseq, Vnil, ipv6.Ipv6Header.fields, hdr6]
+  simp
+
+/-- **Spec theorem for `ipv6_header`**: the bytes of `hdr6`. -/
 @[step]
 theorem ipv6_header.spec (src dst : U128) (len : U16) (next : U8) :
     ipv6_header src dst len next ⦃ (r : Array U8 40#usize) =>
       r.val.map (·.val) = [96, 0, 0, 0] ++ be16N len.val ++ [next.val, 64] ++ be128N src.val ++
         be128N dst.val ⦄ := by
   unfold ipv6_header
-  step*
-  have gs := get_of_map s_post
-  have gd := get_of_map d_post
-  have hl := len.hBounds
-  simp only [UScalarTy.U16_numBits_eq] at hl
-  simp only [be128N, be32N] at gs gd
-  simp [Array.make, be16N, be128N, be32N, *, cast_u8] at *
-  omega
+  apply WP.spec_mono (encode_into_fresh _ _ 40#usize (by simp [Eseq, Enil, ipv6.Ipv6Header.fields]))
+  intro r hr
+  rw [hr]
+  exact hdr6_vals src dst len next
 
-/-- **Spec theorem for `udp_header`**. -/
+/-- The UDP header the encoders write. -/
+def udpHdr (sp dp len checksum : U16) : UdpHeader :=
+  { src_port := sp, dst_port := dp, length := len, checksum := checksum }
+
+theorem udpHdr_vals (sp dp len checksum : U16) :
+    (FmtE UdpHeader.Insts.UntrustedWriterEncode (udpHdr sp dp len checksum)).map (·.val) =
+      be16N sp.val ++ be16N dp.val ++ be16N len.val ++ be16N checksum.val := by
+  have h1 := sp.hBounds; have h2 := dp.hBounds; have h3 := len.hBounds; have h4 := checksum.hBounds
+  simp only [UScalarTy.U16_numBits_eq] at h1 h2 h3 h4
+  simp only [FmtE, udpHdr, Eseq, Enil, UdpHeader.fields, List.map_append, List.append_nil,
+    List.append_assoc, beBytes_vals2 _ (by simpa using h1), beBytes_vals2 _ (by simpa using h2),
+    beBytes_vals2 _ (by simpa using h3), beBytes_vals2 _ (by simpa using h4)]
+
+/-- **Spec theorem for `udp_header`**: the bytes of `udpHdr`. -/
 @[step]
 theorem udp_header.spec (sp dp len checksum : U16) :
     udp_header sp dp len checksum ⦃ (r : Array U8 8#usize) =>
       r.val.map (·.val) = be16N sp.val ++ be16N dp.val ++ be16N len.val ++ be16N checksum.val ⦄ := by
   unfold udp_header
-  step*
-  have h1 := sp.hBounds
-  have h2 := dp.hBounds
-  have h3 := len.hBounds
-  have h4 := checksum.hBounds
-  simp only [UScalarTy.U16_numBits_eq] at h1 h2 h3 h4
-  simp [Array.make, be16N, *, cast_u8]
-  omega
+  apply WP.spec_mono (encode_into_fresh _ _ 8#usize (by simp [Eseq, Enil, UdpHeader.fields]))
+  intro r hr
+  rw [hr]
+  exact udpHdr_vals sp dp len checksum
+
+end
 
 /-- **Spec theorem for `udp_checksum`**. -/
 @[step]
@@ -309,68 +364,6 @@ theorem take_map (l : List U8) (k : Nat) : (l.take k).map (·.val) = (l.map (·.
 theorem drop_map (l : List U8) (k : Nat) : (l.drop k).map (·.val) = (l.map (·.val)).drop k :=
   List.map_drop ..
 
-/-- A big-endian byte at the front of `m`. -/
-theorem fmt_be8 (m : List U8) (v : U8) (h : (m.take 1).map (·.val) = [v.val]) :
-    FmtD bytes.BigEndianU8.Insts.UntrustedReaderDecode m v 1 := by
-  have hl : 1 ≤ m.length := by
-    have := congrArg List.length h; simp at this; omega
-  refine ⟨rfl, hl, ?_⟩
-  rw [beNat_eq, h]; simp [beNatN]
-
-/-- A big-endian `u16` at the front of `m`. -/
-theorem fmt_be16 (m : List U8) (v : U16) (h : (m.take 2).map (·.val) = be16N v.val) :
-    FmtD bytes.BigEndianU16.Insts.UntrustedReaderDecode m v 2 := by
-  have hl : 2 ≤ m.length := by
-    have := congrArg List.length h; simp [be16N] at this; omega
-  refine ⟨rfl, hl, ?_⟩
-  rw [beNat_eq, h]; simp [beNatN, be16N]; omega
-
-/-- An IPv4 address at the front of `m`. -/
-theorem fmt_ipv4addr (m : List U8) (v : U32) (h : (m.take 4).map (·.val) = be32N v.val) :
-    FmtD ipv4.Ipv4Addr.Insts.UntrustedReaderDecode m v 4 := by
-  have hl : 4 ≤ m.length := by
-    have := congrArg List.length h; simp [be32N] at this; omega
-  have hv := v.hBounds
-  simp only [UScalarTy.U32_numBits_eq] at hv
-  refine ⟨rfl, hl, ?_⟩
-  rw [beNat_eq, h]; simp [beNatN, be32N]; omega
-
-/-- An IPv6 address at the front of `m`. -/
-theorem fmt_ipv6addr (m : List U8) (v : U128) (h : (m.take 16).map (·.val) = be128N v.val) :
-    FmtD ipv6.Ipv6Addr.Insts.UntrustedReaderDecode m v 16 := by
-  have hl : 16 ≤ m.length := by
-    have := congrArg List.length h; simp [be128N, be32N] at this; omega
-  have hv := v.hBounds
-  simp only [UScalarTy.U128_numBits_eq] at hv
-  refine ⟨rfl, hl, ?_⟩
-  rw [beNat_eq, h]; simp [beNatN, be128N, be32N]; omega
-
-/-- The first byte of an IPv4 header without options. -/
-theorem fmt_versionIhl (m : List U8) (h : (m.take 1).map (·.val) = [69]) :
-    FmtD ipv4.VersionIhl.Insts.UntrustedReaderDecode m ⟨5#u8⟩ 1 := by
-  have hl : 1 ≤ m.length := by
-    have := congrArg List.length h; simp at this; omega
-  refine ⟨rfl, hl, ?_, ?_⟩ <;> rw [beNat_eq, h] <;> simp [beNatN, ipv4.VersionIhl.Valid]
-
-/-- The flags and offset of a whole packet with don't-fragment set. -/
-theorem fmt_fragment (m : List U8) (h : (m.take 2).map (·.val) = [64, 0]) :
-    FmtD ipv4.Fragment.Insts.UntrustedReaderDecode m ⟨true, false, 0#u16⟩ 2 := by
-  have hl : 2 ≤ m.length := by
-    have := congrArg List.length h; simp at this; omega
-  refine ⟨rfl, hl, ?_, ?_⟩ <;> rw [beNat_eq, h] <;> simp [beNatN, ipv4.Fragment.OfWord]
-
-/-- The first word of an IPv6 header with traffic class and flow label 0. -/
-theorem fmt_versionClassFlow (m : List U8) (h : (m.take 4).map (·.val) = [96, 0, 0, 0]) :
-    FmtD ipv6.VersionClassFlow.Insts.UntrustedReaderDecode m ⟨0#u8, 0#u32⟩ 4 := by
-  have hl : 4 ≤ m.length := by
-    have := congrArg List.length h; simp at this; omega
-  refine ⟨rfl, hl, ?_, ?_⟩ <;> rw [beNat_eq, h] <;> simp [beNatN, ipv6.VersionClassFlow.OfWord]
-
-/-- Discharges `((m.drop i).drop j ...).take k).map val = …` from the bytes
-    of `m`. -/
-macro "bytes_at" h:term : tactic =>
-  `(tactic| (simp +zetaDelta only [take_map, drop_map, $h:term]; simp +zetaDelta [be16N, be32N, be128N]))
-
 /-! ## IPv4 -/
 
 /-- **The bytes `encode_ipv4` writes form a UDP datagram in an IPv4
@@ -407,36 +400,31 @@ theorem ipv4_udp_of_bytes (H U D : List U8) (src dst : U32) (total cs sp dp len 
       List.drop_left' hHl]
   have htake : (H ++ U ++ D).take 20 = H := by
     rw [List.append_assoc, List.take_left' hHl]
-  let hdr : ipv4.Ipv4Header :=
-    { version_ihl := ⟨5#u8⟩, tos := (0#u8 : U8), total_len := total, ident := (0#u16 : U16),
-      fragment := ⟨true, false, 0#u16⟩, ttl := (64#u8 : U8), protocol := (17#u8 : U8),
-      checksum := cs, src := src, dst := dst }
+  let hdr := hdr4 src dst total 17#u8 cs
   let ip : ipv4.Ipv4Packet :=
     { header := hdr, options := Slice.from [] (by simp),
       payload := Slice.from (U ++ D) (by simp; omega), padding := Slice.from [] (by simp) }
-  let uh : UdpHeader := { src_port := sp, dst_port := dp, length := len, checksum := ucs }
+  let uh := udpHdr sp dp len ucs
   refine ⟨{ ip, header := uh, payload := Slice.from D (by omega) }, ?_, rfl, rfl, rfl, rfl,
     Slice.from_val _ _⟩
   refine ⟨⟨by simp [hHl, hUl], by rw [hhl], by rw [hhl, htl]; omega,
     by rw [htl]; simp [hHl, hUl]; omega, ?_, ?_, ?_, ?_, ?_⟩,
     rfl, rfl, rfl, by rw [hpay]; simp; omega, ?_, ?_, Or.inr ?_, ?_⟩
   · rw [hhl, htake]; exact hHc
-  · rw [htake, show (20 : Nat) = 1 + (1 + (2 + (2 + (2 + (1 + (1 + (2 + (4 + (4 + 0))))))))) from rfl]
-    refine Dseq.intro (fmt_versionIhl H (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_fragment _ (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be8 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_ipv4addr _ _ (by bytes_at hH)) (Dseq.intro (fmt_ipv4addr _ _ (by bytes_at hH))
-      (Dnil.intro _))))))))))
+  · rw [htake]
+    have := decodes_of_vals ipv4.Ipv4Header.Insts.UntrustedWriterEncode
+      ipv4.Ipv4Header.Insts.UntrustedReaderDecode hdr (hdr4_valid ..) H (by rw [hH, hdr4_vals]; simp)
+    rwa [hHl] at this
   · show (Slice.from [] _).val = _; rw [Slice.from_val]
     rw [hhl, htake, List.drop_eq_nil_of_le (by omega)]
   · show (Slice.from (U ++ D) _).val = _; rw [Slice.from_val, hpay]
   · show (Slice.from [] _).val = _; rw [Slice.from_val]
     rw [htl, htot, List.drop_eq_nil_of_le (by simp; omega)]
-  · rw [hpay, List.take_left' hUl, show (8 : Nat) = 2 + (2 + (2 + (2 + 0))) from rfl]
-    exact Dseq.intro (fmt_be16 _ _ (by bytes_at hU)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hU))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hU)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hU))
-      (Dnil.intro _))))
+  · rw [hpay, List.take_left' hUl]
+    have := decodes_of_vals UdpHeader.Insts.UntrustedWriterEncode
+      UdpHeader.Insts.UntrustedReaderDecode uh (by unfold untrusted.writer.FmtV; simp [untrusted.writer.Vseq, untrusted.writer.Vnil])
+      U (by rw [hU, udpHdr_vals])
+    rwa [hUl] at this
   · show len.val = _; rw [hpay]; simp; omega
   · rw [hpay]; exact hUc
   · show (Slice.from D _).val = _; rw [Slice.from_val, hpay, List.drop_left' hUl]
@@ -475,38 +463,32 @@ theorem ipv6_udp_of_bytes (H U D : List U8) (src dst : U128) (sp dp len ucs : U1
       List.drop_left' hHl]
   have htake : (H ++ U ++ D).take 40 = H := by
     rw [List.append_assoc, List.take_left' hHl]
-  let hdr : ipv6.Ipv6Header :=
-    { version_class_flow := ⟨0#u8, 0#u32⟩, payload_len := len, next_header := (17#u8 : U8),
-      hop_limit := (64#u8 : U8), src := src, dst := dst }
+  let hdr := hdr6 src dst len 17#u8
   let ip : ipv6.Ipv6Packet :=
     { header := hdr, payload := Slice.from (U ++ D) (by simp; omega),
       padding := Slice.from [] (by simp) }
-  let uh : UdpHeader := { src_port := sp, dst_port := dp, length := len, checksum := ucs }
+  let uh := udpHdr sp dp len ucs
   refine ⟨{ ip, header := uh, payload := Slice.from D (by omega) }, ?_, rfl, rfl, rfl, rfl,
     Slice.from_val _ _⟩
   refine ⟨⟨by simp [hHl, hUl], by rw [hend]; simp [hHl, hUl]; omega, ?_, ?_, ?_⟩,
     rfl, by rw [hpay]; simp; omega, ?_, ?_, hucs, ?_, ?_⟩
-  · rw [htake, show (40 : Nat) = 4 + (2 + (1 + (1 + (16 + (16 + 0))))) from rfl]
-    exact Dseq.intro (fmt_versionClassFlow H (by bytes_at hH))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be8 _ _ (by bytes_at hH)) (Dseq.intro (fmt_ipv6addr _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_ipv6addr _ _ (by bytes_at hH)) (Dnil.intro _))))))
+  · rw [htake]
+    have := decodes_of_vals ipv6.Ipv6Header.Insts.UntrustedWriterEncode
+      ipv6.Ipv6Header.Insts.UntrustedReaderDecode hdr (hdr6_valid ..) H (by rw [hH, hdr6_vals]; simp)
+    rwa [hHl] at this
   · show (Slice.from (U ++ D) _).val = _; rw [Slice.from_val, hpay]
   · show (Slice.from [] _).val = _
     rw [Slice.from_val, hend, hlen, List.drop_eq_nil_of_le (by simp; omega)]
-  · rw [hpay, List.take_left' hUl, show (8 : Nat) = 2 + (2 + (2 + (2 + 0))) from rfl]
-    exact Dseq.intro (fmt_be16 _ _ (by bytes_at hU)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hU))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hU)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hU))
-      (Dnil.intro _))))
+  · rw [hpay, List.take_left' hUl]
+    have := decodes_of_vals UdpHeader.Insts.UntrustedWriterEncode
+      UdpHeader.Insts.UntrustedReaderDecode uh (by unfold untrusted.writer.FmtV; simp [untrusted.writer.Vseq, untrusted.writer.Vnil])
+      U (by rw [hU, udpHdr_vals])
+    rwa [hUl] at this
   · show len.val = _; rw [hpay]; simp; omega
   · rw [hpay]; exact hUc
   · show (Slice.from D _).val = _; rw [Slice.from_val, hpay, List.drop_left' hUl]
 
 /-! ## The encoders -/
-
-theorem eq_of_vals {l1 l2 : List U8} (h : l1.map (·.val) = l2.map (·.val)) : l1 = l2 := by
-  refine List.map_injective_iff.mpr ?_ h
-  intro a b hab; exact (UScalar.eq_equiv a b).mpr hab
 
 theorem vals_lt (l : List U8) : ∀ x ∈ l.map (·.val), x < 256 := by
   intro x hx; simp at hx; obtain ⟨a, -, rfl⟩ := hx; have := a.hBounds; simpa using this

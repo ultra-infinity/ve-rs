@@ -9,15 +9,15 @@
 //! [`Ipv4Udp`] takes a whole IPv4 packet, [`Ipv6Udp`] a whole IPv6 packet.
 
 use crate::inet;
-use crate::ipv4::{self, Ipv4Packet, PROTO_UDP};
-use crate::ipv6::{self, Ipv6Packet, NEXT_UDP};
-use untrusted::{BigEndian, Decode, Untrusted, Validate, ValidationError};
+use crate::ipv4::{self, Fragment, Ipv4Header, Ipv4Packet, VersionIhl, PROTO_UDP};
+use crate::ipv6::{self, Ipv6Header, Ipv6Packet, VersionClassFlow, NEXT_UDP};
+use untrusted::{encode_into, BigEndian, Decode, Encode, Untrusted, Validate, ValidationError};
 
 /// Length of the UDP header.
 pub const HEADER_LEN: usize = 8;
 
 /// The UDP header.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UdpHeader {
     pub src_port: BigEndian<u16>,
     pub dst_port: BigEndian<u16>,
@@ -154,120 +154,55 @@ pub const TTL: u8 = 64;
 /// The largest IP packet.
 pub const MAX_PACKET_LEN: usize = 65535;
 
-/// The bytes of `v`, big-endian.
-pub(crate) fn be32(v: u32) -> [u8; 4] {
-    [
-        (v / 16_777_216) as u8,
-        (v / 65536 % 256) as u8,
-        (v / 256 % 256) as u8,
-        (v % 256) as u8,
-    ]
-}
-
-/// The bytes of `v`, big-endian.
-fn be128(v: u128) -> [u8; 16] {
-    let a = be32((v / 79_228_162_514_264_337_593_543_950_336) as u32);
-    let b = be32((v / 18_446_744_073_709_551_616 % 4_294_967_296) as u32);
-    let c = be32((v / 4_294_967_296 % 4_294_967_296) as u32);
-    let d = be32((v % 4_294_967_296) as u32);
-    [
-        a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3], d[0], d[1], d[2],
-        d[3],
-    ]
-}
-
 /// The IPv4 header of a packet of `total` bytes from `src` to `dst` carrying
 /// protocol `proto`, with `checksum`: no options, not fragmented,
 /// don't-fragment set.
 pub(crate) fn ipv4_header(src: u32, dst: u32, total: u16, proto: u8, checksum: u16) -> [u8; 20] {
-    let s = be32(src);
-    let d = be32(dst);
-    [
-        0x45,
-        0,
-        (total / 256) as u8,
-        (total % 256) as u8,
-        0,
-        0,
-        0x40,
-        0,
-        TTL,
-        proto,
-        (checksum / 256) as u8,
-        (checksum % 256) as u8,
-        s[0],
-        s[1],
-        s[2],
-        s[3],
-        d[0],
-        d[1],
-        d[2],
-        d[3],
-    ]
+    let h = Ipv4Header {
+        version_ihl: VersionIhl { ihl: 5 },
+        tos: BigEndian(0),
+        total_len: BigEndian(total),
+        ident: BigEndian(0),
+        fragment: Fragment { dont_fragment: true, more_fragments: false, offset: 0 },
+        ttl: BigEndian(TTL),
+        protocol: BigEndian(proto),
+        checksum: BigEndian(checksum),
+        src: ipv4::Ipv4Addr(src),
+        dst: ipv4::Ipv4Addr(dst),
+    };
+    let mut b = [0u8; 20];
+    let _ = encode_into(&h, &mut b);
+    b
 }
 
 /// The IPv6 header of a packet from `src` to `dst` carrying `len` bytes
 /// under next header `next`: traffic class and flow label 0, no extension
 /// headers.
 pub(crate) fn ipv6_header(src: u128, dst: u128, len: u16, next: u8) -> [u8; 40] {
-    let s = be128(src);
-    let d = be128(dst);
-    [
-        0x60,
-        0,
-        0,
-        0,
-        (len / 256) as u8,
-        (len % 256) as u8,
-        next,
-        TTL,
-        s[0],
-        s[1],
-        s[2],
-        s[3],
-        s[4],
-        s[5],
-        s[6],
-        s[7],
-        s[8],
-        s[9],
-        s[10],
-        s[11],
-        s[12],
-        s[13],
-        s[14],
-        s[15],
-        d[0],
-        d[1],
-        d[2],
-        d[3],
-        d[4],
-        d[5],
-        d[6],
-        d[7],
-        d[8],
-        d[9],
-        d[10],
-        d[11],
-        d[12],
-        d[13],
-        d[14],
-        d[15],
-    ]
+    let h = Ipv6Header {
+        version_class_flow: VersionClassFlow { traffic_class: 0, flow_label: 0 },
+        payload_len: BigEndian(len),
+        next_header: BigEndian(next),
+        hop_limit: BigEndian(TTL),
+        src: ipv6::Ipv6Addr(src),
+        dst: ipv6::Ipv6Addr(dst),
+    };
+    let mut b = [0u8; 40];
+    let _ = encode_into(&h, &mut b);
+    b
 }
 
 /// A UDP header.
 fn udp_header(src_port: u16, dst_port: u16, len: u16, checksum: u16) -> [u8; 8] {
-    [
-        (src_port / 256) as u8,
-        (src_port % 256) as u8,
-        (dst_port / 256) as u8,
-        (dst_port % 256) as u8,
-        (len / 256) as u8,
-        (len % 256) as u8,
-        (checksum / 256) as u8,
-        (checksum % 256) as u8,
-    ]
+    let h = UdpHeader {
+        src_port: BigEndian(src_port),
+        dst_port: BigEndian(dst_port),
+        length: BigEndian(len),
+        checksum: BigEndian(checksum),
+    };
+    let mut b = [0u8; 8];
+    let _ = encode_into(&h, &mut b);
+    b
 }
 
 /// Copies `src` to `out[pos..pos + src.len()]`, which must exist.

@@ -123,4 +123,29 @@ instance _root_.untrusted.Shared0SliceU8.Insts.UntrustedWriterEncode.encode.spec
     simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
     exact hw.wrap
 
+/-! ## Encoding into a fresh array -/
+
+/-- **Encoding into a fresh array of exactly the right length**, the way
+    `let mut b = [0u8; N]; let _ = encode_into(&v, &mut b); b` compiles:
+    the array holds `v`'s bytes. -/
+theorem encode_into_fresh {T : Type} (inst : Encode T) {E : T → List U8} [EncodesAs inst E]
+    (v : T) (N : Usize) (hN : (E v).length = N.val) :
+    (do
+      let (s, back) ← lift (Array.to_slice_mut (Array.repeat N 0#u8))
+      let (_, s1) ← encode_into inst v s
+      ok (back s1)) ⦃ (r : Array U8 N) => r.val = E v ⦄ := by
+  step as ⟨s, back, hs, hback⟩
+  apply WP.spec_bind (encode_into.spec inst v s)
+  rintro ⟨r, s1⟩ ⟨hl, h⟩
+  simp only [WP.uncurry'_pair, uncurry]
+  have hsl : s.length = N.val := by simp [Slice.length, hs]
+  cases r
+  · obtain ⟨-, -, hs1⟩ := h
+    simp only [WP.spec_ok]
+    rw [hback, Array.from_slice_val _ _ (by rw [← Slice.length, hl, hsl]), hs1,
+      List.drop_eq_nil_of_le (by simp only [Slice.length] at hsl; omega), List.append_nil]
+  · exfalso
+    rw [hsl, hN] at h
+    exact Nat.lt_irrefl _ h
+
 end untrusted.writer

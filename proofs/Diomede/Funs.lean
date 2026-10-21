@@ -413,6 +413,247 @@ def dns.DnsHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   decode := dns.DnsHeader.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [diomede::dns::{impl untrusted::writer::Encode for diomede::dns::DnsHeader}::encode]:
+    Source: 'crates/diomede/src/dns.rs', lines 39:17-39:23
+    Visibility: public -/
+def dns.DnsHeader.Insts.UntrustedWriterEncode.encode
+  (self : dns.DnsHeader) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode self.id w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+        self.flags w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+          self.qdcount w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+            self.ancount w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+              self.nscount w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+                self.arcount w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (core.result.Result.Ok (), w6, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [diomede::dns::{impl untrusted::writer::Encode for diomede::dns::DnsHeader}]
+    Source: 'crates/diomede/src/dns.rs', lines 39:17-39:23 -/
+@[reducible]
+def dns.DnsHeader.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  dns.DnsHeader := {
+  encode := dns.DnsHeader.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [diomede::name::lower]:
     Source: 'crates/diomede/src/name.rs', lines 22:0-28:1
     Visibility: public -/
@@ -700,42 +941,62 @@ def dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError :
     dns.DnsQuery.Insts.UntrustedValidateShared0SliceU8ValidationError.validate
 }
 
-/-- [diomede::dns::answer]: loop 0:
-    Source: 'crates/diomede/src/dns.rs', lines 188:4-191:5
+/-- [diomede::dns::{impl untrusted::writer::Encode for diomede::dns::Answer<'a>}::encode]:
+    Source: 'crates/diomede/src/dns.rs', lines 162:9-162:15
     Visibility: public -/
-@[rust_loop]
-def dns.answer_loop0
-  (out : Slice Std.U8) (header : Array Std.U8 12#usize) (i : Std.Usize) :
-  Result ((Slice Std.U8) × Std.Usize)
+def dns.Answer.Insts.UntrustedWriterEncode.encode
+  (self : dns.Answer) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
   := do
-  if i < dns.HEADER_LEN
-  then
-    let i1 ← Array.index_usize header i
-    let s ← Slice.update out i i1
-    let i2 ← i + 1#usize
-    dns.answer_loop0 s header i2
-  else ok (out, i)
-partial_fixpoint
+  let (r, w1, encode_back) ←
+    dns.DnsHeader.Insts.UntrustedWriterEncode.encode self.header w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      Shared0SliceU8.Insts.UntrustedWriterEncode.encode self.question w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
 
-/-- [diomede::dns::answer]: loop 1:
-    Source: 'crates/diomede/src/dns.rs', lines 192:4-195:5
-    Visibility: public -/
-@[rust_loop]
-def dns.answer_loop1
-  (msg : Slice Std.U8) (out : Slice Std.U8) (n : Std.Usize) (i : Std.Usize) :
-  Result (Slice Std.U8)
-  := do
-  if i < n
-  then
-    let i1 ← Slice.index_usize msg i
-    let s ← Slice.update out i i1
-    let i2 ← i + 1#usize
-    dns.answer_loop1 msg s n i2
-  else ok out
-partial_fixpoint
+/-- Trait implementation: [diomede::dns::{impl untrusted::writer::Encode for diomede::dns::Answer<'a>}]
+    Source: 'crates/diomede/src/dns.rs', lines 162:9-162:15 -/
+@[reducible]
+def dns.Answer.Insts.UntrustedWriterEncode : untrusted.writer.Encode dns.Answer
+  := {
+  encode := dns.Answer.Insts.UntrustedWriterEncode.encode
+}
 
 /-- [diomede::dns::answer]:
-    Source: 'crates/diomede/src/dns.rs', lines 165:0-197:1
+    Source: 'crates/diomede/src/dns.rs', lines 172:0-193:1
     Visibility: public -/
 def dns.answer
   (msg : Slice Std.U8) (q : dns.DnsQuery) (rcode : Std.U8) (out : Slice Std.U8)
@@ -751,25 +1012,36 @@ def dns.answer
     if n > i1
     then ok (none, out)
     else
-      let id := q.header.id
       let i2 := q.header.flags
       let i3 ← i2 / 256#u16
-      let i4 ← i3 % 2#u16
-      let rd ← lift (UScalar.cast .U8 i4)
-      let i5 ← id / 256#u16
-      let i6 ← lift (UScalar.cast .U8 i5)
-      let i7 ← id % 256#u16
-      let i8 ← lift (UScalar.cast .U8 i7)
-      let i9 ← 128#u8 + rd
-      let i10 ← rcode % 16#u8
-      let i11 ← 128#u8 + i10
-      let (out1, i12) ←
-        dns.answer_loop0 out
-          (Array.make 12#usize [
-            i6, i8, i9, i11, 0#u8, 1#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8, 0#u8
-            ]) 0#usize
-      let out2 ← dns.answer_loop1 msg out1 n i12
-      ok (some n, out2)
+      let rd ← i3 % 2#u16
+      let i4 ← rd * 256#u16
+      let i5 ← 32896#u16 + i4
+      let i6 ← rcode % 16#u8
+      let i7 ← lift (UScalar.cast .U16 i6)
+      let i8 ← i5 + i7
+      let s ←
+        core.slice.index.Slice.index
+          (core.slice.index.SliceIndexRangeUsizeSlice Std.U8) msg
+          { start := dns.HEADER_LEN, «end» := n }
+      let (r, out1) ←
+        untrusted.writer.encode_into dns.Answer.Insts.UntrustedWriterEncode
+          {
+            header :=
+              {
+                q.header
+                  with
+                  flags := i8,
+                  qdcount := 1#u16,
+                  ancount := 0#u16,
+                  nscount := 0#u16,
+                  arcount := 0#u16
+              },
+            question := s
+          } out
+      match r with
+      | core.result.Result.Ok m => ok (some m, out1)
+      | core.result.Result.Err _ => ok (none, out1)
 
 /-- [diomede::filter::MAX_ANSWER_LEN]
     Source: 'crates/diomede/src/filter.rs', lines 32:0-32:38

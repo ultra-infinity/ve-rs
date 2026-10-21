@@ -7,3 +7,5 @@ import Net.Specs.IcmpHeader
 import Net.Specs.Ipv4Header
 
 derive_decode_spec net.ipv6.Ipv6Header
+derive_encode_spec net.ipv6.Ipv6Header
+derive_roundtrip_spec net.ipv6.Ipv6Header

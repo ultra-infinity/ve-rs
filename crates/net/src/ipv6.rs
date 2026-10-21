@@ -11,7 +11,9 @@
 //! is, with the payload. Bytes after the payload are link-layer padding; they
 //! are handed back too, so they are never dropped silently.
 
-use untrusted::{BigEndian, Decode, Reader, Untrusted, Validate, ValidationError};
+use untrusted::{
+    BigEndian, Decode, Encode, EncodeError, Reader, Untrusted, Validate, ValidationError, Writer,
+};
 
 /// The EtherType of IPv6.
 pub const ETHER_TYPE_IPV6: u16 = 0x86DD;
@@ -29,6 +31,12 @@ pub struct Ipv6Addr(pub u128);
 impl Decode for Ipv6Addr {
     fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
         Ok(Ipv6Addr(r.read::<BigEndian<u128>>()?.0))
+    }
+}
+
+impl Encode for Ipv6Addr {
+    fn encode(&self, w: &mut Writer<'_>) -> Result<(), EncodeError> {
+        BigEndian(self.0).encode(w)
     }
 }
 
@@ -53,8 +61,16 @@ impl Decode for VersionClassFlow {
     }
 }
 
+/// Version 6, the traffic class and the flow label's 20 bits.
+impl Encode for VersionClassFlow {
+    fn encode(&self, w: &mut Writer<'_>) -> Result<(), EncodeError> {
+        let word = 0x6000_0000 + self.traffic_class as u32 * 0x10_0000 + self.flow_label % 0x10_0000;
+        BigEndian(word).encode(w)
+    }
+}
+
 /// The 40-byte fixed IPv6 header.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ipv6Header {
     pub version_class_flow: VersionClassFlow,
     pub payload_len: BigEndian<u16>,

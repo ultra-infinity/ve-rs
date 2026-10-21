@@ -21,41 +21,35 @@ namespace net.tcp
 def tcpN (sp dp : U16) (seq ack : U32) (flags : U8) (c : Nat) : List Nat :=
   be16N sp.val ++ be16N dp.val ++ be32N seq.val ++ be32N ack.val ++ [80, flags.val, 0, 0] ++
     be16N c ++ [0, 0]
+/-- The bare TCP header the encoders write. -/
+def bareHeader (sp dp : U16) (seq ack : U32) (flags : U8) (c : U16) : TcpHeader :=
+  { src_port := sp, dst_port := dp, seq := seq, ack := ack, offset := (80#u8 : U8),
+    flags := flags, window := (0#u16 : U16), checksum := c, urgent := (0#u16 : U16) }
 
-/-- **Spec theorem for `tcp_header`**. -/
+theorem bareHeader_vals (sp dp : U16) (seq ack : U32) (flags : U8) (c : U16) :
+    (untrusted.writer.FmtE TcpHeader.Insts.UntrustedWriterEncode
+      (bareHeader sp dp seq ack flags c)).map (·.val) = tcpN sp dp seq ack flags c.val := by
+  have h1 := sp.hBounds; have h2 := dp.hBounds; have h3 := c.hBounds
+  have h4 := seq.hBounds; have h5 := ack.hBounds; have h6 := flags.hBounds
+  simp only [UScalarTy.U16_numBits_eq, UScalarTy.U32_numBits_eq, UScalarTy.U8_numBits_eq] at *
+  simp only [untrusted.writer.FmtE, bareHeader, untrusted.writer.Eseq, untrusted.writer.Enil,
+    TcpHeader.fields, List.map_append, List.append_nil, List.append_assoc,
+    beBytes_vals2 _ (by simpa using h1), beBytes_vals2 _ (by simpa using h2),
+    beBytes_vals2 _ (by simpa using h3), beBytes_vals4 _ (by simpa using h4),
+    beBytes_vals4 _ (by simpa using h5), beBytes_vals1 _ (by simpa using h6), tcpN]
+  simp [untrusted.writer.beBytes, be16N]
+
+/-- **Spec theorem for `tcp_header`**: the bytes of `bareHeader`. -/
 @[step]
 theorem tcp_header.spec (sp dp : U16) (seq ack : U32) (flags : U8) (checksum : U16) :
     tcp_header sp dp seq ack flags checksum ⦃ (r : Array U8 20#usize) =>
       r.val.map (·.val) = tcpN sp dp seq ack flags checksum.val ⦄ := by
   unfold tcp_header
-  step*
-  have gs := get_of_map s_post
-  have ga := get_of_map a_post
-  have h1 := sp.hBounds
-  have h2 := dp.hBounds
-  have h3 := checksum.hBounds
-  simp only [UScalarTy.U16_numBits_eq] at h1 h2 h3
-  simp [Array.make, tcpN, be16N, be32N, *, cast_u8] at *
-  omega
-
-/-- A big-endian `u32` at the front of `m`. -/
-theorem fmt_be32 (m : List U8) (v : U32) (h : (m.take 4).map (·.val) = be32N v.val) :
-    FmtD bytes.BigEndianU32.Insts.UntrustedReaderDecode m v 4 := by
-  have hl : 4 ≤ m.length := by
-    have := congrArg List.length h; simp [be32N] at this; omega
-  have hv := v.hBounds
-  simp only [UScalarTy.U32_numBits_eq] at hv
-  refine ⟨rfl, hl, ?_⟩
-  rw [beNat_eq, h]; simp [beNatN, be32N]; omega
-
-/-- The decoding of a bare TCP header. -/
-def bareHeader (sp dp : U16) (seq ack : U32) (flags : U8) (c : U16) : TcpHeader :=
-  { src_port := sp, dst_port := dp, seq := seq, ack := ack, offset := (80#u8 : U8),
-    flags := flags, window := (0#u16 : U16), checksum := c, urgent := (0#u16 : U16) }
-
-/-- `bytes_at`, for bare TCP headers. -/
-macro "tcp_bytes_at" h:term : tactic =>
-  `(tactic| (simp +zetaDelta only [take_map, drop_map, $h:term]; simp +zetaDelta [tcpN, bareHeader, be16N, be32N]))
+  apply WP.spec_mono (untrusted.writer.encode_into_fresh _ _ 20#usize
+    (by simp [untrusted.writer.Eseq, untrusted.writer.Enil, TcpHeader.fields]))
+  intro r hr
+  rw [hr]
+  exact bareHeader_vals sp dp seq ack flags checksum
 
 /-- The bare header `T` decodes as a TCP header with these fields, as a
     whole segment. -/
@@ -68,13 +62,12 @@ theorem segment_of_bytes (T : List U8) (sp dp : U16) (seq ack : U32) (flags : U8
   have hhl : hdrLen (bareHeader sp dp seq ack flags c) = 20 := by
     simp [hdrLen, bareHeader]
   refine ⟨hTl, ⟨by omega, ?_, by simp [bareHeader], by omega⟩, hhl⟩
-  rw [List.take_of_length_le (by omega),
-    show (20 : Nat) = 2 + (2 + (4 + (4 + (1 + (1 + (2 + (2 + (2 + 0)))))))) from rfl]
-  exact Dseq.intro (fmt_be16 _ _ (by tcp_bytes_at hT)) (Dseq.intro (fmt_be16 _ _ (by tcp_bytes_at hT))
-    (Dseq.intro (fmt_be32 _ _ (by tcp_bytes_at hT)) (Dseq.intro (fmt_be32 _ _ (by tcp_bytes_at hT))
-    (Dseq.intro (fmt_be8 _ _ (by tcp_bytes_at hT)) (Dseq.intro (fmt_be8 _ _ (by tcp_bytes_at hT))
-    (Dseq.intro (fmt_be16 _ _ (by tcp_bytes_at hT)) (Dseq.intro (fmt_be16 _ _ (by tcp_bytes_at hT))
-    (Dseq.intro (fmt_be16 _ _ (by tcp_bytes_at hT)) (Dnil.intro _)))))))))
+  rw [List.take_of_length_le (by omega)]
+  have := decodes_of_vals TcpHeader.Insts.UntrustedWriterEncode TcpHeader.Insts.UntrustedReaderDecode
+    (bareHeader sp dp seq ack flags c)
+    (by unfold untrusted.writer.FmtV; simp [untrusted.writer.Vseq, untrusted.writer.Vnil]) T
+    (by rw [hT, bareHeader_vals])
+  rwa [hTl] at this
 
 /-! ## IPv4 -/
 
@@ -104,10 +97,7 @@ theorem ipv4_tcp_of_bytes (H T : List U8) (src dst : U32) (cs sp dp : U16) (seq 
     unfold ipv4.payloadOf
     rw [htl, hhl, List.take_of_length_le (by simp; omega), List.drop_left' hHl]
   have htake : (H ++ T).take 20 = H := List.take_left' hHl
-  let hdr : ipv4.Ipv4Header :=
-    { version_ihl := ⟨5#u8⟩, tos := (0#u8 : U8), total_len := (40#u16 : U16),
-      ident := (0#u16 : U16), fragment := ⟨true, false, 0#u16⟩, ttl := (64#u8 : U8),
-      protocol := (6#u8 : U8), checksum := cs, src := src, dst := dst }
+  let hdr := hdr4 src dst 40#u16 6#u8 cs
   let ip : ipv4.Ipv4Packet :=
     { header := hdr, options := Slice.from [] (by simp),
       payload := Slice.from T (by rw [hTl]; scalar_tac), padding := Slice.from [] (by simp) }
@@ -118,13 +108,11 @@ theorem ipv4_tcp_of_bytes (H T : List U8) (src dst : U32) (cs sp dp : U16) (seq 
     by rw [htl]; simp [hHl, hTl], ?_, ?_, ?_, ?_, ?_⟩,
     rfl, rfl, rfl, by rw [hpay]; exact hseg, by rw [hpay]; exact hTc, ?_, ?_⟩
   · rw [hhl, htake]; exact hHc
-  · rw [htake, show (20 : Nat) = 1 + (1 + (2 + (2 + (2 + (1 + (1 + (2 + (4 + (4 + 0))))))))) from rfl]
-    refine Dseq.intro (fmt_versionIhl H (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_fragment _ (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be8 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be16 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_ipv4addr _ _ (by bytes_at hH)) (Dseq.intro (fmt_ipv4addr _ _ (by bytes_at hH))
-      (Dnil.intro _))))))))))
+  · rw [htake]
+    have := decodes_of_vals ipv4.Ipv4Header.Insts.UntrustedWriterEncode
+      ipv4.Ipv4Header.Insts.UntrustedReaderDecode hdr (hdr4_valid ..) H
+      (by rw [hH, hdr4_vals]; simp)
+    rwa [hHl] at this
   · show (Slice.from [] _).val = _; rw [Slice.from_val]
     rw [hhl, htake, List.drop_eq_nil_of_le (by omega)]
   · show (Slice.from T _).val = _; rw [Slice.from_val, hpay]
@@ -240,9 +228,7 @@ theorem ipv6_tcp_of_bytes (H T : List U8) (src dst : U128) (sp dp : U16) (seq ac
     unfold ipv6.payloadOf
     rw [hend, List.take_of_length_le (by simp; omega), List.drop_left' hHl]
   have htake : (H ++ T).take 40 = H := List.take_left' hHl
-  let hdr : ipv6.Ipv6Header :=
-    { version_class_flow := ⟨0#u8, 0#u32⟩, payload_len := (20#u16 : U16),
-      next_header := (6#u8 : U8), hop_limit := (64#u8 : U8), src := src, dst := dst }
+  let hdr := hdr6 src dst 20#u16 6#u8
   let ip : ipv6.Ipv6Packet :=
     { header := hdr, payload := Slice.from T (by rw [hTl]; scalar_tac),
       padding := Slice.from [] (by simp) }
@@ -251,11 +237,11 @@ theorem ipv6_tcp_of_bytes (H T : List U8) (src dst : U128) (sp dp : U16) (seq ac
   refine ⟨t, ?_, rfl, rfl, rfl, Slice.from_val _ _⟩
   refine ⟨⟨by simp [hHl, hTl], by rw [hend]; simp [hHl, hTl], ?_, ?_, ?_⟩,
     rfl, by rw [hpay]; exact hseg, by rw [hpay]; exact hTc, ?_, ?_⟩
-  · rw [htake, show (40 : Nat) = 4 + (2 + (1 + (1 + (16 + (16 + 0))))) from rfl]
-    exact Dseq.intro (fmt_versionClassFlow H (by bytes_at hH))
-      (Dseq.intro (fmt_be16 _ _ (by bytes_at hH)) (Dseq.intro (fmt_be8 _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_be8 _ _ (by bytes_at hH)) (Dseq.intro (fmt_ipv6addr _ _ (by bytes_at hH))
-      (Dseq.intro (fmt_ipv6addr _ _ (by bytes_at hH)) (Dnil.intro _))))))
+  · rw [htake]
+    have := decodes_of_vals ipv6.Ipv6Header.Insts.UntrustedWriterEncode
+      ipv6.Ipv6Header.Insts.UntrustedReaderDecode hdr (hdr6_valid ..) H
+      (by rw [hH, hdr6_vals]; simp)
+    rwa [hHl] at this
   · show (Slice.from T _).val = _; rw [Slice.from_val, hpay]
   · show (Slice.from [] _).val = _
     rw [Slice.from_val, hend, List.drop_eq_nil_of_le (by simp; omega)]

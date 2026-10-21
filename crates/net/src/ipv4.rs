@@ -14,7 +14,9 @@
 //! [`Fragment`].
 
 use crate::inet;
-use untrusted::{BigEndian, Decode, Reader, Untrusted, Validate, ValidationError};
+use untrusted::{
+    BigEndian, Decode, Encode, EncodeError, Reader, Untrusted, Validate, ValidationError, Writer,
+};
 
 /// The EtherType of IPv4.
 pub const ETHER_TYPE_IPV4: u16 = 0x0800;
@@ -32,6 +34,12 @@ pub struct Ipv4Addr(pub u32);
 impl Decode for Ipv4Addr {
     fn decode(r: &mut Reader<'_>) -> Result<Self, ValidationError> {
         Ok(Ipv4Addr(r.read::<BigEndian<u32>>()?.0))
+    }
+}
+
+impl Encode for Ipv4Addr {
+    fn encode(&self, w: &mut Writer<'_>) -> Result<(), EncodeError> {
+        BigEndian(self.0).encode(w)
     }
 }
 
@@ -53,6 +61,13 @@ impl Decode for VersionIhl {
             return Err(ValidationError::OutOfRange);
         }
         Ok(VersionIhl { ihl })
+    }
+}
+
+/// Version 4, then the IHL's four bits.
+impl Encode for VersionIhl {
+    fn encode(&self, w: &mut Writer<'_>) -> Result<(), EncodeError> {
+        BigEndian(64 + self.ihl % 16).encode(w)
     }
 }
 
@@ -89,8 +104,22 @@ impl Decode for Fragment {
     }
 }
 
+/// The flags and the offset's 13 bits, the reserved bit clear.
+impl Encode for Fragment {
+    fn encode(&self, w: &mut Writer<'_>) -> Result<(), EncodeError> {
+        let mut f = self.offset % 0x2000;
+        if self.dont_fragment {
+            f += 0x4000;
+        }
+        if self.more_fragments {
+            f += 0x2000;
+        }
+        BigEndian(f).encode(w)
+    }
+}
+
 /// The 20-byte fixed IPv4 header.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ipv4Header {
     pub version_ihl: VersionIhl,
     pub tos: BigEndian<u8>,

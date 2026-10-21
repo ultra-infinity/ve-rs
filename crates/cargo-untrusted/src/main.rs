@@ -114,6 +114,19 @@ fn run(cmd: &mut Command) -> bool {
     })
 }
 
+/// Runs `cmd` with its output captured: `(succeeded, output)`.
+fn run_captured(cmd: &mut Command) -> (bool, String) {
+    eprintln!("$ {cmd:?}");
+    match cmd.output() {
+        Ok(o) => {
+            let mut text = String::from_utf8_lossy(&o.stdout).into_owned();
+            text.push_str(&String::from_utf8_lossy(&o.stderr));
+            (o.status.success(), text)
+        }
+        Err(e) => (false, format!("error: could not run {:?}: {e}", cmd.get_program())),
+    }
+}
+
 fn require(ok: bool, what: &str) {
     if !ok {
         eprintln!("error: {what} failed");
@@ -402,6 +415,10 @@ fn main() {
     let mut proved: Vec<String> = Vec::new();
     let mut proved_commands: Vec<&str> = Vec::new();
     let mut without_roundtrip: Vec<String> = Vec::new();
+    // The output of each type's last failed attempt: an attempt may only fail
+    // because a field's spec is not built yet, so it is shown only if the type
+    // is given up on.
+    let mut failures: Vec<(String, String)> = Vec::new();
     let mut pending: Vec<String> = types
         .iter()
         .filter(|ty| !commands(ty, true).is_empty())
@@ -426,11 +443,11 @@ fn main() {
                 }
                 fs::write(specs.join(format!("{short}.lean")), src).unwrap();
                 let target = format!("{module}.Specs.{short}");
-                if run(Command::new("lake")
-                    .arg("build")
-                    .arg(&target)
-                    .current_dir(&args.lean_dir))
-                {
+                let (ok, output) = run_captured(
+                    Command::new("lake").arg("build").arg(&target).current_dir(&args.lean_dir),
+                );
+                failures.retain(|(t, _)| *t != ty);
+                if ok {
                     proved.push(target);
                     proved_commands.extend(&cmds);
                     if !with_roundtrip && commands(&ty, true).len() > cmds.len() {
@@ -439,6 +456,7 @@ fn main() {
                     progress = true;
                 } else {
                     let _ = fs::remove_file(specs.join(format!("{short}.lean")));
+                    failures.push((ty.clone(), output));
                     pending.push(ty);
                 }
             }
@@ -448,6 +466,11 @@ fn main() {
         }
     }
     let manual = pending;
+    for (ty, output) in &failures {
+        if manual.contains(ty) {
+            eprintln!("{output}");
+        }
+    }
 
     // 5. Audit everything, including the hand-written specs.
     let mut audit = format!("import {module}.Funs\nimport Untrusted\n");

@@ -15,8 +15,8 @@
 use crate::inet;
 use crate::ipv4::{self, Ipv4Packet};
 use crate::ipv6::{self, Ipv6Packet};
-use crate::udp::{be32, ipv4_header, ipv6_header, put_bytes};
-use untrusted::{BigEndian, Decode, Untrusted, Validate, ValidationError};
+use crate::udp::{ipv4_header, ipv6_header, put_bytes};
+use untrusted::{encode_into, BigEndian, Decode, Encode, Untrusted, Validate, ValidationError};
 
 /// The protocol number (IPv4) and next header (IPv6) of TCP.
 pub const PROTO_TCP: u8 = 6;
@@ -24,7 +24,7 @@ pub const PROTO_TCP: u8 = 6;
 pub const MIN_HEADER_LEN: usize = 20;
 
 /// The fixed part of the TCP header.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TcpHeader {
     pub src_port: BigEndian<u16>,
     pub dst_port: BigEndian<u16>,
@@ -171,30 +171,20 @@ pub const BARE_IPV6_LEN: usize = 60;
 
 /// A TCP header without options: data offset 5, window 0, urgent pointer 0.
 fn tcp_header(src_port: u16, dst_port: u16, seq: u32, ack: u32, flags: u8, checksum: u16) -> [u8; 20] {
-    let s = be32(seq);
-    let a = be32(ack);
-    [
-        (src_port / 256) as u8,
-        (src_port % 256) as u8,
-        (dst_port / 256) as u8,
-        (dst_port % 256) as u8,
-        s[0],
-        s[1],
-        s[2],
-        s[3],
-        a[0],
-        a[1],
-        a[2],
-        a[3],
-        0x50,
-        flags,
-        0,
-        0,
-        (checksum / 256) as u8,
-        (checksum % 256) as u8,
-        0,
-        0,
-    ]
+    let h = TcpHeader {
+        src_port: BigEndian(src_port),
+        dst_port: BigEndian(dst_port),
+        seq: BigEndian(seq),
+        ack: BigEndian(ack),
+        offset: BigEndian(0x50),
+        flags: BigEndian(flags),
+        window: BigEndian(0),
+        checksum: BigEndian(checksum),
+        urgent: BigEndian(0),
+    };
+    let mut b = [0u8; 20];
+    let _ = encode_into(&h, &mut b);
+    b
 }
 
 /// Writes to the start of `out` an IPv4 packet (no options, not fragmented,

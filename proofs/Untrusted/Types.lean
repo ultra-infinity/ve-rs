@@ -39,7 +39,7 @@ structure bytes.FixedLen (Self : Type _) where
   LEN : Result Std.Usize
 
 /-- [untrusted::ValidationError]
-    Source: 'crates/untrusted/src/lib.rs', lines 94:0-105:1
+    Source: 'crates/untrusted/src/lib.rs', lines 150:0-161:1
     Visibility: public -/
 @[discriminant isize]
 inductive ValidationError where
@@ -50,7 +50,7 @@ inductive ValidationError where
 | ChecksumMismatch : ValidationError
 
 /-- Trait declaration: [untrusted::Validate]
-    Source: 'crates/untrusted/src/lib.rs', lines 88:0-91:1
+    Source: 'crates/untrusted/src/lib.rs', lines 144:0-147:1
     Visibility: public -/
 structure Validate (Self : Type _) (Input : Type _) (Self_Err : Type _) where
   validate : Input → Result (core.result.Result Self Self_Err)
@@ -70,7 +70,7 @@ structure reader.Decode (Self : Type _) where
     × reader.Reader)
 
 /-- [untrusted::Untrusted]
-    Source: 'crates/untrusted/src/lib.rs', lines 74:0-74:27
+    Source: 'crates/untrusted/src/lib.rs', lines 130:0-130:27
     Visibility: public -/
 @[reducible]
 def Untrusted (T : Type _) := T

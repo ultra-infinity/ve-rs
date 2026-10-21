@@ -7,8 +7,9 @@ code is translated to [Lean 4](https://lean-lang.org) with
 is proved, for *all* inputs, to never panic, to always terminate, and to return
 exactly what its specification says.
 
-You can also `#[derive(Decode)]` on your own structs, and `cargo untrusted
-verify` proves those derived decoders correct without you writing any proofs.
+You can also `#[derive(Decode, Encode)]` on your own structs, and `cargo
+untrusted verify` proves those derived decoders and encoders correct, and that
+each decodes back what it encodes, without you writing any proofs.
 
 The guarantees are strong, and so are the costs. Read [Cons](#cons) before
 adopting this.
@@ -61,6 +62,14 @@ assert_eq!(
   copied, e.g. a key or a MAC. It can be a field of a derived struct.
 - **`#[derive(Decode)]`:** decodes a struct's fields one after another, in
   declaration order. Works for named, tuple and unit structs.
+- **`Encode` and `Writer`:** the other direction: `write_byte`, `write_bytes` and
+  `encode` on a `Writer`, reached through `encode_into(&value, out)`, which
+  writes to the start of `out` and returns the length. Encoding is total: it
+  only fails, with `EncodeError::NoRoom`, when `out` is too short. Implemented
+  for the `BigEndian`/`LittleEndian` integers, `[u8; N]` and `&[u8]`.
+- **`#[derive(Encode)]`:** writes a struct's fields in declaration order, the
+  way `Decode` reads them. It also accepts lifetime parameters, so a field may
+  borrow a payload (`&'a [u8]`).
 
 ## Example: a network stack up to UDP and TCP (`crates/net`)
 
@@ -156,6 +165,10 @@ decode it back to the same addresses, ports and data
 `tcp::encode_ipv6` write a bare TCP segment (no options or data, such as a
 reset), which `Ipv4Tcp` / `Ipv6Tcp` decode back to the same addresses,
 ports, numbers and flags (`proofs/Net/TcpEncode.lean`).
+The headers are written through their `Encode` impls (derived for the
+headers, hand-written for the fields that pack bits, like `VersionIhl`), so
+the headers' decoding in these proofs comes from their round trips; what
+remains by hand is the checksums and the lengths.
 
 Not covered: reassembling fragments or TCP streams, IPv6 extension headers,
 interpreting IPv4 or TCP options, ICMP message types or NDP, and encoding
@@ -164,8 +177,9 @@ anything but UDP and bare TCP segments.
 It also shows how hand-written and derived proofs combine:
 - field decoders that check values have hand-written specs:
   - `proofs/Net/Fields.lean`: `MacAddr`, `EtherType`, `VlanTag`, `Tagging`;
-  - `proofs/Net/Ipv4Fields.lean`: `VersionIhl`, `Fragment`, `Ipv4Addr`;
-  - `proofs/Net/Ipv6Fields.lean`: `VersionClassFlow`, `Ipv6Addr`;
+  - `proofs/Net/Ipv4Fields.lean`: `VersionIhl`, `Fragment`, `Ipv4Addr` (their
+    encoders and round trips too);
+  - `proofs/Net/Ipv6Fields.lean`: `VersionClassFlow`, `Ipv6Addr` (likewise);
   - `proofs/Net/ArpFields.lean`: `Operation`;
 - the checksums have hand-written specs too: `proofs/Net/Crc.lean` and
   `proofs/Net/Checksum.lean`;
@@ -373,8 +387,10 @@ traffic sent while the VPN is off.
   `read_all`, which rejects leftover bytes. Doc tests confirm the bypasses fail
   to compile.
 - **Your own structs are verified automatically.** `cargo untrusted verify`
-  extracts your crate's `Decode` impls and proves each one decodes exactly its
-  fields, in order. Nested derived structs compose.
+  extracts your crate's `Decode` and `Encode` impls and proves each one reads
+  or writes exactly its fields, in order. For a type with both, it also proves
+  the round trip: decoding what was encoded gives the value back, for every
+  value the decoder accepts. Nested derived structs compose.
 - **The derive macro doesn't need to be trusted.** Its *output* is proved after
   expansion, and the expected format comes from the struct as Aeneas extracted
   it, not from the macro. A macro bug produces a failed proof, never a false
@@ -406,10 +422,13 @@ Please read these carefully. They are real costs, not footnotes.
 - **Narrow format support today:**
   - fixed-width integers in either byte order, and fixed-size byte arrays;
   - structs made of those or of other derived structs;
-  - **no** enums or tagged unions, length-prefixed fields, value constraints,
-    or encoding (writing bytes back).
+  - **no** enums or tagged unions, length-prefixed fields or value
+    constraints.
 
-  `#[derive(Decode)]` rejects enums, unions and generic structs.
+  The derives reject enums and unions, and type parameters (`Encode` accepts
+  lifetimes). A round trip holds only for values the decoder accepts: an
+  encoder writes any value, so a hand-written impl states which with a
+  `Valid` predicate (an IPv4 header length of at least 5, say).
 - **Verification is heavy.** The Lean side needs the Lean toolchain and Mathlib,
   which is about 8 GB on disk, and a Nix-based toolchain. Running
   `cargo untrusted verify` on every developer machine is impractical; plan to
@@ -417,12 +436,13 @@ Please read these carefully. They are real costs, not footnotes.
 - **Pinned, nightly toolchain.** Charon is a rustc driver, so extraction uses
   the exact nightly Rust it was built for, pinned through the Nix flake.
   Upgrading Aeneas means re-extracting, and possibly fixing proofs.
-- **Only `Decode` impls are verified in your crate.** `cargo untrusted verify`
-  extracts nothing else. The rest of your code, including how you *use* decoded
+- **Only `Decode` and `Encode` impls are verified in your crate.**
+  `cargo untrusted verify` extracts nothing else. The rest of your code, including how you *use* decoded
   values, carries no guarantees.
-- **Hand-written `Decode` impls aren't proved automatically.** If an impl
-  doesn't have the derive's shape, the verifier reports it, and you must write
-  its Lean spec by hand (`<Module>/Manual.lean`).
+- **Hand-written `Decode` and `Encode` impls aren't proved automatically.** If
+  an impl doesn't have the derive's shape, the verifier reports it, and you must
+  write its Lean spec by hand (`<Module>/Manual.lean`), with a `RoundTrip`
+  instance if derived types that contain it should get theirs.
 - **`Debug` output isn't verified.** Aeneas models `core::fmt::Formatter` as an
   abstract type that records no output. The proofs only show that formatting
   never fails.
@@ -446,11 +466,12 @@ The proofs show the Rust code matches its Lean specification. They rely on a
 - **The Lean kernel**, which checks the proofs. It is small and well studied.
 - **The specifications themselves.** A proof can only show the code does what
   the spec *says*. The specs are short and reviewable: see
-  `proofs/Untrusted/Spec.lean` and `proofs/Untrusted/Proofs/DecodesAs.lean`.
+  `proofs/Untrusted/Spec.lean`, `proofs/Untrusted/Proofs/DecodesAs.lean` and
+  `proofs/Untrusted/Proofs/{Writer,EncodesAs}.lean`.
 
-Not trusted: the `#[derive(Decode)]` macro, the `cargo untrusted` tool, the
-spec-generating scripts, and the proof automation. Everything they produce is
-re-checked by Lean.
+Not trusted: the `#[derive(Decode)]` and `#[derive(Encode)]` macros, the
+`cargo untrusted` tool, the spec-generating scripts, and the proof automation.
+Everything they produce is re-checked by Lean.
 
 ## Getting started
 
@@ -473,15 +494,16 @@ make diomede-vm-test      # DNS and TLS to ad domains through diomede-pcap (need
 make ultranet-vm-test     # the ad-blocking VPN end to end, in three VMs (needs KVM)
 ```
 
-To verify the `Decode` impls in your own crate:
+To verify the `Decode` and `Encode` impls in your own crate:
 
 ```sh
 cargo untrusted verify -p <your-crate> \
     --lean-dir proofs --untrusted-lean <path-to-this-repo>/proofs
 ```
 
-The tool extracts only your `Decode` impls, links them against the verified
-`Untrusted` Lean library, proves every derived impl, and runs the audit. It
+The tool extracts only your `Decode` and `Encode` impls, links them against the
+verified `Untrusted` Lean library, proves every derived impl and every round
+trip, and runs the audit. It
 exits with an error if anything is unproved.
 
 ## Repository layout
@@ -489,9 +511,9 @@ exits with an error if anything is unproved.
 | Path | Contents |
 |---|---|
 | `crates/untrusted` | The library. |
-| `crates/untrusted-derive` | `#[derive(Decode)]` (untrusted generator). |
+| `crates/untrusted-derive` | `#[derive(Decode)]` and `#[derive(Encode)]` (untrusted generators). |
 | `crates/cargo-untrusted` | `cargo untrusted verify` (untrusted orchestrator). |
-| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP and TCP, and UDP encoding, built on `untrusted`. |
+| `crates/net` | Verified packet decoding from Ethernet (802.1Q, CRC-32 FCS) through ARP, IPv4, IPv6 and ICMP to UDP and TCP, and UDP and TCP encoding (headers through `Encode`), built on `untrusted`. |
 | `crates/wireguard` | A verified, sans-IO WireGuard core, built on `untrusted` and `net`. |
 | `crates/wireguard-libcrux` | Its cryptographic primitives, from libcrux (not extracted; tested against RFC vectors). |
 | `crates/wg-runtime` | The `no_std` runtime of userspace interfaces around the core: configuration, sockets, TUN, event loop, a hook on delivered packets; unverified. |
@@ -509,7 +531,7 @@ exits with an error if anything is unproved.
 | `proofs/Untrusted/{Types,Funs}.lean` | The Lean model, generated by `make extract`. |
 | `proofs/Untrusted/Spec.lean` | Specification vocabulary (`beNat`, ranges, …). |
 | `proofs/Untrusted/Proofs/` | Specs and proofs, partly generated by `proofs/scripts/gen_specs.sh`. |
-| `proofs/Untrusted/Derive.lean` | The `derive_decode_spec` command. |
+| `proofs/Untrusted/Derive.lean` | The `derive_decode_spec`, `derive_encode_spec` and `derive_roundtrip_spec` commands. |
 | `proofs/Untrusted/Audit.lean` | The `untrusted_audit` coverage and axiom check. |
 
 ## License

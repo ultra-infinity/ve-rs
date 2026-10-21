@@ -4790,13 +4790,13 @@ def I128.Insts.UntrustedValidateIsizeValidationError : Validate Std.I128
 }
 
 /-- [untrusted::{untrusted::Untrusted<T>}::new]:
-    Source: 'crates/untrusted/src/lib.rs', lines 77:4-79:5
+    Source: 'crates/untrusted/src/lib.rs', lines 133:4-135:5
     Visibility: public -/
 def Untrusted.new {T : Type _} (inner : T) : Result (Untrusted T) := do
   ok inner
 
 /-- [untrusted::{untrusted::Untrusted<T>}::validate]:
-    Source: 'crates/untrusted/src/lib.rs', lines 82:4-84:5
+    Source: 'crates/untrusted/src/lib.rs', lines 138:4-140:5
     Visibility: public -/
 def Untrusted.validate
   {T : Type _} {U : Type _} {Clause0_Err : Type _} (ValidateInst : Validate U T
@@ -4806,7 +4806,7 @@ def Untrusted.validate
   ValidateInst.validate self
 
 /-- [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}::fmt]:
-    Source: 'crates/untrusted/src/lib.rs', lines 93:9-93:14
+    Source: 'crates/untrusted/src/lib.rs', lines 149:9-149:14
     Visibility: public -/
 def ValidationError.Insts.CoreFmtDebug.fmt
   (self : ValidationError) (f : core.fmt.Formatter) :
@@ -4829,21 +4829,21 @@ def ValidationError.Insts.CoreFmtDebug.fmt
     core.fmt.Formatter.write_str f (toStr "ChecksumMismatch")
 
 /-- Trait implementation: [untrusted::{impl core::fmt::Debug for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:9-93:14 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:9-149:14 -/
 @[reducible]
 def ValidationError.Insts.CoreFmtDebug : core.fmt.Debug ValidationError := {
   fmt := ValidationError.Insts.CoreFmtDebug.fmt
 }
 
 /-- [untrusted::{impl core::clone::Clone for untrusted::ValidationError}::clone]:
-    Source: 'crates/untrusted/src/lib.rs', lines 93:16-93:21
+    Source: 'crates/untrusted/src/lib.rs', lines 149:16-149:21
     Visibility: public -/
 def ValidationError.Insts.CoreCloneClone.clone
   (self : ValidationError) : Result ValidationError := do
   ok self
 
 /-- Trait implementation: [untrusted::{impl core::clone::Clone for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:16-93:21 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:16-149:21 -/
 @[reducible]
 def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
   := {
@@ -4851,7 +4851,7 @@ def ValidationError.Insts.CoreCloneClone : core.clone.Clone ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::Copy for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:23-93:27 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:23-149:27 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
   := {
@@ -4859,14 +4859,14 @@ def ValidationError.Insts.CoreMarkerCopy : core.marker.Copy ValidationError
 }
 
 /-- Trait implementation: [untrusted::{impl core::marker::StructuralPartialEq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:29-149:38 -/
 @[reducible]
 def ValidationError.Insts.CoreMarkerStructuralPartialEq :
   core.marker.StructuralPartialEq ValidationError := {
 }
 
 /-- [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}::eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38
+    Source: 'crates/untrusted/src/lib.rs', lines 149:29-149:38
     Visibility: public -/
 def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   (self : ValidationError) (other : ValidationError) : Result Bool := do
@@ -4893,7 +4893,7 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError.eq
   else ok false
 
 /-- Trait implementation: [untrusted::{impl core::cmp::PartialEq<untrusted::ValidationError> for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:29-93:38 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:29-149:38 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
   ValidationError ValidationError := {
@@ -4901,14 +4901,14 @@ def ValidationError.Insts.CoreCmpPartialEqValidationError : core.cmp.PartialEq
 }
 
 /-- [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}::assert_fields_are_eq]:
-    Source: 'crates/untrusted/src/lib.rs', lines 93:40-93:42
+    Source: 'crates/untrusted/src/lib.rs', lines 149:40-149:42
     Visibility: public -/
 def ValidationError.Insts.CoreCmpEq.assert_fields_are_eq
   (self : ValidationError) : Result Unit := do
   ok ()
 
 /-- Trait implementation: [untrusted::{impl core::cmp::Eq for untrusted::ValidationError}]
-    Source: 'crates/untrusted/src/lib.rs', lines 93:40-93:42 -/
+    Source: 'crates/untrusted/src/lib.rs', lines 149:40-149:42 -/
 @[reducible]
 def ValidationError.Insts.CoreCmpEq : core.cmp.Eq ValidationError := {
   partialEqInst := ValidationError.Insts.CoreCmpPartialEqValidationError

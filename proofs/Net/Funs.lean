@@ -146,7 +146,7 @@ def arp.Operation.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}::decode]:
-    Source: 'crates/net/src/ipv4.rs', lines 33:4-35:5
+    Source: 'crates/net/src/ipv4.rs', lines 35:4-37:5
     Visibility: public -/
 def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -170,7 +170,7 @@ def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Addr}]
-    Source: 'crates/net/src/ipv4.rs', lines 32:0-36:1 -/
+    Source: 'crates/net/src/ipv4.rs', lines 34:0-38:1 -/
 @[reducible]
 def ipv4.Ipv4Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv4.Ipv4Addr := {
@@ -884,7 +884,7 @@ def icmp.IcmpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv4::lengths]:
-    Source: 'crates/net/src/ipv4.rs', lines 121:0-125:1 -/
+    Source: 'crates/net/src/ipv4.rs', lines 150:0-154:1 -/
 def ipv4.lengths (input : Slice Std.U8) : Result (Std.Usize × Std.Usize) := do
   let i ← Slice.index_usize input 0#usize
   let i1 ← lift (UScalar.cast .Usize i)
@@ -899,7 +899,7 @@ def ipv4.lengths (input : Slice Std.U8) : Result (Std.Usize × Std.Usize) := do
   ok (header_len, total_len)
 
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Fragment}::decode]:
-    Source: 'crates/net/src/ipv4.rs', lines 79:4-89:5
+    Source: 'crates/net/src/ipv4.rs', lines 94:4-104:5
     Visibility: public -/
 def ipv4.Fragment.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -935,7 +935,7 @@ def ipv4.Fragment.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Fragment}]
-    Source: 'crates/net/src/ipv4.rs', lines 78:0-90:1 -/
+    Source: 'crates/net/src/ipv4.rs', lines 93:0-105:1 -/
 @[reducible]
 def ipv4.Fragment.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv4.Fragment := {
@@ -943,7 +943,7 @@ def ipv4.Fragment.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::VersionIhl}::decode]:
-    Source: 'crates/net/src/ipv4.rs', lines 46:4-56:5
+    Source: 'crates/net/src/ipv4.rs', lines 54:4-64:5
     Visibility: public -/
 def ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -974,7 +974,7 @@ def ipv4.VersionIhl.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::VersionIhl}]
-    Source: 'crates/net/src/ipv4.rs', lines 45:0-57:1 -/
+    Source: 'crates/net/src/ipv4.rs', lines 53:0-65:1 -/
 @[reducible]
 def ipv4.VersionIhl.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv4.VersionIhl := {
@@ -982,7 +982,7 @@ def ipv4.VersionIhl.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Header}::decode]:
-    Source: 'crates/net/src/ipv4.rs', lines 93:9-93:15
+    Source: 'crates/net/src/ipv4.rs', lines 122:9-122:15
     Visibility: public -/
 def ipv4.Ipv4Header.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -1125,7 +1125,7 @@ def ipv4.Ipv4Header.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv4::{impl untrusted::reader::Decode for net::ipv4::Ipv4Header}]
-    Source: 'crates/net/src/ipv4.rs', lines 93:9-93:15 -/
+    Source: 'crates/net/src/ipv4.rs', lines 122:9-122:15 -/
 @[reducible]
 def ipv4.Ipv4Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv4.Ipv4Header := {
@@ -1133,7 +1133,7 @@ def ipv4.Ipv4Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv4::MIN_HEADER_LEN]
-    Source: 'crates/net/src/ipv4.rs', lines 22:0-22:37
+    Source: 'crates/net/src/ipv4.rs', lines 24:0-24:37
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.MIN_HEADER_LEN : Std.Usize := 20#usize
 
@@ -1194,7 +1194,7 @@ def inet.sum (acc : Std.U16) (data : Slice Std.U8) : Result Std.U16 := do
 @[global_simps, irreducible] def inet.VALID : Std.U16 := 65535#u16
 
 /-- [net::ipv4::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv4::Ipv4Packet<'a>}::validate]:
-    Source: 'crates/net/src/ipv4.rs', lines 130:4-154:5
+    Source: 'crates/net/src/ipv4.rs', lines 159:4-183:5
     Visibility: public -/
 def
   ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
@@ -1260,7 +1260,7 @@ def
                 untrusted.ValidationError) residual
 
 /-- Trait implementation: [net::ipv4::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv4::Ipv4Packet<'a>}]
-    Source: 'crates/net/src/ipv4.rs', lines 127:0-155:1 -/
+    Source: 'crates/net/src/ipv4.rs', lines 156:0-184:1 -/
 @[reducible]
 def ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate ipv4.Ipv4Packet (Slice Std.U8) untrusted.ValidationError
@@ -1270,7 +1270,7 @@ def ipv4.Ipv4Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [net::ipv4::PROTO_ICMP]
-    Source: 'crates/net/src/ipv4.rs', lines 24:0-24:29
+    Source: 'crates/net/src/ipv4.rs', lines 26:0-26:29
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.PROTO_ICMP : Std.U8 := 1#u8
 
@@ -1348,12 +1348,12 @@ def icmp.Icmpv4.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [net::ipv6::HEADER_LEN]
-    Source: 'crates/net/src/ipv6.rs', lines 19:0-19:33
+    Source: 'crates/net/src/ipv6.rs', lines 21:0-21:33
     Visibility: public -/
 @[global_simps, irreducible] def ipv6.HEADER_LEN : Std.Usize := 40#usize
 
 /-- [net::ipv6::payload_end]:
-    Source: 'crates/net/src/ipv6.rs', lines 79:0-81:1 -/
+    Source: 'crates/net/src/ipv6.rs', lines 95:0-97:1 -/
 def ipv6.payload_end (input : Slice Std.U8) : Result Std.Usize := do
   let i ← Slice.index_usize input 4#usize
   let i1 ← lift (UScalar.cast .Usize i)
@@ -1364,7 +1364,7 @@ def ipv6.payload_end (input : Slice Std.U8) : Result Std.Usize := do
   i3 + i5
 
 /-- [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::VersionClassFlow}::decode]:
-    Source: 'crates/net/src/ipv6.rs', lines 44:4-53:5
+    Source: 'crates/net/src/ipv6.rs', lines 52:4-61:5
     Visibility: public -/
 def ipv6.VersionClassFlow.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -1396,7 +1396,7 @@ def ipv6.VersionClassFlow.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::VersionClassFlow}]
-    Source: 'crates/net/src/ipv6.rs', lines 43:0-54:1 -/
+    Source: 'crates/net/src/ipv6.rs', lines 51:0-62:1 -/
 @[reducible]
 def ipv6.VersionClassFlow.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv6.VersionClassFlow := {
@@ -1404,7 +1404,7 @@ def ipv6.VersionClassFlow.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::Ipv6Addr}::decode]:
-    Source: 'crates/net/src/ipv6.rs', lines 30:4-32:5
+    Source: 'crates/net/src/ipv6.rs', lines 32:4-34:5
     Visibility: public -/
 def ipv6.Ipv6Addr.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -1428,7 +1428,7 @@ def ipv6.Ipv6Addr.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::Ipv6Addr}]
-    Source: 'crates/net/src/ipv6.rs', lines 29:0-33:1 -/
+    Source: 'crates/net/src/ipv6.rs', lines 31:0-35:1 -/
 @[reducible]
 def ipv6.Ipv6Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv6.Ipv6Addr := {
@@ -1436,7 +1436,7 @@ def ipv6.Ipv6Addr.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::Ipv6Header}::decode]:
-    Source: 'crates/net/src/ipv6.rs', lines 57:9-57:15
+    Source: 'crates/net/src/ipv6.rs', lines 73:9-73:15
     Visibility: public -/
 def ipv6.Ipv6Header.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -1526,7 +1526,7 @@ def ipv6.Ipv6Header.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [net::ipv6::{impl untrusted::reader::Decode for net::ipv6::Ipv6Header}]
-    Source: 'crates/net/src/ipv6.rs', lines 57:9-57:15 -/
+    Source: 'crates/net/src/ipv6.rs', lines 73:9-73:15 -/
 @[reducible]
 def ipv6.Ipv6Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   ipv6.Ipv6Header := {
@@ -1534,7 +1534,7 @@ def ipv6.Ipv6Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode
 }
 
 /-- [net::ipv6::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv6::Ipv6Packet<'a>}::validate]:
-    Source: 'crates/net/src/ipv6.rs', lines 86:4-100:5
+    Source: 'crates/net/src/ipv6.rs', lines 102:4-116:5
     Visibility: public -/
 def
   ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError.validate
@@ -1579,7 +1579,7 @@ def
           residual
 
 /-- Trait implementation: [net::ipv6::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::ipv6::Ipv6Packet<'a>}]
-    Source: 'crates/net/src/ipv6.rs', lines 83:0-101:1 -/
+    Source: 'crates/net/src/ipv6.rs', lines 99:0-117:1 -/
 @[reducible]
 def ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
   untrusted.Validate ipv6.Ipv6Packet (Slice Std.U8) untrusted.ValidationError
@@ -1589,7 +1589,7 @@ def ipv6.Ipv6Packet.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [net::ipv6::NEXT_ICMPV6]
-    Source: 'crates/net/src/ipv6.rs', lines 23:0-23:31
+    Source: 'crates/net/src/ipv6.rs', lines 25:0-25:31
     Visibility: public -/
 @[global_simps, irreducible] def ipv6.NEXT_ICMPV6 : Std.U8 := 58#u8
 
@@ -1678,32 +1678,924 @@ def icmp.Icmpv6.Insts.UntrustedValidateSharedASliceU8ValidationError :
 }
 
 /-- [net::ipv4::ETHER_TYPE_IPV4]
-    Source: 'crates/net/src/ipv4.rs', lines 20:0-20:40
+    Source: 'crates/net/src/ipv4.rs', lines 22:0-22:40
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.ETHER_TYPE_IPV4 : Std.U16 := 2048#u16
 
 /-- [net::ipv4::PROTO_UDP]
-    Source: 'crates/net/src/ipv4.rs', lines 26:0-26:29
+    Source: 'crates/net/src/ipv4.rs', lines 28:0-28:29
     Visibility: public -/
 @[global_simps, irreducible] def ipv4.PROTO_UDP : Std.U8 := 17#u8
 
+/-- [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Ipv4Addr}::encode]:
+    Source: 'crates/net/src/ipv4.rs', lines 41:4-43:5
+    Visibility: public -/
+def ipv4.Ipv4Addr.Insts.UntrustedWriterEncode.encode
+  (self : ipv4.Ipv4Addr) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode self w
+  let back := fun w2 => { w with out := (encode_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Ipv4Addr}]
+    Source: 'crates/net/src/ipv4.rs', lines 40:0-44:1 -/
+@[reducible]
+def ipv4.Ipv4Addr.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv4.Ipv4Addr := {
+  encode := ipv4.Ipv4Addr.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::VersionIhl}::encode]:
+    Source: 'crates/net/src/ipv4.rs', lines 69:4-71:5
+    Visibility: public -/
+def ipv4.VersionIhl.Insts.UntrustedWriterEncode.encode
+  (self : ipv4.VersionIhl) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let i ← self.ihl % 16#u8
+  let i1 ← 64#u8 + i
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode i1 w
+  let back := fun w2 => { w with out := (encode_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::VersionIhl}]
+    Source: 'crates/net/src/ipv4.rs', lines 68:0-72:1 -/
+@[reducible]
+def ipv4.VersionIhl.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv4.VersionIhl := {
+  encode := ipv4.VersionIhl.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [net::ipv4::{net::ipv4::Fragment}::is_fragment]:
-    Source: 'crates/net/src/ipv4.rs', lines 73:4-75:5
+    Source: 'crates/net/src/ipv4.rs', lines 88:4-90:5
     Visibility: public -/
 def ipv4.Fragment.is_fragment (self : ipv4.Fragment) : Result Bool := do
   if self.more_fragments
   then ok true
   else ok (self.offset != 0#u16)
 
+/-- [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Fragment}::encode]:
+    Source: 'crates/net/src/ipv4.rs', lines 109:4-118:5
+    Visibility: public -/
+def ipv4.Fragment.Insts.UntrustedWriterEncode.encode
+  (self : ipv4.Fragment) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let f ← self.offset % 8192#u16
+  let f1 ← if self.dont_fragment
+             then f + 16384#u16
+             else ok f
+  let f2 ← if self.more_fragments
+             then f1 + 8192#u16
+             else ok f1
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode f2 w
+  let back := fun w2 => { w with out := (encode_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Fragment}]
+    Source: 'crates/net/src/ipv4.rs', lines 108:0-119:1 -/
+@[reducible]
+def ipv4.Fragment.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv4.Fragment := {
+  encode := ipv4.Fragment.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Ipv4Header}::encode]:
+    Source: 'crates/net/src/ipv4.rs', lines 122:17-122:23
+    Visibility: public -/
+def ipv4.Ipv4Header.Insts.UntrustedWriterEncode.encode
+  (self : ipv4.Ipv4Header) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    ipv4.VersionIhl.Insts.UntrustedWriterEncode.encode self.version_ihl w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode 
+        self.tos w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+          self.total_len w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+            self.ident w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            ipv4.Fragment.Insts.UntrustedWriterEncode.encode self.fragment w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+                self.ttl w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let (r6, w7, encode_back6) ←
+                untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+                  self.protocol w6
+              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r6
+              match cf6 with
+              | core.ops.control_flow.ControlFlow.Continue _ =>
+                let (r7, w8, encode_back7) ←
+                  untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+                    self.checksum w7
+                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r7
+                match cf7 with
+                | core.ops.control_flow.ControlFlow.Continue _ =>
+                  let (r8, w9, encode_back8) ←
+                    ipv4.Ipv4Addr.Insts.UntrustedWriterEncode.encode 
+                      self.src w8
+                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r8
+                  match cf8 with
+                  | core.ops.control_flow.ControlFlow.Continue _ =>
+                    let (r9, w10, encode_back9) ←
+                      ipv4.Ipv4Addr.Insts.UntrustedWriterEncode.encode 
+                        self.dst w9
+                    let cf9 ← core.result.Result.Insts.CoreOpsTry.branch r9
+                    match cf9 with
+                    | core.ops.control_flow.ControlFlow.Continue _ =>
+                      let back :=
+                        fun w11 =>
+                          {
+                            w
+                              with
+                              out :=
+                                (encode_back
+                                  {
+                                    w1
+                                      with
+                                      out :=
+                                        (encode_back1
+                                          {
+                                            w2
+                                              with
+                                              out :=
+                                                (encode_back2
+                                                  {
+                                                    w3
+                                                      with
+                                                      out :=
+                                                        (encode_back3
+                                                          {
+                                                            w4
+                                                              with
+                                                              out :=
+                                                                (encode_back4
+                                                                  {
+                                                                    w5
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    {
+                                                                    w8
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back8
+                                                                    {
+                                                                    w9
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back9
+                                                                    w11).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                  }).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }
+                      ok (core.result.Result.Ok (), w10, back)
+                    | core.ops.control_flow.ControlFlow.Break residual =>
+                      let r10 ←
+                        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                          Unit (core.convert.FromSame
+                          untrusted.writer.EncodeError) residual
+                      let back :=
+                        fun w11 =>
+                          {
+                            w
+                              with
+                              out :=
+                                (encode_back
+                                  {
+                                    w1
+                                      with
+                                      out :=
+                                        (encode_back1
+                                          {
+                                            w2
+                                              with
+                                              out :=
+                                                (encode_back2
+                                                  {
+                                                    w3
+                                                      with
+                                                      out :=
+                                                        (encode_back3
+                                                          {
+                                                            w4
+                                                              with
+                                                              out :=
+                                                                (encode_back4
+                                                                  {
+                                                                    w5
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    {
+                                                                    w8
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back8
+                                                                    {
+                                                                    w9
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back9
+                                                                    w11).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                  }).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }
+                      ok (r10, w10, back)
+                  | core.ops.control_flow.ControlFlow.Break residual =>
+                    let r9 ←
+                      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                        Unit (core.convert.FromSame
+                        untrusted.writer.EncodeError) residual
+                    let back :=
+                      fun w10 =>
+                        {
+                          w
+                            with
+                            out :=
+                              (encode_back
+                                {
+                                  w1
+                                    with
+                                    out :=
+                                      (encode_back1
+                                        {
+                                          w2
+                                            with
+                                            out :=
+                                              (encode_back2
+                                                {
+                                                  w3
+                                                    with
+                                                    out :=
+                                                      (encode_back3
+                                                        {
+                                                          w4
+                                                            with
+                                                            out :=
+                                                              (encode_back4
+                                                                {
+                                                                  w5
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    {
+                                                                    w8
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back8
+                                                                    w10).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                }).out
+                                                        }).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }
+                    ok (r9, w9, back)
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  let r8 ←
+                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                      Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                      residual
+                  let back :=
+                    fun w9 =>
+                      {
+                        w
+                          with
+                          out :=
+                            (encode_back
+                              {
+                                w1
+                                  with
+                                  out :=
+                                    (encode_back1
+                                      {
+                                        w2
+                                          with
+                                          out :=
+                                            (encode_back2
+                                              {
+                                                w3
+                                                  with
+                                                  out :=
+                                                    (encode_back3
+                                                      {
+                                                        w4
+                                                          with
+                                                          out :=
+                                                            (encode_back4
+                                                              {
+                                                                w5
+                                                                  with
+                                                                  out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    w9).out
+                                                                    }).out
+                                                                    }).out
+                                                              }).out
+                                                      }).out
+                                              }).out
+                                      }).out
+                              }).out
+                      }
+                  ok (r8, w8, back)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                let r7 ←
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                    residual
+                let back :=
+                  fun w8 =>
+                    {
+                      w
+                        with
+                        out :=
+                          (encode_back
+                            {
+                              w1
+                                with
+                                out :=
+                                  (encode_back1
+                                    {
+                                      w2
+                                        with
+                                        out :=
+                                          (encode_back2
+                                            {
+                                              w3
+                                                with
+                                                out :=
+                                                  (encode_back3
+                                                    {
+                                                      w4
+                                                        with
+                                                        out :=
+                                                          (encode_back4
+                                                            {
+                                                              w5
+                                                                with
+                                                                out :=
+                                                                  (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    w8).out
+                                                                    }).out
+                                                            }).out
+                                                    }).out
+                                            }).out
+                                    }).out
+                            }).out
+                    }
+                ok (r7, w7, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [net::ipv4::{impl untrusted::writer::Encode for net::ipv4::Ipv4Header}]
+    Source: 'crates/net/src/ipv4.rs', lines 122:17-122:23 -/
+@[reducible]
+def ipv4.Ipv4Header.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv4.Ipv4Header := {
+  encode := ipv4.Ipv4Header.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [net::ipv6::ETHER_TYPE_IPV6]
-    Source: 'crates/net/src/ipv6.rs', lines 17:0-17:40
+    Source: 'crates/net/src/ipv6.rs', lines 19:0-19:40
     Visibility: public -/
 @[global_simps, irreducible] def ipv6.ETHER_TYPE_IPV6 : Std.U16 := 34525#u16
 
 /-- [net::ipv6::NEXT_UDP]
-    Source: 'crates/net/src/ipv6.rs', lines 21:0-21:28
+    Source: 'crates/net/src/ipv6.rs', lines 23:0-23:28
     Visibility: public -/
 @[global_simps, irreducible] def ipv6.NEXT_UDP : Std.U8 := 17#u8
+
+/-- [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::Ipv6Addr}::encode]:
+    Source: 'crates/net/src/ipv6.rs', lines 38:4-40:5
+    Visibility: public -/
+def ipv6.Ipv6Addr.Insts.UntrustedWriterEncode.encode
+  (self : ipv6.Ipv6Addr) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU128.Insts.UntrustedWriterEncode.encode self w
+  let back := fun w2 => { w with out := (encode_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::Ipv6Addr}]
+    Source: 'crates/net/src/ipv6.rs', lines 37:0-41:1 -/
+@[reducible]
+def ipv6.Ipv6Addr.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv6.Ipv6Addr := {
+  encode := ipv6.Ipv6Addr.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::VersionClassFlow}::encode]:
+    Source: 'crates/net/src/ipv6.rs', lines 66:4-69:5
+    Visibility: public -/
+def ipv6.VersionClassFlow.Insts.UntrustedWriterEncode.encode
+  (self : ipv6.VersionClassFlow) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let i ← lift (UScalar.cast .U32 self.traffic_class)
+  let i1 ← i * 1048576#u32
+  let i2 ← 1610612736#u32 + i1
+  let i3 ← self.flow_label % 1048576#u32
+  let word ← i2 + i3
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode word w
+  let back := fun w2 => { w with out := (encode_back w2).out }
+  ok (r, w1, back)
+
+/-- Trait implementation: [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::VersionClassFlow}]
+    Source: 'crates/net/src/ipv6.rs', lines 65:0-70:1 -/
+@[reducible]
+def ipv6.VersionClassFlow.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv6.VersionClassFlow := {
+  encode := ipv6.VersionClassFlow.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::Ipv6Header}::encode]:
+    Source: 'crates/net/src/ipv6.rs', lines 73:17-73:23
+    Visibility: public -/
+def ipv6.Ipv6Header.Insts.UntrustedWriterEncode.encode
+  (self : ipv6.Ipv6Header) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    ipv6.VersionClassFlow.Insts.UntrustedWriterEncode.encode
+      self.version_class_flow w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+        self.payload_len w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+          self.next_header w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+            self.hop_limit w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            ipv6.Ipv6Addr.Insts.UntrustedWriterEncode.encode self.src w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              ipv6.Ipv6Addr.Insts.UntrustedWriterEncode.encode self.dst w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (core.result.Result.Ok (), w6, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [net::ipv6::{impl untrusted::writer::Encode for net::ipv6::Ipv6Header}]
+    Source: 'crates/net/src/ipv6.rs', lines 73:17-73:23 -/
+@[reducible]
+def ipv6.Ipv6Header.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  ipv6.Ipv6Header := {
+  encode := ipv6.Ipv6Header.Insts.UntrustedWriterEncode.encode
+}
 
 /-- [net::tcp::PROTO_TCP]
     Source: 'crates/net/src/tcp.rs', lines 22:0-22:28
@@ -1852,6 +2744,455 @@ def tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
 def tcp.TcpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   tcp.TcpHeader := {
   decode := tcp.TcpHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::tcp::{impl untrusted::writer::Encode for net::tcp::TcpHeader}::encode]:
+    Source: 'crates/net/src/tcp.rs', lines 27:17-27:23
+    Visibility: public -/
+def tcp.TcpHeader.Insts.UntrustedWriterEncode.encode
+  (self : tcp.TcpHeader) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+      self.src_port w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+        self.dst_port w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        untrusted.bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode
+          self.seq w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          untrusted.bytes.BigEndianU32.Insts.UntrustedWriterEncode.encode
+            self.ack w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let (r4, w5, encode_back4) ←
+            untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+              self.offset w4
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue _ =>
+            let (r5, w6, encode_back5) ←
+              untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode
+                self.flags w5
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue _ =>
+              let (r6, w7, encode_back6) ←
+                untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+                  self.window w6
+              let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r6
+              match cf6 with
+              | core.ops.control_flow.ControlFlow.Continue _ =>
+                let (r7, w8, encode_back7) ←
+                  untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+                    self.checksum w7
+                let cf7 ← core.result.Result.Insts.CoreOpsTry.branch r7
+                match cf7 with
+                | core.ops.control_flow.ControlFlow.Continue _ =>
+                  let (r8, w9, encode_back8) ←
+                    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+                      self.urgent w8
+                  let cf8 ← core.result.Result.Insts.CoreOpsTry.branch r8
+                  match cf8 with
+                  | core.ops.control_flow.ControlFlow.Continue _ =>
+                    let back :=
+                      fun w10 =>
+                        {
+                          w
+                            with
+                            out :=
+                              (encode_back
+                                {
+                                  w1
+                                    with
+                                    out :=
+                                      (encode_back1
+                                        {
+                                          w2
+                                            with
+                                            out :=
+                                              (encode_back2
+                                                {
+                                                  w3
+                                                    with
+                                                    out :=
+                                                      (encode_back3
+                                                        {
+                                                          w4
+                                                            with
+                                                            out :=
+                                                              (encode_back4
+                                                                {
+                                                                  w5
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    {
+                                                                    w8
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back8
+                                                                    w10).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                }).out
+                                                        }).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }
+                    ok (core.result.Result.Ok (), w9, back)
+                  | core.ops.control_flow.ControlFlow.Break residual =>
+                    let r9 ←
+                      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                        Unit (core.convert.FromSame
+                        untrusted.writer.EncodeError) residual
+                    let back :=
+                      fun w10 =>
+                        {
+                          w
+                            with
+                            out :=
+                              (encode_back
+                                {
+                                  w1
+                                    with
+                                    out :=
+                                      (encode_back1
+                                        {
+                                          w2
+                                            with
+                                            out :=
+                                              (encode_back2
+                                                {
+                                                  w3
+                                                    with
+                                                    out :=
+                                                      (encode_back3
+                                                        {
+                                                          w4
+                                                            with
+                                                            out :=
+                                                              (encode_back4
+                                                                {
+                                                                  w5
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    {
+                                                                    w8
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back8
+                                                                    w10).out
+                                                                    }).out
+                                                                    }).out
+                                                                    }).out
+                                                                }).out
+                                                        }).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }
+                    ok (r9, w9, back)
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  let r8 ←
+                    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                      Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                      residual
+                  let back :=
+                    fun w9 =>
+                      {
+                        w
+                          with
+                          out :=
+                            (encode_back
+                              {
+                                w1
+                                  with
+                                  out :=
+                                    (encode_back1
+                                      {
+                                        w2
+                                          with
+                                          out :=
+                                            (encode_back2
+                                              {
+                                                w3
+                                                  with
+                                                  out :=
+                                                    (encode_back3
+                                                      {
+                                                        w4
+                                                          with
+                                                          out :=
+                                                            (encode_back4
+                                                              {
+                                                                w5
+                                                                  with
+                                                                  out :=
+                                                                    (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    {
+                                                                    w7
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back7
+                                                                    w9).out
+                                                                    }).out
+                                                                    }).out
+                                                              }).out
+                                                      }).out
+                                              }).out
+                                      }).out
+                              }).out
+                      }
+                  ok (r8, w8, back)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                let r7 ←
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                    residual
+                let back :=
+                  fun w8 =>
+                    {
+                      w
+                        with
+                        out :=
+                          (encode_back
+                            {
+                              w1
+                                with
+                                out :=
+                                  (encode_back1
+                                    {
+                                      w2
+                                        with
+                                        out :=
+                                          (encode_back2
+                                            {
+                                              w3
+                                                with
+                                                out :=
+                                                  (encode_back3
+                                                    {
+                                                      w4
+                                                        with
+                                                        out :=
+                                                          (encode_back4
+                                                            {
+                                                              w5
+                                                                with
+                                                                out :=
+                                                                  (encode_back5
+                                                                    {
+                                                                    w6
+                                                                    with
+                                                                    out :=
+                                                                    (encode_back6
+                                                                    w8).out
+                                                                    }).out
+                                                            }).out
+                                                    }).out
+                                            }).out
+                                    }).out
+                            }).out
+                    }
+                ok (r7, w7, back)
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              let r6 ←
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                  residual
+              let back :=
+                fun w7 =>
+                  {
+                    w
+                      with
+                      out :=
+                        (encode_back
+                          {
+                            w1
+                              with
+                              out :=
+                                (encode_back1
+                                  {
+                                    w2
+                                      with
+                                      out :=
+                                        (encode_back2
+                                          {
+                                            w3
+                                              with
+                                              out :=
+                                                (encode_back3
+                                                  {
+                                                    w4
+                                                      with
+                                                      out :=
+                                                        (encode_back4
+                                                          {
+                                                            w5
+                                                              with
+                                                              out :=
+                                                                (encode_back5
+                                                                  w7).out
+                                                          }).out
+                                                  }).out
+                                          }).out
+                                  }).out
+                          }).out
+                  }
+              ok (r6, w6, back)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            let r5 ←
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                Unit (core.convert.FromSame untrusted.writer.EncodeError)
+                residual
+            let back :=
+              fun w6 =>
+                {
+                  w
+                    with
+                    out :=
+                      (encode_back
+                        {
+                          w1
+                            with
+                            out :=
+                              (encode_back1
+                                {
+                                  w2
+                                    with
+                                    out :=
+                                      (encode_back2
+                                        {
+                                          w3
+                                            with
+                                            out :=
+                                              (encode_back3
+                                                {
+                                                  w4
+                                                    with
+                                                    out :=
+                                                      (encode_back4 w6).out
+                                                }).out
+                                        }).out
+                                }).out
+                        }).out
+                }
+            ok (r5, w5, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [net::tcp::{impl untrusted::writer::Encode for net::tcp::TcpHeader}]
+    Source: 'crates/net/src/tcp.rs', lines 27:17-27:23 -/
+@[reducible]
+def tcp.TcpHeader.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  tcp.TcpHeader := {
+  encode := tcp.TcpHeader.Insts.UntrustedWriterEncode.encode
 }
 
 /-- [net::tcp::header]:
@@ -2079,58 +3420,32 @@ def tcp.Ipv6Tcp.Insts.UntrustedValidateSharedASliceU8ValidationError :
     Visibility: public -/
 @[global_simps, irreducible] def tcp.BARE_IPV6_LEN : Std.Usize := 60#usize
 
-/-- [net::udp::be32]:
-    Source: 'crates/net/src/udp.rs', lines 158:0-165:1 -/
-def udp.be32 (v : Std.U32) : Result (Array Std.U8 4#usize) := do
-  let i ← v / 16777216#u32
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← v / 65536#u32
-  let i3 ← i2 % 256#u32
-  let i4 ← lift (UScalar.cast .U8 i3)
-  let i5 ← v / 256#u32
-  let i6 ← i5 % 256#u32
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← v % 256#u32
-  let i9 ← lift (UScalar.cast .U8 i8)
-  ok (Array.make 4#usize [ i1, i4, i7, i9 ])
-
 /-- [net::tcp::tcp_header]:
-    Source: 'crates/net/src/tcp.rs', lines 173:0-198:1 -/
+    Source: 'crates/net/src/tcp.rs', lines 173:0-188:1 -/
 def tcp.tcp_header
   (src_port : Std.U16) (dst_port : Std.U16) (seq : Std.U32) (ack : Std.U32)
   (flags : Std.U8) (checksum : Std.U16) :
   Result (Array Std.U8 20#usize)
   := do
-  let s ← udp.be32 seq
-  let a ← udp.be32 ack
-  let i ← src_port / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← src_port % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← dst_port / 256#u16
-  let i5 ← lift (UScalar.cast .U8 i4)
-  let i6 ← dst_port % 256#u16
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← Array.index_usize s 0#usize
-  let i9 ← Array.index_usize s 1#usize
-  let i10 ← Array.index_usize s 2#usize
-  let i11 ← Array.index_usize s 3#usize
-  let i12 ← Array.index_usize a 0#usize
-  let i13 ← Array.index_usize a 1#usize
-  let i14 ← Array.index_usize a 2#usize
-  let i15 ← Array.index_usize a 3#usize
-  let i16 ← checksum / 256#u16
-  let i17 ← lift (UScalar.cast .U8 i16)
-  let i18 ← checksum % 256#u16
-  let i19 ← lift (UScalar.cast .U8 i18)
-  ok
-    (Array.make 20#usize [
-      i1, i3, i5, i7, i8, i9, i10, i11, i12, i13, i14, i15, 80#u8, flags, 0#u8,
-      0#u8, i17, i19, 0#u8, 0#u8
-      ])
+  let b := Array.repeat 20#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut b)
+  let (_, s1) ←
+    untrusted.writer.encode_into tcp.TcpHeader.Insts.UntrustedWriterEncode
+      {
+        src_port := src_port,
+        dst_port := dst_port,
+        seq := seq,
+        ack := ack,
+        offset := 80#u8,
+        flags := flags,
+        window := 0#u16,
+        checksum := checksum,
+        urgent := 0#u16
+      } s
+  ok (to_slice_mut_back s1)
 
 /-- [net::udp::put_bytes]: loop 0:
-    Source: 'crates/net/src/udp.rs', lines 276:4-279:5 -/
+    Source: 'crates/net/src/udp.rs', lines 211:4-214:5 -/
 @[rust_loop]
 def udp.put_bytes_loop
   (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) (i : Std.Usize) :
@@ -2148,7 +3463,7 @@ def udp.put_bytes_loop
 partial_fixpoint
 
 /-- [net::udp::put_bytes]:
-    Source: 'crates/net/src/udp.rs', lines 274:0-280:1 -/
+    Source: 'crates/net/src/udp.rs', lines 209:0-215:1 -/
 @[reducible]
 def udp.put_bytes
   (out : Slice Std.U8) (pos : Std.Usize) (src : Slice Std.U8) :
@@ -2162,38 +3477,33 @@ def udp.put_bytes
 @[global_simps, irreducible] def udp.TTL : Std.U8 := 64#u8
 
 /-- [net::udp::ipv4_header]:
-    Source: 'crates/net/src/udp.rs', lines 182:0-207:1 -/
+    Source: 'crates/net/src/udp.rs', lines 160:0-176:1 -/
 def udp.ipv4_header
   (src : Std.U32) (dst : Std.U32) (total : Std.U16) (proto : Std.U8)
   (checksum : Std.U16) :
   Result (Array Std.U8 20#usize)
   := do
-  let s ← udp.be32 src
-  let d ← udp.be32 dst
-  let i ← total / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← total % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← checksum / 256#u16
-  let i5 ← lift (UScalar.cast .U8 i4)
-  let i6 ← checksum % 256#u16
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← Array.index_usize s 0#usize
-  let i9 ← Array.index_usize s 1#usize
-  let i10 ← Array.index_usize s 2#usize
-  let i11 ← Array.index_usize s 3#usize
-  let i12 ← Array.index_usize d 0#usize
-  let i13 ← Array.index_usize d 1#usize
-  let i14 ← Array.index_usize d 2#usize
-  let i15 ← Array.index_usize d 3#usize
-  ok
-    (Array.make 20#usize [
-      69#u8, 0#u8, i1, i3, 0#u8, 0#u8, 64#u8, 0#u8, udp.TTL, proto, i5, i7, i8,
-      i9, i10, i11, i12, i13, i14, i15
-      ])
+  let b := Array.repeat 20#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut b)
+  let (_, s1) ←
+    untrusted.writer.encode_into ipv4.Ipv4Header.Insts.UntrustedWriterEncode
+      {
+        version_ihl := { ihl := 5#u8 },
+        tos := 0#u8,
+        total_len := total,
+        ident := 0#u16,
+        fragment :=
+          { dont_fragment := true, more_fragments := false, offset := 0#u16 },
+        ttl := udp.TTL,
+        protocol := proto,
+        checksum := checksum,
+        src := src,
+        dst := dst
+      } s
+  ok (to_slice_mut_back s1)
 
 /-- [net::tcp::encode_ipv4]:
-    Source: 'crates/net/src/tcp.rs', lines 209:0-235:1
+    Source: 'crates/net/src/tcp.rs', lines 199:0-225:1
     Visibility: public -/
 def tcp.encode_ipv4
   (src : ipv4.Ipv4Addr) (dst : ipv4.Ipv4Addr) (src_port : Std.U16)
@@ -2230,98 +3540,28 @@ def tcp.encode_ipv4
     let out2 ← udp.put_bytes out1 20#usize s6
     ok (some tcp.BARE_IPV4_LEN, out2)
 
-/-- [net::udp::be128]:
-    Source: 'crates/net/src/udp.rs', lines 168:0-177:1 -/
-def udp.be128 (v : Std.U128) : Result (Array Std.U8 16#usize) := do
-  let i ← v / 79228162514264337593543950336#u128
-  let i1 ← lift (UScalar.cast .U32 i)
-  let a ← udp.be32 i1
-  let i2 ← v / 18446744073709551616#u128
-  let i3 ← i2 % 4294967296#u128
-  let i4 ← lift (UScalar.cast .U32 i3)
-  let b ← udp.be32 i4
-  let i5 ← v / 4294967296#u128
-  let i6 ← i5 % 4294967296#u128
-  let i7 ← lift (UScalar.cast .U32 i6)
-  let c ← udp.be32 i7
-  let i8 ← v % 4294967296#u128
-  let i9 ← lift (UScalar.cast .U32 i8)
-  let d ← udp.be32 i9
-  let i10 ← Array.index_usize a 0#usize
-  let i11 ← Array.index_usize a 1#usize
-  let i12 ← Array.index_usize a 2#usize
-  let i13 ← Array.index_usize a 3#usize
-  let i14 ← Array.index_usize b 0#usize
-  let i15 ← Array.index_usize b 1#usize
-  let i16 ← Array.index_usize b 2#usize
-  let i17 ← Array.index_usize b 3#usize
-  let i18 ← Array.index_usize c 0#usize
-  let i19 ← Array.index_usize c 1#usize
-  let i20 ← Array.index_usize c 2#usize
-  let i21 ← Array.index_usize c 3#usize
-  let i22 ← Array.index_usize d 0#usize
-  let i23 ← Array.index_usize d 1#usize
-  let i24 ← Array.index_usize d 2#usize
-  let i25 ← Array.index_usize d 3#usize
-  ok
-    (Array.make 16#usize [
-      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
-      i24, i25
-      ])
-
 /-- [net::udp::ipv6_header]:
-    Source: 'crates/net/src/udp.rs', lines 212:0-257:1 -/
+    Source: 'crates/net/src/udp.rs', lines 181:0-193:1 -/
 def udp.ipv6_header
   (src : Std.U128) (dst : Std.U128) (len : Std.U16) (next : Std.U8) :
   Result (Array Std.U8 40#usize)
   := do
-  let s ← udp.be128 src
-  let d ← udp.be128 dst
-  let i ← len / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← len % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← Array.index_usize s 0#usize
-  let i5 ← Array.index_usize s 1#usize
-  let i6 ← Array.index_usize s 2#usize
-  let i7 ← Array.index_usize s 3#usize
-  let i8 ← Array.index_usize s 4#usize
-  let i9 ← Array.index_usize s 5#usize
-  let i10 ← Array.index_usize s 6#usize
-  let i11 ← Array.index_usize s 7#usize
-  let i12 ← Array.index_usize s 8#usize
-  let i13 ← Array.index_usize s 9#usize
-  let i14 ← Array.index_usize s 10#usize
-  let i15 ← Array.index_usize s 11#usize
-  let i16 ← Array.index_usize s 12#usize
-  let i17 ← Array.index_usize s 13#usize
-  let i18 ← Array.index_usize s 14#usize
-  let i19 ← Array.index_usize s 15#usize
-  let i20 ← Array.index_usize d 0#usize
-  let i21 ← Array.index_usize d 1#usize
-  let i22 ← Array.index_usize d 2#usize
-  let i23 ← Array.index_usize d 3#usize
-  let i24 ← Array.index_usize d 4#usize
-  let i25 ← Array.index_usize d 5#usize
-  let i26 ← Array.index_usize d 6#usize
-  let i27 ← Array.index_usize d 7#usize
-  let i28 ← Array.index_usize d 8#usize
-  let i29 ← Array.index_usize d 9#usize
-  let i30 ← Array.index_usize d 10#usize
-  let i31 ← Array.index_usize d 11#usize
-  let i32 ← Array.index_usize d 12#usize
-  let i33 ← Array.index_usize d 13#usize
-  let i34 ← Array.index_usize d 14#usize
-  let i35 ← Array.index_usize d 15#usize
-  ok
-    (Array.make 40#usize [
-      96#u8, 0#u8, 0#u8, 0#u8, i1, i3, next, udp.TTL, i4, i5, i6, i7, i8, i9,
-      i10, i11, i12, i13, i14, i15, i16, i17, i18, i19, i20, i21, i22, i23,
-      i24, i25, i26, i27, i28, i29, i30, i31, i32, i33, i34, i35
-      ])
+  let b := Array.repeat 40#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut b)
+  let (_, s1) ←
+    untrusted.writer.encode_into ipv6.Ipv6Header.Insts.UntrustedWriterEncode
+      {
+        version_class_flow := { traffic_class := 0#u8, flow_label := 0#u32 },
+        payload_len := len,
+        next_header := next,
+        hop_limit := udp.TTL,
+        src := src,
+        dst := dst
+      } s
+  ok (to_slice_mut_back s1)
 
 /-- [net::tcp::encode_ipv6]:
-    Source: 'crates/net/src/tcp.rs', lines 246:0-271:1
+    Source: 'crates/net/src/tcp.rs', lines 236:0-261:1
     Visibility: public -/
 def tcp.encode_ipv6
   (src : ipv6.Ipv6Addr) (dst : ipv6.Ipv6Addr) (src_port : Std.U16)
@@ -2431,6 +3671,135 @@ def udp.UdpHeader.Insts.UntrustedReaderDecode.decode
 def udp.UdpHeader.Insts.UntrustedReaderDecode : untrusted.reader.Decode
   udp.UdpHeader := {
   decode := udp.UdpHeader.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [net::udp::{impl untrusted::writer::Encode for net::udp::UdpHeader}::encode]:
+    Source: 'crates/net/src/udp.rs', lines 20:17-20:23
+    Visibility: public -/
+def udp.UdpHeader.Insts.UntrustedWriterEncode.encode
+  (self : udp.UdpHeader) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+      self.src_port w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+        self.dst_port w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+          self.length w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let (r3, w4, encode_back3) ←
+          untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode
+            self.checksum w3
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (core.result.Result.Ok (), w4, back)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          let r4 ←
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Unit (core.convert.FromSame untrusted.writer.EncodeError)
+              residual
+          let back :=
+            fun w5 =>
+              {
+                w
+                  with
+                  out :=
+                    (encode_back
+                      {
+                        w1
+                          with
+                          out :=
+                            (encode_back1
+                              {
+                                w2
+                                  with
+                                  out :=
+                                    (encode_back2
+                                      { w3 with out := (encode_back3 w5).out }).out
+                              }).out
+                      }).out
+              }
+          ok (r4, w4, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [net::udp::{impl untrusted::writer::Encode for net::udp::UdpHeader}]
+    Source: 'crates/net/src/udp.rs', lines 20:17-20:23 -/
+@[reducible]
+def udp.UdpHeader.Insts.UntrustedWriterEncode : untrusted.writer.Encode
+  udp.UdpHeader := {
+  encode := udp.UdpHeader.Insts.UntrustedWriterEncode.encode
 }
 
 /-- [net::udp::{impl untrusted::Validate<&'a [u8], untrusted::ValidationError> for net::udp::Ipv4Udp<'a>}::validate]:
@@ -2648,39 +4017,33 @@ def udp.Ipv6Udp.Insts.UntrustedValidateSharedASliceU8ValidationError :
 @[global_simps, irreducible] def udp.MAX_PACKET_LEN : Std.Usize := 65535#usize
 
 /-- [net::udp::udp_header]:
-    Source: 'crates/net/src/udp.rs', lines 260:0-271:1 -/
+    Source: 'crates/net/src/udp.rs', lines 196:0-206:1 -/
 def udp.udp_header
   (src_port : Std.U16) (dst_port : Std.U16) (len : Std.U16)
   (checksum : Std.U16) :
   Result (Array Std.U8 8#usize)
   := do
-  let i ← src_port / 256#u16
-  let i1 ← lift (UScalar.cast .U8 i)
-  let i2 ← src_port % 256#u16
-  let i3 ← lift (UScalar.cast .U8 i2)
-  let i4 ← dst_port / 256#u16
-  let i5 ← lift (UScalar.cast .U8 i4)
-  let i6 ← dst_port % 256#u16
-  let i7 ← lift (UScalar.cast .U8 i6)
-  let i8 ← len / 256#u16
-  let i9 ← lift (UScalar.cast .U8 i8)
-  let i10 ← len % 256#u16
-  let i11 ← lift (UScalar.cast .U8 i10)
-  let i12 ← checksum / 256#u16
-  let i13 ← lift (UScalar.cast .U8 i12)
-  let i14 ← checksum % 256#u16
-  let i15 ← lift (UScalar.cast .U8 i14)
-  ok (Array.make 8#usize [ i1, i3, i5, i7, i9, i11, i13, i15 ])
+  let b := Array.repeat 8#usize 0#u8
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut b)
+  let (_, s1) ←
+    untrusted.writer.encode_into udp.UdpHeader.Insts.UntrustedWriterEncode
+      {
+        src_port := src_port,
+        dst_port := dst_port,
+        length := len,
+        checksum := checksum
+      } s
+  ok (to_slice_mut_back s1)
 
 /-- [net::udp::udp_checksum]:
-    Source: 'crates/net/src/udp.rs', lines 285:0-291:1 -/
+    Source: 'crates/net/src/udp.rs', lines 220:0-226:1 -/
 def udp.udp_checksum (s : Std.U16) : Result Std.U16 := do
   if s = 65535#u16
   then ok 65535#u16
   else 65535#u16 - s
 
 /-- [net::udp::encode_ipv4]:
-    Source: 'crates/net/src/udp.rs', lines 300:0-332:1
+    Source: 'crates/net/src/udp.rs', lines 235:0-267:1
     Visibility: public -/
 def udp.encode_ipv4
   (src : ipv4.Ipv4Addr) (dst : ipv4.Ipv4Addr) (src_port : Std.U16)
@@ -2733,7 +4096,7 @@ def udp.encode_ipv4
       ok (some n, out3)
 
 /-- [net::udp::encode_ipv6]:
-    Source: 'crates/net/src/udp.rs', lines 341:0-372:1
+    Source: 'crates/net/src/udp.rs', lines 276:0-307:1
     Visibility: public -/
 def udp.encode_ipv6
   (src : ipv6.Ipv6Addr) (dst : ipv6.Ipv6Addr) (src_port : Std.U16)

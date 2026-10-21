@@ -101,4 +101,69 @@ theorem payload_end.spec (input : Slice U8) (h : 40 ≤ input.length) :
   simp only [U8.cast_Usize_val_eq, HEADER_LEN_val]
   omega
 
+/-! ## Encoding -/
+
+section
+open untrusted.writer
+
+/-- **Spec theorem for `<Ipv6Addr as Encode>::encode`**: a big-endian `u128`. -/
+instance _root_.net.ipv6.Ipv6Addr.Insts.UntrustedWriterEncode.encode.spec :
+    EncodesAs Ipv6Addr.Insts.UntrustedWriterEncode (fun a => beBytes 16 (a : U128).val) where
+  spec v w hinv := by
+    simp only [Ipv6Addr.Insts.UntrustedWriterEncode.encode]
+    apply WP.spec_bind (EncodesAs.spec (inst := bytes.BigEndianU128.Insts.UntrustedWriterEncode) v w hinv)
+    rintro ⟨r, w1, b⟩ hw
+    simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
+    exact hw.wrap
+
+/-- `Ipv6Addr` round-trips every address. -/
+instance _root_.net.ipv6.Ipv6Addr.roundtrip :
+    RoundTrip Ipv6Addr.Insts.UntrustedWriterEncode Ipv6Addr.Insts.UntrustedReaderDecode
+      (fun _ => True) where
+  roundtrip a rest h :=
+    FmtRT bytes.BigEndianU128.Insts.UntrustedWriterEncode
+      bytes.BigEndianU128.Insts.UntrustedReaderDecode a rest h
+
+/-- The word `<VersionClassFlow as Encode>` writes. -/
+def VersionClassFlow.word (v : VersionClassFlow) : Nat :=
+  1610612736 + v.traffic_class.val * 1048576 + v.flow_label.val % 1048576
+
+/-- **Spec theorem for `<VersionClassFlow as Encode>::encode`**: version 6, the
+    traffic class and the flow label's 20 bits, big-endian. -/
+instance _root_.net.ipv6.VersionClassFlow.Insts.UntrustedWriterEncode.encode.spec :
+    EncodesAs VersionClassFlow.Insts.UntrustedWriterEncode
+      (fun v => beBytes 4 (VersionClassFlow.word v)) where
+  spec v w hinv := by
+    simp only [VersionClassFlow.Insts.UntrustedWriterEncode.encode]
+    have ht := v.traffic_class.hBounds
+    simp only [UScalarTy.U8_numBits_eq] at ht
+    step as ⟨i, hi⟩
+    step as ⟨i1, hi1⟩
+    step as ⟨i2, hi2⟩
+    step as ⟨i3, hi3⟩
+    step as ⟨word, hword⟩
+    apply WP.spec_bind (EncodesAs.spec (inst := bytes.BigEndianU32.Insts.UntrustedWriterEncode) word w hinv)
+    rintro ⟨r, w1, b⟩ hw
+    simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
+    have : word.val = VersionClassFlow.word v := by
+      simp only [VersionClassFlow.word]; scalar_tac
+    rw [this] at hw
+    exact hw.wrap
+
+/-- `VersionClassFlow` round-trips the flow labels the decoder accepts: 20
+    bits. -/
+instance _root_.net.ipv6.VersionClassFlow.roundtrip :
+    RoundTrip VersionClassFlow.Insts.UntrustedWriterEncode
+      VersionClassFlow.Insts.UntrustedReaderDecode
+      (fun v => v.flow_label.val < 1048576) where
+  roundtrip v rest h := by
+    have ht := v.traffic_class.hBounds
+    simp only [UScalarTy.U8_numBits_eq] at ht
+    have hb : beNat ((beBytes 4 (VersionClassFlow.word v) ++ rest).take 4) =
+        VersionClassFlow.word v := by
+      rw [List.take_left' (by simp), beNat_beBytes]; simp only [VersionClassFlow.word]; omega
+    refine ⟨by simp, by simp, ?_, ?_, ?_⟩ <;> rw [hb] <;> simp only [VersionClassFlow.word] <;> omega
+
+end
+
 end net.ipv6

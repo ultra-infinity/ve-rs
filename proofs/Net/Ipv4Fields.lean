@@ -162,4 +162,104 @@ theorem lengths.spec (input : Slice U8) (h : 20 ≤ input.length) :
       ← i3_post, ← i6_post]
     simp only [U8.cast_Usize_val_eq]
 
+/-! ## Encoding -/
+
+section
+open untrusted.writer
+
+/-- **Spec theorem for `<Ipv4Addr as Encode>::encode`**: a big-endian `u32`. -/
+instance _root_.net.ipv4.Ipv4Addr.Insts.UntrustedWriterEncode.encode.spec :
+    EncodesAs Ipv4Addr.Insts.UntrustedWriterEncode (fun a => beBytes 4 (a : U32).val) where
+  spec v w hinv := by
+    simp only [Ipv4Addr.Insts.UntrustedWriterEncode.encode]
+    apply WP.spec_bind (EncodesAs.spec (inst := bytes.BigEndianU32.Insts.UntrustedWriterEncode) v w hinv)
+    rintro ⟨r, w1, b⟩ hw
+    simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
+    exact hw.wrap
+
+/-- `Ipv4Addr` round-trips every address. -/
+instance _root_.net.ipv4.Ipv4Addr.roundtrip :
+    RoundTrip Ipv4Addr.Insts.UntrustedWriterEncode Ipv4Addr.Insts.UntrustedReaderDecode
+      (fun _ => True) where
+  roundtrip a rest h :=
+    FmtRT bytes.BigEndianU32.Insts.UntrustedWriterEncode bytes.BigEndianU32.Insts.UntrustedReaderDecode
+      a rest h
+
+/-- **Spec theorem for `<VersionIhl as Encode>::encode`**: version 4, then the
+    IHL's low four bits. -/
+instance _root_.net.ipv4.VersionIhl.Insts.UntrustedWriterEncode.encode.spec :
+    EncodesAs VersionIhl.Insts.UntrustedWriterEncode
+      (fun v => beBytes 1 (64 + v.ihl.val % 16)) where
+  spec v w hinv := by
+    simp only [VersionIhl.Insts.UntrustedWriterEncode.encode]
+    step as ⟨i, hi⟩
+    step as ⟨i1, hi1⟩
+    apply WP.spec_bind (EncodesAs.spec (inst := bytes.BigEndianU8.Insts.UntrustedWriterEncode) i1 w hinv)
+    rintro ⟨r, w1, b⟩ hw
+    simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
+    rw [hi1, hi] at hw
+    exact hw.wrap
+
+/-- `VersionIhl` round-trips the header lengths the decoder accepts. -/
+instance _root_.net.ipv4.VersionIhl.roundtrip :
+    RoundTrip VersionIhl.Insts.UntrustedWriterEncode VersionIhl.Insts.UntrustedReaderDecode
+      (fun v => 5 ≤ v.ihl.val ∧ v.ihl.val < 16) where
+  roundtrip v rest h := by
+    have hb : beNat ((beBytes 1 (64 + v.ihl.val % 16) ++ rest).take 1) = 64 + v.ihl.val := by
+      rw [List.take_left' (by simp), beNat_beBytes]; omega
+    refine ⟨by simp, by simp, ?_, ?_⟩ <;> simp only [hb, VersionIhl.Valid] <;> omega
+
+/-- The word `<Fragment as Encode>` writes. -/
+def Fragment.word (f : Fragment) : Nat :=
+  f.offset.val % 8192 + (if f.dont_fragment then 16384 else 0) +
+    (if f.more_fragments then 8192 else 0)
+
+/-- **Spec theorem for `<Fragment as Encode>::encode`**: the flags and the
+    offset's 13 bits, big-endian. -/
+instance _root_.net.ipv4.Fragment.Insts.UntrustedWriterEncode.encode.spec :
+    EncodesAs Fragment.Insts.UntrustedWriterEncode (fun f => beBytes 2 (Fragment.word f)) where
+  spec v w hinv := by
+    simp only [Fragment.Insts.UntrustedWriterEncode.encode]
+    step as ⟨f, hf⟩
+    have hf' : f.val < 8192 := by scalar_tac
+    have fin : ∀ g : U16, g.val = Fragment.word v →
+        (do
+          let (r, w1, encode_back) ← bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode g w
+          ok (r, w1, fun w2 => { w with out := (encode_back w2).out })) ⦃ res w' back =>
+            Writes w (beBytes 2 (Fragment.word v)) res w' back ⦄ := by
+      intro g hg
+      apply WP.spec_bind (EncodesAs.spec (inst := bytes.BigEndianU16.Insts.UntrustedWriterEncode) g w hinv)
+      rintro ⟨r, w1, b⟩ hw
+      simp only [WP.uncurry'_pair, uncurry, WP.spec_ok] at hw ⊢
+      rw [hg] at hw
+      exact hw.wrap
+    rcases hd : v.dont_fragment <;> rcases hm : v.more_fragments <;>
+      simp only [Bool.false_eq_true, if_false, if_true, bind_ok]
+    · exact fin f (by simp [Fragment.word, hd, hm, hf])
+    · step as ⟨f2, hf2⟩
+      exact fin f2 (by simp [Fragment.word, hd, hm, hf2, hf])
+    · step as ⟨f1, hf1⟩
+      exact fin f1 (by simp [Fragment.word, hd, hm, hf1, hf])
+    · step as ⟨f1, hf1⟩
+      step as ⟨f2, hf2⟩
+      exact fin f2 (by simp [Fragment.word, hd, hm, hf2, hf1, hf] <;> omega)
+
+/-- `Fragment` round-trips the offsets the decoder accepts: 13 bits. -/
+instance _root_.net.ipv4.Fragment.roundtrip :
+    RoundTrip Fragment.Insts.UntrustedWriterEncode Fragment.Insts.UntrustedReaderDecode
+      (fun f => f.offset.val < 8192) where
+  roundtrip v rest h := by
+    have hw : Fragment.word v < 32768 := by
+      unfold Fragment.word; split <;> split <;> omega
+    have hb : beNat ((beBytes 2 (Fragment.word v) ++ rest).take 2) = Fragment.word v := by
+      rw [List.take_left' (by simp), beNat_beBytes]; omega
+    refine ⟨by simp, by simp, by rw [hb]; exact hw, ?_⟩
+    rw [hb]
+    unfold Fragment.OfWord Fragment.word
+    rcases v with ⟨df, mf, o⟩
+    simp only at h ⊢
+    cases df <;> cases mf <;> simp <;> omega
+
+end
+
 end net.ipv4

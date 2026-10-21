@@ -17,7 +17,7 @@
 //! not exist) or NOERROR (no records of the type asked for).
 
 use crate::name::{Name, MAX_NAME_LEN};
-use untrusted::{BigEndian, Decode, Untrusted, Validate, ValidationError};
+use untrusted::{encode_into, BigEndian, Decode, Encode, Untrusted, Validate, ValidationError};
 
 /// The DNS port.
 pub const PORT: u16 = 53;
@@ -36,7 +36,7 @@ pub const TYPE_SVCB: u16 = 64;
 pub const TYPE_HTTPS: u16 = 65;
 
 /// The header.
-#[derive(Decode, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Decode, Encode, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DnsHeader {
     pub id: BigEndian<u16>,
     /// QR, opcode (4 bits), AA, TC, RD; RA, Z (3 bits), RCODE (4 bits).
@@ -158,6 +158,13 @@ impl Validate<&[u8]> for DnsQuery {
     }
 }
 
+/// An answer with no records: its header, then the question as asked.
+#[derive(Encode)]
+struct Answer<'a> {
+    header: DnsHeader,
+    question: &'a [u8],
+}
+
 /// Writes to the start of `out` the answer to the query `q`, which was
 /// decoded from `msg`, with no records and the response code `rcode`
 /// (modulo 16). Returns its length, or `None` if `out` is too short (or `q`
@@ -167,33 +174,22 @@ pub fn answer(msg: &[u8], q: &DnsQuery, rcode: u8, out: &mut [u8]) -> Option<usi
     if n > msg.len() || n > out.len() {
         return None;
     }
-    let id = q.header.id.0;
     // QR = 1, opcode 0, AA = 0, TC = 0, RD as asked; RA = 1, Z = 0, RCODE.
-    let rd = (q.header.flags.0 / 256 % 2) as u8;
-    let header = [
-        (id / 256) as u8,
-        (id % 256) as u8,
-        0x80 + rd,
-        0x80 + rcode % 16,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ];
-    let mut i = 0;
-    while i < HEADER_LEN {
-        out[i] = header[i];
-        i += 1;
+    let rd = q.header.flags.0 / 256 % 2;
+    let header = DnsHeader {
+        id: q.header.id,
+        flags: BigEndian(0x8080 + rd * 256 + (rcode % 16) as u16),
+        qdcount: BigEndian(1),
+        ancount: BigEndian(0),
+        nscount: BigEndian(0),
+        arcount: BigEndian(0),
+    };
+    // Not `.ok()`: Aeneas has no model of `Result::ok`.
+    #[allow(clippy::manual_ok_err)]
+    match encode_into(&Answer { header, question: &msg[HEADER_LEN..n] }, out) {
+        Ok(m) => Some(m),
+        Err(_) => None,
     }
-    while i < n {
-        out[i] = msg[i];
-        i += 1;
-    }
-    Some(n)
 }
 
 #[cfg(test)]
