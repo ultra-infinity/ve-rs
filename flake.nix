@@ -172,13 +172,54 @@
             ];
             doCheck = false;
           };
+          # `ultranet`: the ad-blocking VPN server, and its administration tool.
+          ultranet = pkgs.rustPlatform.buildRustPackage {
+            pname = "ultranet";
+            version = "0.1.0";
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./.cargo
+                ./crates
+                ./examples
+              ];
+            };
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "-p"
+              "ultranet"
+            ];
+            doCheck = false;
+          };
+          ultranet-admin = pkgs.rustPlatform.buildRustPackage {
+            pname = "ultranet-admin";
+            version = "0.1.0";
+            src = pkgs.lib.fileset.toSource {
+              root = ./.;
+              fileset = pkgs.lib.fileset.unions [
+                ./Cargo.toml
+                ./Cargo.lock
+                ./.cargo
+                ./crates
+                ./examples
+              ];
+            };
+            cargoLock.lockFile = ./Cargo.lock;
+            cargoBuildFlags = [
+              "-p"
+              "ultranet-admin"
+            ];
+            doCheck = false;
+          };
         }
 
         # Two VMs on a virtual LAN: the client sends ARP, ICMP and UDP over
         # IPv4 and IPv6; the server captures what it receives and runs it
         # through `net-pcap`, failing if any frame is rejected or any layer saw
         # no traffic. Run with `make vm-test` (needs KVM).
-        // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+        // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           net-vm-test = pkgs.testers.runNixOSTest {
             name = "net-vm-test";
             nodes =
@@ -271,6 +312,71 @@
               };
             testScript = builtins.readFile ./crates/diomede-pcap/vm-test.py;
           };
+
+          # The ultranet VPN end to end: a client with kernel WireGuard,
+          # the server (services.ultranet), and an "internet" with DNS and
+          # TLS servers; see crates/ultranet/vm-test.py. Run with
+          # `make ultranet-vm-test` (needs KVM).
+          ultranet-vm-test = pkgs.testers.runNixOSTest {
+            name = "ultranet-vm-test";
+            nodes = {
+              # The client and the server share network 1; the server and the
+              # "internet" network 2, so the client reaches it only through
+              # the tunnel.
+              internet =
+                { config, ... }:
+                {
+                  virtualisation.vlans = [ 2 ];
+                  networking.firewall.enable = false;
+                  environment.systemPackages = [
+                    pkgs.openssl
+                    pkgs.socat
+                  ];
+                  services.dnsmasq = {
+                    enable = true;
+                    resolveLocalQueries = false;
+                    settings = {
+                      no-resolv = true;
+                      # Every name resolves here, so only the filter decides.
+                      address = [ "/#/${config.networking.primaryIPAddress}" ];
+                    };
+                  };
+                };
+              server =
+                { nodes, ... }:
+                {
+                  imports = [ self.nixosModules.ultranet ];
+                  virtualisation.vlans = [
+                    1
+                    2
+                  ];
+                  services.ultranet = {
+                    enable = true;
+                    endpoint = "server:51820";
+                    lists = [ ];
+                    extraLists = [
+                      (pkgs.writeText "ads" "0.0.0.0 ads.example\n0.0.0.0 tracker.io\n")
+                    ];
+                    upstreamDns = [ nodes.internet.networking.primaryIPAddress ];
+                    upstreamTls = false;
+                  };
+                  # The test's names are not signed.
+                  services.unbound.enableRootTrustAnchor = false;
+                };
+              client = {
+                virtualisation.vlans = [ 1 ];
+                networking.firewall.enable = false;
+                environment.systemPackages = [
+                  pkgs.curl
+                  pkgs.dig
+                  pkgs.openssl
+                  pkgs.socat
+                  pkgs.wireguard-tools
+                ];
+              };
+            };
+            testScript = builtins.readFile ./crates/ultranet/vm-test.py;
+          };
         };
 
         devShells.default = pkgs.mkShell {
@@ -285,5 +391,9 @@
 
         formatter = pkgs.nixfmt;
       }
-    );
+    )
+    // {
+      # The ultranet VPN server: `services.ultranet`; see nix/ultranet.nix.
+      nixosModules.ultranet = import ./nix/ultranet.nix self;
+    };
 }

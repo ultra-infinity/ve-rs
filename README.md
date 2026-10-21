@@ -294,6 +294,69 @@ domains, a normal one, HTTPS records, QUIC and DNS over TLS.
 Not covered: DNS over HTTPS to servers reached by address, ads served from
 the site's own domain, and apps that bring their own resolver.
 
+## Example: an ad-blocking VPN (`crates/ultranet`)
+
+`ultranet` puts the two together: a WireGuard VPN server whose clients'
+traffic goes through `diomede` before it reaches the internet. Clients use
+any WireGuard app; the server uses the verified device (on `wg-runtime`,
+holding up to 512 clients) and the verified filter:
+
+```
+phone ──WireGuard──▶ ultranet: wireguard::Device ─▶ diomede::filter::filter ─▶ NAT ─▶ internet
+                                          ◀── NXDOMAIN, resets, through the tunnel
+```
+
+What makes the blocking hold:
+- the client's DNS server is the VPN (`DNS = 10.77.0.1` in its
+  configuration), and DNS sent anywhere else is redirected there, so every
+  lookup is seen;
+- HTTPS records get no answer, so browsers get no Encrypted ClientHello keys
+  and show server names in the clear;
+- QUIC and DNS over TLS or QUIC are refused, so browsers fall back to TCP
+  and plain DNS;
+- Firefox's DNS-over-HTTPS canary does not resolve, so Firefox turns DNS over
+  HTTPS off.
+
+Every decision on a packet is made by verified code; what is unverified is
+plumbing: sockets, the loop, the resolver (unbound, forwarding over DNS over
+TLS), NAT (nftables) and the list downloads.
+The tunnel's MTU is 1408, a multiple of 16: the verified device pads packets
+to 16 bytes without knowing the MTU, so a full packet must still fit a
+1500-byte path over IPv6. The module clamps TCP connections to it.
+
+Deploying it on NixOS:
+
+```nix
+{
+  imports = [ ve-rs.nixosModules.ultranet ];
+  services.ultranet = {
+    enable = true;
+    endpoint = "vpn.example.org:51820";
+    # lists = [ ... ];  # StevenBlack's hosts by default, fetched daily
+  };
+}
+```
+
+Then, on the server:
+
+```sh
+ultranet-ctl add alice --qr   # a new client; scan the code with the WireGuard app
+ultranet-ctl list             # the clients
+ultranet-ctl remove alice     # its tunnel stops at once
+ultranet-ctl stats            # what was blocked
+ultranet-ctl update-lists     # fetch the lists now
+```
+
+`make ultranet-vm-test` runs it in three VMs: a client with the kernel's
+WireGuard, the server, and an "internet" with DNS and TLS servers. It checks
+DNS (direct and redirected), HTTPS records, TLS resets (including a
+ClientHello in two segments), QUIC, DNS over TLS, reloading the blocklist,
+and adding and removing clients.
+
+Not covered: ads served from the site's own domain (YouTube, Facebook,
+search ads), apps that bring their own resolver or connect by address, and
+traffic sent while the VPN is off.
+
 ## Pros
 
 - **Proved for every input, not just tested.** For each function the proofs
@@ -402,11 +465,12 @@ make extract verify       # translate the crate to Lean, check proofs, audit
 make verify-demo          # verify the example user crate
 make verify-net           # verify the `net` crate (Ethernet up to UDP)
 make verify-wireguard     # verify the `wireguard` crate
-make verify-diomede      # verify the `diomede` crate
+make verify-diomede       # verify the `diomede` crate
 nix flake check           # extraction up to date, Aeneas pin consistent
 make vm-test              # real traffic through `net` in two VMs (needs KVM)
 make wg-vm-test           # wg-userspace against the kernel's WireGuard (needs KVM)
-make diomede-vm-test     # DNS and TLS to ad domains through diomede-pcap (needs KVM)
+make diomede-vm-test      # DNS and TLS to ad domains through diomede-pcap (needs KVM)
+make ultranet-vm-test     # the ad-blocking VPN end to end, in three VMs (needs KVM)
 ```
 
 To verify the `Decode` impls in your own crate:
@@ -433,7 +497,11 @@ exits with an error if anything is unproved.
 | `crates/wg-runtime` | The `no_std` runtime of userspace interfaces around the core: configuration, sockets, TUN, event loop, a hook on delivered packets; unverified. |
 | `crates/wg-userspace` | A `no_std` WireGuard interface on `wg-runtime`; unverified. |
 | `crates/diomede` | A verified, sans-IO ad-blocking filter (DNS and TLS SNI), built on `untrusted` and `net`. |
+| `crates/diomede-lists` | Hosts files and domain lists, parsed for the blocklist; unverified. |
 | `crates/diomede-pcap` | Runs a capture through the filter with hosts-file lists; unverified. |
+| `crates/ultranet` | The ad-blocking VPN server: `wireguard` on `wg-runtime`, every client packet through `diomede`. |
+| `crates/ultranet-admin` | Compiles blocklists, manages clients and their configurations; unverified. |
+| `nix/ultranet.nix` | The NixOS module `services.ultranet`: interface, NAT, DNS redirection, unbound, list updates, `ultranet-ctl`. |
 | `examples/net-pcap` | Runs a pcap capture through the `net` decoders. |
 | `proofs/Net/`, `proofs/Wireguard/`, `proofs/Diomede/` | The Lean models and proofs of `net`, `wireguard` and `diomede`. |
 | `examples/derive-demo` | An example user crate, verified by `make verify-demo`. |
