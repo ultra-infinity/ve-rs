@@ -2,3 +2,5 @@ import DeriveDemo.Funs
 import Untrusted
 
 derive_decode_spec derive_demo.Header
+derive_encode_spec derive_demo.Header
+derive_roundtrip_spec derive_demo.Header

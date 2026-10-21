@@ -160,7 +160,7 @@ fn expand_encode(input: &DeriveInput) -> syn::Result<TokenStream2> {
                 &self,
                 #writer: &mut ::untrusted::Writer<'_>,
             ) -> ::core::result::Result<(), ::untrusted::EncodeError> {
-                #( w.encode::<#types>(&self.#accesses)?; )*
+                #( <#types as ::untrusted::Encode>::encode(&self.#accesses, w)?; )*
                 ::core::result::Result::Ok(())
             }
         }

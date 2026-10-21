@@ -1,5 +1,6 @@
-//! `cargo untrusted verify -p <package>`: formally verifies every `Decode` impl
-//! of a crate that depends on `untrusted`.
+//! `cargo untrusted verify -p <package>`: formally verifies every `Decode` and
+//! `Encode` impl of a crate that depends on `untrusted`, and that each type
+//! with both decodes back what it encodes.
 //!
 //! This tool only orchestrates; it is not trusted. Everything it produces is
 //! checked by Lean: the extracted model must build against the verified
@@ -7,7 +8,7 @@
 //! audit rejects `sorry` and unexpected axioms.
 //!
 //! Steps:
-//! 1. Charon translates only the crate's `Decode` and `Validate` impls
+//! 1. Charon translates only the crate's `Decode`, `Encode` and `Validate` impls
 //!    (`--start-from`), or every item with `--extract-all`. Items of
 //!    `untrusted` (and of `--link`ed crates) are foreign: their functions stay
 //!    references to their models, and their public types are re-translated
@@ -16,7 +17,9 @@
 //! 3. Declarations duplicated from `untrusted` and `--link`ed crates are
 //!    dropped, and the external templates replaced by imports of their
 //!    verified Lean libraries.
-//! 4. One `derive_decode_spec` file per `Decode` impl is generated and built; an
+//! 4. One spec file per type with a `Decode` or `Encode` impl is generated and
+//!    built: `derive_decode_spec`, `derive_encode_spec`, and, for a type with
+//!    both, `derive_roundtrip_spec` (dropped if a field has no round trip). An
 //!    impl whose automatic proof fails (e.g. a hand-written one) is reported,
 //!    and must be given a spec by hand in `<Module>/Manual.lean` (if derived
 //!    types build on it) or `<Module>/ManualTop.lean` (if it builds on them,
@@ -118,6 +121,17 @@ fn require(ok: bool, what: &str) {
     }
 }
 
+/// The impls `untrusted` gives built-in types, and their methods, as Lean
+/// names: they are named after the type, not the crate.
+const UNTRUSTED_BUILTIN_IMPLS: [&str; 6] = [
+    "ArrayU8N.Insts.UntrustedReaderDecode",
+    "ArrayU8N.Insts.UntrustedReaderDecode.decode",
+    "ArrayU8N.Insts.UntrustedWriterEncode",
+    "ArrayU8N.Insts.UntrustedWriterEncode.encode",
+    "Shared0SliceU8.Insts.UntrustedWriterEncode",
+    "Shared0SliceU8.Insts.UntrustedWriterEncode.encode",
+];
+
 /// `derive-demo` → `DeriveDemo`, the Lean module name.
 fn module_name(package: &str) -> String {
     package
@@ -176,13 +190,15 @@ fn drop_verified_decls(path: &Path, crates: &[&str]) -> Vec<(String, String)> {
     unqualified
 }
 
-/// The Lean types that have a `Decode` impl in the generated `Funs.lean`.
-fn decode_impl_types(funs: &str, namespace: &str) -> Vec<String> {
+/// The Lean types that have an impl of `trait_` (`UntrustedReaderDecode`,
+/// `UntrustedWriterEncode`) in the generated `Funs.lean`.
+fn impl_types(funs: &str, namespace: &str, trait_: &str) -> Vec<String> {
+    let suffix = format!(".Insts.{trait_}");
     funs.lines()
         .filter_map(|l| {
             let rest = l.strip_prefix("def ")?;
             let name = rest.split_whitespace().next()?;
-            let ty = name.strip_suffix(".Insts.UntrustedReaderDecode")?;
+            let ty = name.strip_suffix(suffix.as_str())?;
             Some(format!("{namespace}.{ty}"))
         })
         .collect()
@@ -251,8 +267,14 @@ fn main() {
             "{impl untrusted::reader::Decode for _}",
             "--start-from",
             "{impl untrusted::Validate for _}",
+            "--start-from",
+            "{impl untrusted::writer::Encode for _}",
         ]);
     }
+    // The writer holds a `&mut [u8]`: Aeneas must see its fields to model
+    // the borrows of `&mut Writer` (its fields are private, which would make
+    // it opaque).
+    charon.args(["--include", "untrusted::writer::Writer"]);
     charon.args(["--dest-file", llbc.to_str().unwrap(), "--", "-p", &args.package]);
     require(run(&mut charon), "charon");
 
@@ -296,11 +318,19 @@ fn main() {
         writeln!(funs_external, "import {lib}.Funs").unwrap();
     }
     for (krate, _) in &libs {
-        let names: Vec<&str> = reexports
+        let mut names: Vec<&str> = reexports
             .iter()
             .filter(|(c, _)| c == krate)
             .map(|(_, n)| n.as_str())
             .collect();
+        // `untrusted`'s impls for built-in types, and their methods: derived
+        // encoders call the methods directly, so the generated code may refer
+        // to them without declaring them.
+        if *krate == "untrusted" {
+            names.extend(UNTRUSTED_BUILTIN_IMPLS);
+        }
+        names.sort();
+        names.dedup();
         if !names.is_empty() {
             writeln!(
                 funs_external,
@@ -340,50 +370,84 @@ fn main() {
         .filter_map(|e| fs::read_to_string(e.path()).ok())
         .collect();
     let has_manual = out.join("Manual.lean").exists();
-    let all_types = decode_impl_types(&funs, &namespace);
-    let types: Vec<String> = all_types
-        .iter()
-        .filter(|ty| !manual_src.contains(&format!("{ty}.Insts.UntrustedReaderDecode.decode.spec")))
-        .cloned()
-        .collect();
+    let decodes = impl_types(&funs, &namespace, "UntrustedReaderDecode");
+    let encodes = impl_types(&funs, &namespace, "UntrustedWriterEncode");
+    let by_hand = |ty: &str, spec: &str| manual_src.contains(&format!("{ty}.{spec}"));
+    // Every type with an impl, and the commands that prove its specs.
+    let mut types: Vec<String> = decodes.iter().chain(&encodes).cloned().collect();
+    types.sort();
+    types.dedup();
+    let commands = |ty: &str, with_roundtrip: bool| {
+        let mut c = Vec::new();
+        let (dec, enc) = (decodes.iter().any(|t| t == ty), encodes.iter().any(|t| t == ty));
+        if dec && !by_hand(ty, "Insts.UntrustedReaderDecode.decode.spec") {
+            c.push("derive_decode_spec");
+        }
+        if enc && !by_hand(ty, "Insts.UntrustedWriterEncode.encode.spec") {
+            c.push("derive_encode_spec");
+        }
+        if with_roundtrip && dec && enc && !by_hand(ty, "roundtrip") {
+            c.push("derive_roundtrip_spec");
+        }
+        c
+    };
     let specs = out.join("Specs");
     let _ = fs::remove_dir_all(&specs);
     fs::create_dir_all(&specs).unwrap();
     // A struct's spec needs the specs of its field types (nested structs), so
-    // each attempt imports everything proved so far, and failed impls are
-    // retried until a pass makes no progress.
+    // each attempt imports everything proved so far, and failed types are
+    // retried until a pass makes no progress. A round trip needs one for
+    // every field, which a hand-written impl may not give: a type whose specs
+    // only fail with its round trip is then proved without it.
     let mut proved: Vec<String> = Vec::new();
-    let mut manual = types.clone();
-    loop {
-        let mut progress = false;
-        for ty in std::mem::take(&mut manual) {
-            let short = ty.rsplit('.').next().unwrap().to_string();
-            let mut src = format!("import {module}.Funs\nimport Untrusted\n");
-            if has_manual {
-                writeln!(src, "import {module}.Manual").unwrap();
+    let mut proved_commands: Vec<&str> = Vec::new();
+    let mut without_roundtrip: Vec<String> = Vec::new();
+    let mut pending: Vec<String> = types
+        .iter()
+        .filter(|ty| !commands(ty, true).is_empty())
+        .cloned()
+        .collect();
+    for with_roundtrip in [true, false] {
+        loop {
+            let mut progress = false;
+            for ty in std::mem::take(&mut pending) {
+                let cmds = commands(&ty, with_roundtrip);
+                let short = ty.rsplit('.').next().unwrap().to_string();
+                let mut src = format!("import {module}.Funs\nimport Untrusted\n");
+                if has_manual {
+                    writeln!(src, "import {module}.Manual").unwrap();
+                }
+                for p in &proved {
+                    writeln!(src, "import {p}").unwrap();
+                }
+                writeln!(src).unwrap();
+                for c in &cmds {
+                    writeln!(src, "{c} {ty}").unwrap();
+                }
+                fs::write(specs.join(format!("{short}.lean")), src).unwrap();
+                let target = format!("{module}.Specs.{short}");
+                if run(Command::new("lake")
+                    .arg("build")
+                    .arg(&target)
+                    .current_dir(&args.lean_dir))
+                {
+                    proved.push(target);
+                    proved_commands.extend(&cmds);
+                    if !with_roundtrip && commands(&ty, true).len() > cmds.len() {
+                        without_roundtrip.push(ty);
+                    }
+                    progress = true;
+                } else {
+                    let _ = fs::remove_file(specs.join(format!("{short}.lean")));
+                    pending.push(ty);
+                }
             }
-            for p in &proved {
-                writeln!(src, "import {p}").unwrap();
+            if !progress || pending.is_empty() {
+                break;
             }
-            writeln!(src, "\nderive_decode_spec {ty}").unwrap();
-            fs::write(specs.join(format!("{short}.lean")), src).unwrap();
-            let target = format!("{module}.Specs.{short}");
-            if run(Command::new("lake")
-                .arg("build")
-                .arg(&target)
-                .current_dir(&args.lean_dir))
-            {
-                proved.push(target);
-                progress = true;
-            } else {
-                let _ = fs::remove_file(specs.join(format!("{short}.lean")));
-                manual.push(ty);
-            }
-        }
-        if !progress || manual.is_empty() {
-            break;
         }
     }
+    let manual = pending;
 
     // 5. Audit everything, including the hand-written specs.
     let mut audit = format!("import {module}.Funs\nimport Untrusted\n");
@@ -405,15 +469,20 @@ fn main() {
         .current_dir(&args.lean_dir));
 
     eprintln!();
+    let count = |c: &str| proved_commands.iter().filter(|p| **p == c).count();
     eprintln!(
-        "{} `Decode` impls proved automatically, {} by hand-written specs",
-        proved.len(),
-        all_types.len() - types.len()
+        "proved automatically: {} `Decode` impls, {} `Encode` impls, {} round trips",
+        count("derive_decode_spec"),
+        count("derive_encode_spec"),
+        count("derive_roundtrip_spec"),
     );
+    for ty in &without_roundtrip {
+        eprintln!("no round trip (a field has none; give `{ty}.roundtrip` by hand): {ty}");
+    }
     for ty in &manual {
         eprintln!(
-            "needs a manual spec (`{ty}.Insts.UntrustedReaderDecode.decode.spec`) in {}/Manual.lean: {ty}",
-            module
+            "needs manual specs in {module}/Manual.lean (`{ty}.Insts.UntrustedReaderDecode.decode.spec`, \
+             `{ty}.Insts.UntrustedWriterEncode.encode.spec`): {ty}"
         );
     }
     if !audited {

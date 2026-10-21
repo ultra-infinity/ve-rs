@@ -53,6 +53,62 @@
 //! #[derive(untrusted::Decode)]
 //! struct Wrapper<T> { inner: T }
 //! ```
+//!
+//! # Deriving `Encode`
+//!
+//! `#[derive(Encode)]` writes a struct's fields one after another, in
+//! declaration order, the way `Decode` reads them; [`encode_into`] writes a
+//! value to the start of a buffer and returns its length. Encoding only fails
+//! when the buffer is too short:
+//!
+//! ```
+//! use untrusted::{encode_into, BigEndian, Decode, Encode, EncodeError, Untrusted};
+//!
+//! #[derive(Decode, Encode, Debug, PartialEq)]
+//! struct Header {
+//!     version: BigEndian<u8>,
+//!     len: BigEndian<u16>,
+//! }
+//!
+//! let h = Header { version: BigEndian(1), len: BigEndian(2) };
+//! let mut out = [0u8; 3];
+//! assert_eq!(encode_into(&h, &mut out), Ok(3));
+//! assert_eq!(out, [1, 0, 2]);
+//! assert_eq!(Untrusted::new(&out[..]).read_all::<Header>(), Ok(h));
+//! assert_eq!(encode_into(&Header { version: BigEndian(1), len: BigEndian(2) }, &mut out[..2]),
+//!            Err(EncodeError::NoRoom));
+//! ```
+//!
+//! A field may borrow bytes to write as they are (lifetime parameters are
+//! accepted, type parameters are not):
+//!
+//! ```
+//! use untrusted::{encode_into, BigEndian, Encode};
+//!
+//! #[derive(Encode)]
+//! struct Framed<'a> {
+//!     len: BigEndian<u16>,
+//!     payload: &'a [u8],
+//! }
+//!
+//! let mut out = [0u8; 8];
+//! assert_eq!(encode_into(&Framed { len: BigEndian(2), payload: b"hi" }, &mut out), Ok(4));
+//! assert_eq!(&out[..4], b"\0\x02hi");
+//! ```
+//!
+//! ```compile_fail
+//! #[derive(untrusted::Encode)]
+//! enum Kind { A, B }
+//! ```
+//!
+//! ```compile_fail
+//! #[derive(untrusted::Encode)]
+//! struct Wrapper<T> { inner: T }
+//! ```
+//!
+//! `cargo untrusted verify` proves every derived `Encode` impl to write its
+//! fields in order and, for a type that derives both, `Decode` to read back
+//! what `Encode` wrote (for the values the decoder accepts).
 
 #![no_std]
 

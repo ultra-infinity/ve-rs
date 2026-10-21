@@ -77,6 +77,16 @@ theorem Writes.cons {w w1 w2 : Writer} {e1 e2 : List U8} {u : Unit} {res}
     rw [← htt, htake2, htt, hout1, Writer.put, List.append_assoc,
       List.take_left' (by simp; omega)]
 
+/-- `Writes.cons` for a write inside a sequence: Aeneas composes the inner
+    backward functions without rebuilding the writer around each. -/
+theorem Writes.cons_in {w w1 w2 : Writer} {e1 e2 : List U8} {u : Unit} {res}
+    {b1 b2 : Writer → Writer} (hinv : Writer.Inv w) (h1 : Writes w e1 (.Ok u) w1 b1)
+    (h2 : Writes w1 e2 res w2 b2) :
+    Writes w (e1 ++ e2) res w2 (fun x => b1 { w1 with out := (b2 x).out }) := by
+  obtain ⟨-, rest⟩ := Writes.cons hinv h1 h2
+  refine ⟨fun x => ?_, rest⟩
+  simp [h1.1, h2.1]
+
 /-- A first write that fails makes the whole sequence fail; the backward
     function is the one Aeneas builds for `a?` returning early. -/
 theorem Writes.err_cons {w w1 : Writer} {e1 : List U8} {err} {b1 : Writer → Writer}
@@ -98,6 +108,21 @@ theorem Writes.wrap {w w' : Writer} {e : List U8} {res} {b : Writer → Writer}
 theorem Writes.append_nil {w w' : Writer} {e : List U8} {res} {b : Writer → Writer}
     (h : Writes w e res w' b) : Writes w (e ++ []) res w' b := by
   rwa [List.append_nil]
+
+/-- A failed write of `e` is a failed write of `e` followed by anything. -/
+theorem Writes.err_append {w w' : Writer} {e : List U8} {err} {b : Writer → Writer}
+    (rest : List U8) (err' : EncodeError) (h : Writes w e (.Err err) w' b) :
+    Writes w (e ++ rest) (.Err err') w' b := by
+  obtain ⟨hb, hl, hi, hroom, htake⟩ := h
+  refine ⟨hb, hl, hi, ?_, htake⟩
+  simp only [List.length_append]
+  omega
+
+/-- Writing nothing. -/
+theorem Writes.nil {w : Writer} (hinv : Writer.Inv w) :
+    Writes w [] (.Ok ()) w (fun x => { w with out := x.out }) := by
+  refine ⟨fun _ => rfl, rfl, hinv, by simp [Writer.Inv] at hinv ⊢; omega, by simp, ?_⟩
+  simp [Writer.put]
 
 /-- The result of a failed write is `NoRoom`, the only error. -/
 theorem Writes.err_eq {w w' : Writer} {e : List U8} {err} {b : Writer → Writer}

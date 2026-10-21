@@ -20,37 +20,50 @@ set_option maxRecDepth 2048
 namespace derive_demo
 
 /-- [derive_demo::Header]
-    Source: 'examples/derive-demo/src/lib.rs', lines 10:0-13:1
+    Source: 'examples/derive-demo/src/lib.rs', lines 11:0-14:1
     Visibility: public -/
 structure Header where
   version : untrusted.bytes.BigEndian Std.U8
   len : untrusted.bytes.BigEndian Std.U16
 
 /-- [derive_demo::Packet]
-    Source: 'examples/derive-demo/src/lib.rs', lines 17:0-20:1
+    Source: 'examples/derive-demo/src/lib.rs', lines 18:0-21:1
     Visibility: public -/
 structure Packet where
   header : Header
   checksum : untrusted.bytes.LittleEndian Std.U32
 
 /-- [derive_demo::Pair]
-    Source: 'examples/derive-demo/src/lib.rs', lines 24:0-24:59
+    Source: 'examples/derive-demo/src/lib.rs', lines 25:0-25:59
     Visibility: public -/
 def Pair :=
   untrusted.bytes.BigEndian Std.U16 × untrusted.bytes.LittleEndian Std.U16
 
 /-- [derive_demo::Keyed]
-    Source: 'examples/derive-demo/src/lib.rs', lines 28:0-32:1
+    Source: 'examples/derive-demo/src/lib.rs', lines 29:0-33:1
     Visibility: public -/
 structure Keyed where
   id : untrusted.bytes.LittleEndian Std.U32
   key : Array Std.U8 32#usize
   tag : Array Std.U8 16#usize
 
+/-- [derive_demo::Version]
+    Source: 'examples/derive-demo/src/lib.rs', lines 37:0-37:38
+    Visibility: public -/
+@[reducible]
+def Version := untrusted.bytes.BigEndian Std.U8
+
 /-- [derive_demo::Marker]
-    Source: 'examples/derive-demo/src/lib.rs', lines 36:0-36:18
+    Source: 'examples/derive-demo/src/lib.rs', lines 41:0-41:18
     Visibility: public -/
 @[reducible]
 def Marker := Unit
+
+/-- [derive_demo::Framed]
+    Source: 'examples/derive-demo/src/lib.rs', lines 46:0-49:1
+    Visibility: public -/
+structure Framed where
+  header : Header
+  payload : Slice Std.U8
 
 end derive_demo

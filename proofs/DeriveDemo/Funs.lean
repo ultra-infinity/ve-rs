@@ -24,7 +24,7 @@ noncomputable section
 namespace derive_demo
 
 /-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Header}::decode]:
-    Source: 'examples/derive-demo/src/lib.rs', lines 9:9-9:15
+    Source: 'examples/derive-demo/src/lib.rs', lines 10:9-10:15
     Visibility: public -/
 def Header.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -56,14 +56,69 @@ def Header.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Header}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 9:9-9:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 10:9-10:15 -/
 @[reducible]
 def Header.Insts.UntrustedReaderDecode : untrusted.reader.Decode Header := {
   decode := Header.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Header}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 10:17-10:23
+    Visibility: public -/
+def Header.Insts.UntrustedWriterEncode.encode
+  (self : Header) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode self.version
+      w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode 
+        self.len w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Header}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 10:17-10:23 -/
+@[reducible]
+def Header.Insts.UntrustedWriterEncode : untrusted.writer.Encode Header := {
+  encode := Header.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Packet}::decode]:
-    Source: 'examples/derive-demo/src/lib.rs', lines 16:9-16:15
+    Source: 'examples/derive-demo/src/lib.rs', lines 17:9-17:15
     Visibility: public -/
 def Packet.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -94,14 +149,68 @@ def Packet.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Packet}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 16:9-16:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 17:9-17:15 -/
 @[reducible]
 def Packet.Insts.UntrustedReaderDecode : untrusted.reader.Decode Packet := {
   decode := Packet.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Packet}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 17:17-17:23
+    Visibility: public -/
+def Packet.Insts.UntrustedWriterEncode.encode
+  (self : Packet) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    Header.Insts.UntrustedWriterEncode.encode self.header w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode
+        self.checksum w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Packet}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 17:17-17:23 -/
+@[reducible]
+def Packet.Insts.UntrustedWriterEncode : untrusted.writer.Encode Packet := {
+  encode := Packet.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Pair}::decode]:
-    Source: 'examples/derive-demo/src/lib.rs', lines 23:9-23:15
+    Source: 'examples/derive-demo/src/lib.rs', lines 24:9-24:15
     Visibility: public -/
 def Pair.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -133,14 +242,68 @@ def Pair.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Pair}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 23:9-23:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 24:9-24:15 -/
 @[reducible]
 def Pair.Insts.UntrustedReaderDecode : untrusted.reader.Decode Pair := {
   decode := Pair.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Pair}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 24:17-24:23
+    Visibility: public -/
+def Pair.Insts.UntrustedWriterEncode.encode
+  (self : Pair) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (be, le) := self
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU16.Insts.UntrustedWriterEncode.encode be w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      untrusted.bytes.LittleEndianU16.Insts.UntrustedWriterEncode.encode le w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Pair}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 24:17-24:23 -/
+@[reducible]
+def Pair.Insts.UntrustedWriterEncode : untrusted.writer.Encode Pair := {
+  encode := Pair.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Keyed}::decode]:
-    Source: 'examples/derive-demo/src/lib.rs', lines 27:9-27:15
+    Source: 'examples/derive-demo/src/lib.rs', lines 28:9-28:15
     Visibility: public -/
 def Keyed.Insts.UntrustedReaderDecode.decode
   (r : untrusted.reader.Reader) :
@@ -183,14 +346,159 @@ def Keyed.Insts.UntrustedReaderDecode.decode
     ok (r3, r2)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Keyed}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 27:9-27:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 28:9-28:15 -/
 @[reducible]
 def Keyed.Insts.UntrustedReaderDecode : untrusted.reader.Decode Keyed := {
   decode := Keyed.Insts.UntrustedReaderDecode.decode
 }
 
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Keyed}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 28:17-28:23
+    Visibility: public -/
+def Keyed.Insts.UntrustedWriterEncode.encode
+  (self : Keyed) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.LittleEndianU32.Insts.UntrustedWriterEncode.encode 
+      self.id w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      ArrayU8N.Insts.UntrustedWriterEncode.encode self.key w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let (r2, w3, encode_back2) ←
+        ArrayU8N.Insts.UntrustedWriterEncode.encode self.tag w2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue _ =>
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (core.result.Result.Ok (), w3, back)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        let r3 ←
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+        let back :=
+          fun w4 =>
+            {
+              w
+                with
+                out :=
+                  (encode_back
+                    {
+                      w1
+                        with
+                        out :=
+                          (encode_back1
+                            { w2 with out := (encode_back2 w4).out }).out
+                    }).out
+            }
+        ok (r3, w3, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Keyed}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 28:17-28:23 -/
+@[reducible]
+def Keyed.Insts.UntrustedWriterEncode : untrusted.writer.Encode Keyed := {
+  encode := Keyed.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Version}::decode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 36:9-36:15
+    Visibility: public -/
+def Version.Insts.UntrustedReaderDecode.decode
+  (r : untrusted.reader.Reader) :
+  Result ((core.result.Result Version untrusted.ValidationError) ×
+    untrusted.reader.Reader)
+  := do
+  let (r1, r2) ←
+    untrusted.reader.Reader.decode
+      untrusted.bytes.BigEndianU8.Insts.UntrustedReaderDecode r
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    ok (core.result.Result.Ok val, r2)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r3 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Version (core.convert.FromSame untrusted.ValidationError) residual
+    ok (r3, r2)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Version}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 36:9-36:15 -/
+@[reducible]
+def Version.Insts.UntrustedReaderDecode : untrusted.reader.Decode Version := {
+  decode := Version.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Version}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 36:17-36:23
+    Visibility: public -/
+def Version.Insts.UntrustedWriterEncode.encode
+  (self : Version) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    untrusted.bytes.BigEndianU8.Insts.UntrustedWriterEncode.encode self w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (core.result.Result.Ok (), w1, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Version}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 36:17-36:23 -/
+@[reducible]
+def Version.Insts.UntrustedWriterEncode : untrusted.writer.Encode Version := {
+  encode := Version.Insts.UntrustedWriterEncode.encode
+}
+
 /-- [derive_demo::{impl untrusted::reader::Decode for derive_demo::Marker}::decode]:
-    Source: 'examples/derive-demo/src/lib.rs', lines 35:9-35:15
+    Source: 'examples/derive-demo/src/lib.rs', lines 40:9-40:15
     Visibility: public -/
 def Marker.Insts.UntrustedReaderDecode.decode
   (_r : untrusted.reader.Reader) :
@@ -200,10 +508,82 @@ def Marker.Insts.UntrustedReaderDecode.decode
   ok (core.result.Result.Ok (), _r)
 
 /-- Trait implementation: [derive_demo::{impl untrusted::reader::Decode for derive_demo::Marker}]
-    Source: 'examples/derive-demo/src/lib.rs', lines 35:9-35:15 -/
+    Source: 'examples/derive-demo/src/lib.rs', lines 40:9-40:15 -/
 @[reducible]
 def Marker.Insts.UntrustedReaderDecode : untrusted.reader.Decode Marker := {
   decode := Marker.Insts.UntrustedReaderDecode.decode
+}
+
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Marker}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 40:17-40:23
+    Visibility: public -/
+def Marker.Insts.UntrustedWriterEncode.encode
+  (self : Marker) (_w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let back := fun _w1 => { _w with out := _w1.out }
+  ok (core.result.Result.Ok (), _w, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Marker}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 40:17-40:23 -/
+@[reducible]
+def Marker.Insts.UntrustedWriterEncode : untrusted.writer.Encode Marker := {
+  encode := Marker.Insts.UntrustedWriterEncode.encode
+}
+
+/-- [derive_demo::{impl untrusted::writer::Encode for derive_demo::Framed<'a>}::encode]:
+    Source: 'examples/derive-demo/src/lib.rs', lines 45:9-45:15
+    Visibility: public -/
+def Framed.Insts.UntrustedWriterEncode.encode
+  (self : Framed) (w : untrusted.writer.Writer) :
+  Result ((core.result.Result Unit untrusted.writer.EncodeError) ×
+    untrusted.writer.Writer × (untrusted.writer.Writer →
+    untrusted.writer.Writer))
+  := do
+  let (r, w1, encode_back) ←
+    Header.Insts.UntrustedWriterEncode.encode self.header w
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue _ =>
+    let (r1, w2, encode_back1) ←
+      Shared0SliceU8.Insts.UntrustedWriterEncode.encode self.payload w1
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue _ =>
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (core.result.Result.Ok (), w2, back)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      let r2 ←
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+      let back :=
+        fun w3 =>
+          {
+            w
+              with
+              out := (encode_back { w1 with out := (encode_back1 w3).out }).out
+          }
+      ok (r2, w2, back)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    let r1 ←
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Unit (core.convert.FromSame untrusted.writer.EncodeError) residual
+    let back := fun w2 => { w with out := (encode_back w2).out }
+    ok (r1, w1, back)
+
+/-- Trait implementation: [derive_demo::{impl untrusted::writer::Encode for derive_demo::Framed<'a>}]
+    Source: 'examples/derive-demo/src/lib.rs', lines 45:9-45:15 -/
+@[reducible]
+def Framed.Insts.UntrustedWriterEncode : untrusted.writer.Encode Framed := {
+  encode := Framed.Insts.UntrustedWriterEncode.encode
 }
 
 end derive_demo

@@ -8,6 +8,7 @@
    command is not part of the trusted base. The generated text is logged so
    that it can be reviewed. -/
 import Untrusted.Proofs.DecodesAs
+import Untrusted.Proofs.EncodesAs
 
 open Lean Elab Command Meta
 
@@ -195,5 +196,168 @@ elab "derive_decode_spec " id:ident : command => do
     for m in msgs.toList do logMessage m
     if stx.isOfKind ``Parser.Command.eoi then break
     elabCommand stx
+
+/-- Elaborates the commands in `text`, one after another. -/
+def elabText (text : String) (what : String) : CommandElabM Unit := do
+  let inputCtx := Parser.mkInputContext text s!"<{what}>"
+  let mut state : Parser.ModuleParserState := {}
+  repeat
+    let (stx, st', msgs) :=
+      Parser.parseCommand inputCtx { env := (← getEnv), options := {} } state {}
+    state := st'
+    for m in msgs.toList do logMessage m
+    if stx.isOfKind ``Parser.Command.eoi then break
+    elabCommand stx
+
+/-! ## `derive_encode_spec`
+
+The counterpart for `Encode`: `derive_encode_spec S` proves that the
+`Encode` impl of `S` writes `S`'s fields one after another, and
+`derive_roundtrip_spec S` that `S`'s `Decode` impl reads back what it writes,
+for the values whose fields round-trip. Both build their statements from the
+structure as Aeneas translated it and the field types' own instances, as
+`derive_decode_spec` does. -/
+
+/-- The `Encode` impl constants of the environment, keyed by their exact type. -/
+def encodeImpls (env : Environment) : Array (Expr × Name) := Id.run do
+  let mut out := #[]
+  for (n, info) in env.constants.toList do
+    if let .app (.const ``untrusted.writer.Encode _) t := info.type then
+      if !n.isInternal then out := out.push (t, n)
+  return out
+
+/-- The `Encode` impl for the field type `t`, as a term. A fixed-size byte
+    array `Array U8 n` uses the generic `[u8; N]` impl, applied to `n`. -/
+def encodeImplTermFor (impls : Array (Expr × Name)) (t : Expr) : CommandElabM String := do
+  if t.isAppOfArity ``Aeneas.Std.Array 2 && t.appFn!.appArg! == .const ``Aeneas.Std.U8 [] then
+    let n ← liftTermElabM do return toString (← ppExpr t.appArg!)
+    return s!"(untrusted.ArrayU8N.Insts.UntrustedWriterEncode ({n}))"
+  match impls.filter (·.1 == t) with
+  | #[(_, n)] => return toString n
+  | #[] => throwError "no `Encode` impl found for field type {t}"
+  | ms => throwError "several `Encode` impls for field type {t}: {ms.map (·.2)}"
+
+/-- The definition of `S.fields`, the tuple of `S`'s fields, unless
+    `derive_decode_spec` already made it. -/
+def renderFields (env : Environment) (S : Name) (accesses : List String) : String :=
+  let s := toString S
+  if env.contains (S ++ `fields) then "" else
+  "set_option linter.unusedVariables false in\n" ++
+  s!"/-- `{s}` viewed as the tuple of its fields, in declaration order. -/\n" ++
+  s!"def _root_.{s}.fields (v : {s}) := (" ++ String.intercalate ", " accesses ++
+    (if accesses.isEmpty then "" else ", ") ++ "())\n\n"
+
+/-- The spec of the `Encode` impl `inst` of `S`, whose function is
+    `encodeFn`, with its fields given by how to access them from `v : S` and
+    their `Encode` impls. -/
+def renderEncode (S inst encodeFn : Name) (fields : List (String × String)) : String :=
+  let s := toString S
+  let insts := fields.map (·.2)
+  let E := nestSeq insts "Enil" fun i acc => s!"(Eseq (FmtE {i}) {acc})"
+  let n := fields.length
+  let ind (d : Nat) := String.ofList (List.replicate (4 + 2 * d) ' ')
+  let wr (i : Nat) := if i = 0 then "w" else s!"w{i}"
+  let hinv (i : Nat) := if i = 0 then "hinv" else s!"hinv{i}"
+  -- Fields `1..i-1` written, then `tail` for field `i`: the outermost link
+  -- rebuilds the writer around the backward function, the inner ones do not.
+  let chain (i : Nat) (tail : String) :=
+    (List.range (i - 1)).foldr (fun j acc =>
+      let link := if j = 0 then "Writes.cons" else "Writes.cons_in"
+      s!"({link} {hinv j} h{j+1} {acc})") tail
+  let okFinal :=
+    if n = 1 then "Writes.wrap (Writes.append_nil h1)"
+    else chain n s!"(Writes.append_nil h{n})"
+  let errTerm (i : Nat) :=
+    if i = 1 then "Writes.err_cons _ _ h1" else chain i s!"(Writes.err_append _ _ h{i})"
+  let rec steps (i : Nat) (fuel : Nat) : String :=
+    match fuel with
+    | 0 => ""
+    | fuel + 1 =>
+      let d := i - 1
+      let (acc, inst) := fields[i-1]!
+      s!"{ind d}apply WP.spec_bind (EncodesAs.spec (inst := {inst}) ({acc}) {wr (i-1)} {hinv (i-1)})\n" ++
+      s!"{ind d}rintro ⟨res{i}, w{i}, b{i}⟩ h{i}\n" ++
+      s!"{ind d}simp only [WP.uncurry'_pair, uncurry] at h{i} ⊢\n" ++
+      s!"{ind d}cases res{i}\n" ++
+      s!"{ind d}· simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok]\n" ++
+      s!"{ind (d+1)}have hinv{i} := h{i}.2.2.1\n" ++
+      (if i = n then
+        s!"{ind (d+1)}simp only [WP.spec_ok, WP.uncurry'_pair]\n" ++
+        s!"{ind (d+1)}exact {okFinal}\n"
+      else steps (i + 1) fuel) ++
+      s!"{ind d}· simp only [core.result.Result.Insts.CoreOpsTry.branch, bind_ok,\n" ++
+      s!"{ind (d+2)}core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual,\n" ++
+      s!"{ind (d+2)}core.convert.FromSame.from, bind_tc_ok, WP.spec_ok, WP.uncurry'_pair]\n" ++
+      s!"{ind (d+1)}exact {errTerm i}\n"
+  let proof :=
+    if n = 0 then
+      s!"    simp only [{encodeFn}, WP.spec_ok, WP.uncurry'_pair]\n" ++
+      "    exact Writes.nil hinv\n"
+    else
+      s!"    simp only [{encodeFn}]\n" ++ steps 1 n
+  "set_option linter.unusedSimpArgs false in\n" ++
+  "set_option linter.unusedVariables false in\n" ++
+  "set_option linter.unnecessarySeqFocus false in\n" ++
+  "open Aeneas Aeneas.Std Result untrusted untrusted.writer in\n" ++
+  s!"/-- **Spec theorem for the derived `<{s} as Encode>::encode`**: writes the fields\n" ++
+  s!"    of `{s}` one after another, in declaration order. -/\n" ++
+  s!"instance _root_.{inst}.encode.spec :\n" ++
+  s!"    EncodesAs {inst} (fun v => {E} ({s}.fields v)) where\n" ++
+  s!"  spec v w hinv := by\n" ++ proof
+
+/-- The arguments of `FmtV`/`FmtRT` for a field of type `t`: its `Encode` and
+    `Decode` impls. A byte array names its length once, in the type: written
+    in both impls, the two `#usize` literals would each run their own proof
+    of range for the one length unification makes them share. -/
+def roundTripArgs (encs decs : Array (Expr × Name)) (t : Expr) : CommandElabM String := do
+  if t.isAppOfArity ``Aeneas.Std.Array 2 && t.appFn!.appArg! == .const ``Aeneas.Std.U8 [] then
+    let ty ← liftTermElabM do return toString (← ppExpr t)
+    return s!"(T := {ty}) (untrusted.ArrayU8N.Insts.UntrustedWriterEncode _) " ++
+      "(untrusted.ArrayU8N.Insts.UntrustedReaderDecode _)"
+  return s!"{← encodeImplTermFor encs t} {← implTermFor decs t}"
+
+/-- The `RoundTrip` instance of `S`, given its `Encode` and `Decode` impls and
+    its fields' `roundTripArgs`. -/
+def renderRoundTrip (S enc dec : Name) (fields : List String) : String :=
+  let s := toString S
+  let V := nestSeq fields "Vnil" fun p acc => s!"(Vseq (FmtV {p}) {acc})"
+  let RT := nestSeq fields "RoundTrips.nil" fun p acc =>
+    s!"(RoundTrips.seq (FmtRT {p}) {acc})"
+  "open Aeneas Aeneas.Std Result untrusted untrusted.writer untrusted.reader in\n" ++
+  s!"/-- `<{s} as Decode>` reads back what `<{s} as Encode>` writes, for the values whose\n" ++
+  s!"    fields round-trip. -/\n" ++
+  s!"instance _root_.{s}.roundtrip :\n" ++
+  s!"    RoundTrip {enc} {dec} (fun v => {V} ({s}.fields v)) where\n" ++
+  s!"  roundtrip := ({RT}).map {s}.fields\n"
+
+/-- Proves that the `Encode` impl of `S` writes its fields in order. -/
+elab "derive_encode_spec " id:ident : command => do
+  let env ← getEnv
+  let S ← liftCoreM <| realizeGlobalConstNoOverload id
+  let impls := encodeImpls env
+  let inst ← implFor impls (.const S [])
+  let encodeFn ← decodeFnOf env inst
+  let (fs, _) ← fieldsOf env S
+  let fields ← fs.mapM fun (a, t) => return (a, ← encodeImplTermFor impls t)
+  let text := renderFields env S (fs.map (·.1)) ++ renderEncode S inst encodeFn fields
+  if untrusted.derive.show.get (← getOptions) then
+    logInfo m!"derive_encode_spec {S}:\n{text}"
+  elabText text "derive_encode_spec"
+
+/-- Proves that the `Decode` impl of `S` reads back what its `Encode` impl
+    writes. Needs both impls' specs, and `RoundTrip` instances for the fields. -/
+elab "derive_roundtrip_spec " id:ident : command => do
+  let env ← getEnv
+  let S ← liftCoreM <| realizeGlobalConstNoOverload id
+  let encs := encodeImpls env
+  let decs := decodeImpls env
+  let enc ← implFor encs (.const S [])
+  let dec ← implFor decs (.const S [])
+  let (fs, _) ← fieldsOf env S
+  let fields ← fs.mapM fun (_, t) => roundTripArgs encs decs t
+  let text := renderRoundTrip S enc dec fields
+  if untrusted.derive.show.get (← getOptions) then
+    logInfo m!"derive_roundtrip_spec {S}:\n{text}"
+  elabText text "derive_roundtrip_spec"
 
 end untrusted.derive
