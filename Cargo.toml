@@ -9,6 +9,7 @@ members = [
   "crates/wireguard-libcrux",
   "crates/wg-runtime",
   "crates/wg-userspace",
+  "crates/ultranet",
   "crates/diomede",
   "crates/diomede-pcap",
   "examples/derive-demo",

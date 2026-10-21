@@ -1,0 +1,23 @@
+[package]
+name = "ultranet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "An ad-blocking WireGuard VPN server: the verified `wireguard` device on `wg-runtime`, with every packet from a client going through the verified `diomede` filter"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "ultranet"
+path = "src/main.rs"
+
+[dependencies]
+diomede = { path = "../diomede" }
+wg-runtime = { path = "../wg-runtime" }
+wireguard = { path = "../wireguard" }
+libc = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+net = { path = "../net" }

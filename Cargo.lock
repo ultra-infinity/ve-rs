@@ -604,6 +604,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ultranet"
+version = "0.1.0"
+dependencies = [
+ "diomede",
+ "libc",
+ "net",
+ "wg-runtime",
+ "wireguard",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
